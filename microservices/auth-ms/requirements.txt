@@ -1,4 +1,4 @@
-django>=4.2,<5.0
+django>=4.2,<7.0
 djangorestframework
 django-environ
 psycopg2-binary
