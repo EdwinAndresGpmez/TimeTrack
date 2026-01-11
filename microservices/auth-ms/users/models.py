@@ -2,31 +2,37 @@ from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin, Group
 
 class CrearCuentaManager(BaseUserManager):
-    def create_user(self, cedula, password=None, **extra_fields):
-        if not cedula:
-            raise ValueError('El número de documento (cédula) es obligatorio')
-        user = self.model(cedula=cedula, **extra_fields)
+    # Cambiamos 'cedula' por 'documento'
+    def create_user(self, documento, password=None, **extra_fields):
+        if not documento:
+            raise ValueError('El número de documento es obligatorio')
+        # Normalizamos la llamada al modelo
+        user = self.model(documento=documento, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
         return user
 
-    def create_superuser(self, cedula, password=None, **extra_fields):
+    def create_superuser(self, documento, password=None, **extra_fields):
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
-        return self.create_user(cedula, password, **extra_fields)
+        return self.create_user(documento, password, **extra_fields)
 
 class CrearCuenta(AbstractBaseUser, PermissionsMixin):
     username = models.CharField(max_length=255, unique=True)
     nombre = models.CharField(max_length=255)
     correo = models.EmailField(max_length=255, unique=True)
-    tipo_documento = models.CharField(max_length=20)
-    cedula = models.CharField(max_length=255, unique=True, db_index=True) # USERNAME_FIELD
-    numero = models.CharField(max_length=255)
+    
+    # Tipo de documento (CC, TI, PASAPORTE, DNI, ETC)
+    tipo_documento = models.CharField(max_length=20) 
+    
+    # Este será el identificador único del usuario en el sistema
+    documento = models.CharField(max_length=255, unique=True, db_index=True) 
+    
+    numero = models.CharField(max_length=255) # Asumo que este es el Teléfono de contacto
     
     # --- REFERENCIAS A OTROS MICROSERVICIOS (IDs) ---
-    # Indexamos estos campos porque se buscará mucho por ellos
     paciente_id = models.BigIntegerField(null=True, blank=True, db_index=True)
-    profesional_id = models.BigIntegerField(null=True, blank=True, db_index=True) # ¡FALTABA ESTE!
+    profesional_id = models.BigIntegerField(null=True, blank=True, db_index=True)
     
     acepta_tratamiento_datos = models.BooleanField(default=False)
     usuario_estado = models.BooleanField(default=True, null=True)
@@ -35,20 +41,16 @@ class CrearCuenta(AbstractBaseUser, PermissionsMixin):
 
     objects = CrearCuentaManager()
 
-    USERNAME_FIELD = 'cedula'
+    # Actualizamos el campo que Django usa para el login
+    USERNAME_FIELD = 'documento' 
     REQUIRED_FIELDS = ['username', 'correo', 'nombre']
 
-    # --- COMPATIBILIDAD ---
     @property
     def email(self):
-        """Puente para que Django encuentre .email aunque el campo sea .correo"""
         return self.correo
 
     def __str__(self):
-        return f"{self.nombre} - {self.cedula}"
-
-# --- MODELOS DE SOPORTE Y CONFIGURACIÓN UI ---
-# Estos modelos viven en Auth-MS porque controlan el acceso y la seguridad
+        return f"{self.nombre} - {self.documento}"
 
 class Auditoria(models.Model):
     descripcion = models.TextField() 

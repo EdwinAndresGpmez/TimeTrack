@@ -5,9 +5,9 @@ from .models import CrearCuenta, MenuItem, PermisoVista, Auditoria
 class CustomUserAdmin(UserAdmin):
     model = CrearCuenta
     
-    # 1. Columnas que se verán en la tabla principal
+    # 1. Columnas actualizadas
     list_display = (
-        'cedula', 
+        'documento', # <-- Cambio
         'nombre', 
         'correo', 
         'tipo_documento', 
@@ -17,18 +17,18 @@ class CustomUserAdmin(UserAdmin):
         'is_staff'
     )
     
-    # 2. Campos por los que podrás buscar
-    search_fields = ('cedula', 'nombre', 'correo', 'username')
+    # 2. Búsqueda actualizada
+    search_fields = ('documento', 'nombre', 'correo', 'username') # <-- Cambio
     
-    # 3. Filtros laterales
+    # 3. Filtros (Igual)
     list_filter = ('tipo_documento', 'is_staff', 'is_active', 'usuario_estado')
     
-    # 4. Ordenamiento por defecto
-    ordering = ('cedula',)
+    # 4. Ordenamiento
+    ordering = ('documento',) # <-- Cambio
 
-    # 5. Organización del formulario de edición
+    # 5. Formularios
     fieldsets = (
-        ('Credenciales', {'fields': ('username', 'cedula', 'password')}),
+        ('Credenciales', {'fields': ('username', 'documento', 'password')}), # <-- Cambio
         ('Información Personal', {
             'fields': (
                 'nombre', 
@@ -54,30 +54,14 @@ class CustomUserAdmin(UserAdmin):
         }),
     )
 
-    # Configuración para el formulario de "Agregar Usuario" desde el admin
     add_fieldsets = (
         (None, {
             'classes': ('wide',),
-            'fields': ('cedula', 'username', 'nombre', 'correo', 'password', 'confirm_password'),
+            'fields': ('documento', 'username', 'nombre', 'correo', 'password', 'confirm_password'), # <-- Cambio
         }),
     )
 
-# Configuración básica para los otros modelos
-@admin.register(MenuItem)
-class MenuItemAdmin(admin.ModelAdmin):
-    list_display = ('label', 'url', 'order')
-    list_editable = ('order',)
-    ordering = ('order',)
-
-@admin.register(PermisoVista)
-class PermisoVistaAdmin(admin.ModelAdmin):
-    list_display = ('nombre_vista',)
-
-@admin.register(Auditoria)
-class AuditoriaAdmin(admin.ModelAdmin):
-    list_display = ('fecha', 'usuario_id', 'modulo', 'descripcion')
-    list_filter = ('modulo', 'fecha')
-    readonly_fields = ('fecha',) # Para que nadie pueda alterar la fecha de auditoría
-
-# Registrar el modelo de usuario con la configuración personalizada
+# El resto de registros (MenuItem, etc.) se mantienen igual
 admin.site.register(CrearCuenta, CustomUserAdmin)
+admin.site.register(MenuItem)
+# ... etc

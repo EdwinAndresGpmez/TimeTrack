@@ -6,7 +6,8 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = CrearCuenta
         fields = [
-            'id', 'username', 'email', 'nombre', 'cedula', 
+            'id', 'username', 'email', 'nombre', 
+            'documento', # <-- Cambio aquí
             'tipo_documento', 'numero', 'paciente_id', 
             'profesional_id', 'is_staff'
         ]
@@ -29,13 +30,12 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     def get_token(cls, user):
         token = super().get_token(user)
 
-        # claims personalizados al token
-        token['cedula'] = user.cedula
+        # Claims actualizados
+        token['documento'] = user.documento  # <-- Cambio aquí: ahora es genérico
         token['nombre'] = user.nombre
         token['is_staff'] = user.is_staff
         token['paciente_id'] = user.paciente_id
         token['profesional_id'] = user.profesional_id
-        # grupos/roles para gestión de menús en frontend
         token['roles'] = list(user.groups.values_list('name', flat=True))
 
         return token
