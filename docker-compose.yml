@@ -1,0 +1,138 @@
+services:
+  db:
+    image: postgres:15
+    container_name: timetrack_db
+    restart: always
+    env_file: .env
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:alpine
+    container_name: timetrack_redis
+    ports:
+      - "6379:6379"
+
+  auth-ms:
+    build: ./microservices/auth-ms
+    container_name: auth_service
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - ./microservices/auth-ms:/app
+    ports:
+      - "8000:8000"
+    env_file: .env
+    depends_on:
+      - db
+      - redis
+  patients-ms:
+    build: ./microservices/patients-ms
+    container_name: patients_service
+    command: python manage.py runserver 0.0.0.0:8001
+    volumes:
+      - ./microservices/patients-ms:/app
+    ports:
+      - "8001:8001"
+    env_file: .env
+    depends_on:
+      - db
+    environment:
+      - DATABASE_URL=postgres://postgres:Samu75329Gomez@db:5432/patients_db
+
+  professionals-ms:
+    build: ./microservices/professionals-ms
+    container_name: professionals_service
+    command: python manage.py runserver 0.0.0.0:8002
+    volumes:
+      - ./microservices/professionals-ms:/app
+    ports:
+      - "8002:8002"
+    env_file: .env
+    depends_on:
+      - db
+    environment:
+      - DATABASE_URL=postgres://postgres:Samu75329Gomez@db:5432/professionals_db
+
+  schedule-ms:
+    build: ./microservices/schedule-ms
+    container_name: schedule_service
+    command: python manage.py runserver 0.0.0.0:8003
+    volumes:
+      - ./microservices/schedule-ms:/app
+    ports:
+      - "8003:8003"
+    env_file: .env
+    depends_on:
+      - db
+    environment:
+      - DATABASE_URL=postgres://postgres:Samu75329Gomez@db:5432/schedule_db
+
+  appointments-ms:
+    build: ./microservices/appointments-ms
+    container_name: appointments_service
+    command: python manage.py runserver 0.0.0.0:8004
+    volumes:
+      - ./microservices/appointments-ms:/app
+    ports:
+      - "8004:8004"
+    env_file: .env
+    depends_on:
+      - db
+    environment:
+      - DATABASE_URL=postgres://postgres:Samu75329Gomez@db:5432/appointments_db
+
+  # ... (otros servicios) ...
+
+  notification-ms:
+    build: ./microservices/notification-ms
+    container_name: notification_service
+    command: python manage.py runserver 0.0.0.0:8005
+    volumes:
+      - ./microservices/notification-ms:/app
+    ports:
+      - "8005:8005"
+    env_file: .env
+    depends_on:
+      - db
+    environment:
+      - DATABASE_URL=postgres://postgres:Samu75329Gomez@db:5432/notifications_db
+
+  # ... (todos los servicios anteriores) ...
+
+  # --- EL RECEPCIONISTA (API GATEWAY) ---
+  gateway:
+    image: nginx:latest
+    container_name: api_gateway
+    volumes:
+      - ./gateway/nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "8080:80" # Exponemos en el puerto 8080 para no chocar con nada local
+    depends_on:
+      - auth-ms
+      - patients-ms
+      - professionals-ms
+      - schedule-ms
+      - appointments-ms
+      - notification-ms
+
+  frontend:
+    build: ./frontend
+    container_name: frontend_app
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules # Evita que se borren las dependencias dentro del contenedor
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:8080/api # Apuntamos al Gateway
+    depends_on:
+      - gateway
+
+volumes:
+  postgres_data:

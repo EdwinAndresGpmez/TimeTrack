@@ -1,0 +1,20 @@
+from rest_framework import serializers
+from .models import Paciente, TipoPaciente
+
+class TipoPacienteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TipoPaciente
+        fields = '__all__'
+
+class PacienteSerializer(serializers.ModelSerializer):
+    # Campo calculado para mostrar el nombre del tipo en lugar de solo el ID
+    tipo_usuario_nombre = serializers.ReadOnlyField(source='tipo_usuario.nombre')
+
+    class Meta:
+        model = Paciente
+        fields = [
+            'id', 'nombre', 'apellido', 'tipo_documento', 'numero_documento',
+            'fecha_nacimiento', 'genero', 'direccion', 'telefono', 
+            'email_contacto', 'tipo_usuario', 'tipo_usuario_nombre', 
+            'activo', 'created_at'
+        ]

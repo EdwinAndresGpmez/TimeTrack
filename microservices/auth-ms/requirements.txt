@@ -1,0 +1,9 @@
+django>=4.2,<5.0
+djangorestframework
+django-environ
+psycopg2-binary
+djangorestframework-simplejwt
+django-cors-headers
+celery
+redis
+whitenoise

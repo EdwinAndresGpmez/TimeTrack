@@ -1,0 +1,53 @@
+# --- 🔐 SEGURIDAD (Crítico) ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# --- 🐍 PYTHON / DJANGO (Microservicios) ---
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+.venv/
+db.sqlite3
+db.sqlite3-journal
+# Archivos estáticos y media generados
+/static/
+/media/
+/staticfiles/
+
+# --- ⚛️ FRONTEND (Node / Vite) ---
+node_modules/
+dist/
+build/
+coverage/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.eslintcache
+
+# --- 🐘 BASE DE DATOS (PostgreSQL) ---
+# Aunque usas volúmenes nombrados, ignoramos estas carpetas
+# por si alguna vez cambias a volúmenes locales.
+postgres_data/
+pgdata/
+data/
+db_data/
+
+# --- 🐳 DOCKER ---
+.docker_volumes/
+docker-compose.override.yml
+
+# --- 🖥️ SISTEMA OPERATIVO ---
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# --- 🛠️ IDEs (Editores) ---
+.vscode/
+.idea/
+*.swp
+*.swo
