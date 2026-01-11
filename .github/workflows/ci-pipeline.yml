@@ -40,7 +40,7 @@ jobs:
 
     # 4. Probar que los contenedores se construyen correctamente
     - name: Build Docker Services
-      run: docker-compose build
+      run: docker compose build
 
     # 5. Probar que los servicios levantan sin crashear inmediatamente
     - name: Test Containers Up
