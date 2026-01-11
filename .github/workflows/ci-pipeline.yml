@@ -44,4 +44,4 @@ jobs:
 
     # 5. Probar que los servicios levantan sin crashear inmediatamente
     - name: Test Containers Up
-      run: docker-compose up -d
+      run: docker compose up -d
