@@ -14,7 +14,7 @@ jobs:
     steps:
     # 1. Descargar tu código en el servidor de GitHub
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
 
     # 2. Configurar Docker
     - name: Set up Docker Buildx
