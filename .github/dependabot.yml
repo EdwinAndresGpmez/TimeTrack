@@ -1,0 +1,49 @@
+version: 2
+updates:
+  # 1. Mantener las GitHub Actions actualizadas
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+
+  # 2. Frontend (npm)
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+
+  # 3. Backend - Auth
+  - package-ecosystem: "pip"
+    directory: "/microservices/auth-ms"
+    schedule:
+      interval: "weekly"
+
+  # 4. Backend - Patients
+  - package-ecosystem: "pip"
+    directory: "/microservices/patients-ms"
+    schedule:
+      interval: "weekly"
+  
+  # 5. Backend - Professionals
+  - package-ecosystem: "pip"
+    directory: "/microservices/professionals-ms"
+    schedule:
+      interval: "weekly"
+
+  # 6. Backend - Schedule
+  - package-ecosystem: "pip"
+    directory: "/microservices/schedule-ms"
+    schedule:
+      interval: "weekly"
+
+  # 7. Backend - Appointments
+  - package-ecosystem: "pip"
+    directory: "/microservices/appointments-ms"
+    schedule:
+      interval: "weekly"
+
+  # 8. Backend - Notifications
+  - package-ecosystem: "pip"
+    directory: "/microservices/notification-ms"
+    schedule:
+      interval: "weekly"

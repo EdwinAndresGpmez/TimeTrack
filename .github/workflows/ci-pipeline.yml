@@ -1,0 +1,47 @@
+name: TimeTrack CI
+
+# ¿Cuándo se ejecuta?
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    # 1. Descargar tu código en el servidor de GitHub
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    # 2. Configurar Docker
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    # 3. Crear un archivo .env temporal
+    # Esto es vital: GitHub no tiene tu .env real. 
+    # Creamos uno falso con valores genéricos solo para que Docker no falle al iniciar.
+    - name: Create dummy .env file
+      run: |
+        echo "DB_NAME=test_db" >> .env
+        echo "DB_USER=postgres" >> .env
+        echo "DB_PASSWORD=postgres" >> .env
+        echo "DB_HOST=db" >> .env
+        echo "DB_PORT=5432" >> .env
+        echo "SECRET_KEY=django-insecure-test-key-12345" >> .env
+        echo "DEBUG=True" >> .env
+        echo "ALLOWED_HOSTS=localhost,127.0.0.1" >> .env
+        echo "REDIS_URL=redis://redis:6379/0" >> .env
+        echo "DATABASE_URL=postgres://postgres:postgres@db:5432/test_db" >> .env
+        # Variables para el frontend si las necesita
+        echo "VITE_API_URL=http://localhost:8080/api" >> .env
+
+    # 4. Probar que los contenedores se construyen correctamente
+    - name: Build Docker Services
+      run: docker-compose build
+
+    # 5. Probar que los servicios levantan sin crashear inmediatamente
+    - name: Test Containers Up
+      run: docker-compose up -d
