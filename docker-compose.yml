@@ -87,8 +87,6 @@ services:
     environment:
       - DATABASE_URL=postgres://postgres:Samu75329Gomez@db:5432/appointments_db
 
-  # ... (otros servicios) ...
-
   notification-ms:
     build: ./microservices/notification-ms
     container_name: notification_service
@@ -103,9 +101,36 @@ services:
     environment:
       - DATABASE_URL=postgres://postgres:Samu75329Gomez@db:5432/notifications_db
 
-  # ... (todos los servicios anteriores) ...
+  ia-ms:
+    build: ./microservices/ia-ms
+    container_name: ia_service
+    command: python manage.py runserver 0.0.0.0:8006
+    volumes:
+      - ./microservices/ia-ms:/app
+    ports:
+      - "8006:8006"
+    env_file: .env
+    depends_on:
+      - db
+    environment:
+      - DATABASE_URL=postgres://postgres:Samu75329Gomez@db:5432/ia_db
 
-  # --- EL RECEPCIONISTA (API GATEWAY) ---
+  portal-ms:
+    build: ./microservices/portal-ms
+    container_name: portal_service
+    command: python manage.py runserver 0.0.0.0:8007
+    volumes:
+      - ./microservices/portal-ms:/app
+      # Volumen persistente para archivos subidos (Imágenes, CVs)
+      - media_portal_data:/app/media
+    ports:
+      - "8007:8007"
+    env_file: .env
+    depends_on:
+      - db
+    environment:
+      - DATABASE_URL=postgres://postgres:Samu75329Gomez@db:5432/portal_db
+
   gateway:
     image: nginx:latest
     container_name: api_gateway
@@ -136,3 +161,4 @@ services:
 
 volumes:
   postgres_data:
+  media_portal_data:

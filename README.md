@@ -39,18 +39,18 @@ django-admin startproject core .
 
 * Levantar la base de datos y Redis: docker-compose up -d db redis
 
-* Crear el proyecto Django dentro del contenedor: docker-compose run --rm auth-ms django-admin startproject core .
+* Crear el proyecto Django dentro del contenedor: docker-compose run --rm portal-ms django-admin startproject core .
 
-* Crear la aplicación de usuarios: docker-compose run --rm auth-ms python manage.py startapp users
+* Crear la aplicación de usuarios: docker-compose run --rm portal-ms python manage.py startapp content
 
 5. Ejecutar Migraciones iniciales
 
-docker-compose run --rm auth-ms python manage.py makemigrations users
-docker-compose run --rm auth-ms python manage.py migrate
+docker-compose run --rm ia-ms python manage.py makemigrations agent
+docker-compose run --rm ia-ms python manage.py migrate
 
 6. Crear un super usuario:
 
-docker-compose run --rm auth-ms python manage.py createsuperuser
+docker-compose run --rm ia-ms python manage.py createsuperuser
 
 7. Prueba de json microservicios para user:
 
