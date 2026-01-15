@@ -1,82 +1,63 @@
-import { createContext, useContext, useState, useEffect } from 'react';
-import { jwtDecode } from "jwt-decode"; 
-import api from '../services/api';
+import React, { createContext, useState, useEffect } from 'react';
+import { jwtDecode } from "jwt-decode";
+import { authService } from '../services/authService';
 
-const AuthContext = createContext();
+export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+    const [user, setUser] = useState(null); // Aquí guardaremos los datos del usuario (nombre, rol, etc.)
+    const [loading, setLoading] = useState(true); // Para no mostrar la app hasta verificar si hay sesión guardada
 
-  // Función para leer el token y actualizar el estado
-  const decodeAndSetUser = (token) => {
-    try {
-      const decoded = jwtDecode(token);
-      // AQUI EL CAMBIO: Ahora leemos 'documento' del payload del token
-      // Estos datos vienen de tu 'CustomTokenObtainPairSerializer' en Python
-      setUser({
-        documento: decoded.documento,
-        nombre: decoded.nombre,
-        roles: decoded.roles,
-        paciente_id: decoded.paciente_id,
-        profesional_id: decoded.profesional_id
-      }); 
-    } catch (error) {
-      console.error("Token inválido", error);
-      logout();
-    }
-  };
+    // Al cargar la página, verificamos si hay un token guardado
+    useEffect(() => {
+        const checkSession = () => {
+            const token = localStorage.getItem('token');
+            if (token) {
+                try {
+                    const decoded = jwtDecode(token);
+                    // Verificamos si el token expiró (exp viene en segundos)
+                    if (decoded.exp * 1000 < Date.now()) {
+                        logout();
+                    } else {
+                        setUser(decoded); // Guardamos la info decodificada del token
+                    }
+                } catch (error) {
+                    console.error("Token inválido", error);
+                    logout();
+                }
+            }
+            setLoading(false);
+        };
+        checkSession();
+    }, []);
 
-  useEffect(() => {
-    // Al recargar la página (F5), verificamos si hay sesión viva
-    const token = localStorage.getItem('access_token');
-    if (token) {
-      decodeAndSetUser(token);
-    }
-    setLoading(false);
-  }, []);
+    // Función para Iniciar Sesión (La usará Login.jsx)
+    const login = async (credentials) => {
+        try {
+            // 1. Llamamos al servicio (que habla con Django)
+            const data = await authService.login(credentials);
+            
+            // 2. Si el backend responde ok, decodificamos el token access
+            if (data.access) {
+                const decoded = jwtDecode(data.access);
+                setUser(decoded); // ¡Aquí es donde el front se entera de quién eres!
+                return true;
+            }
+        } catch (error) {
+            throw error;
+        }
+    };
 
-  const login = async (documento, password) => {
-    try {
-      // NOTA TÉCNICA IMPORTANTE:
-      // Aunque tu campo en BD se llama 'documento', Django SimpleJWT por defecto
-      // espera recibir una llave llamada 'username' en el JSON.
-      // Por eso enviamos: { username: documento, ... }
-      const response = await api.post('/auth/login/', { 
-        documento: documento, 
-        password: password 
-      });
-      
-      const { access, refresh } = response.data;
+    // Función para Salir (La usará el Navbar)
+    const logout = () => {
+        authService.logout(); // Limpia localStorage
+        setUser(null); // Limpia estado
+        window.location.href = '/login'; // Fuerza recarga hacia login
+    };
 
-      // Guardamos las llaves en el navegador
-      localStorage.setItem('access_token', access);
-      localStorage.setItem('refresh_token', refresh);
-      
-      // Actualizamos la app React
-      decodeAndSetUser(access);
-      
-      return { success: true };
-    } catch (error) {
-      console.error("Error en Login:", error);
-      return { 
-        success: false, 
-        message: JSON.stringify(error.response?.data) || "Error al iniciar sesión" 
-      };
-    }
-  };
-
-  const logout = () => {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    setUser(null);
-  };
-
-  return (
-    <AuthContext.Provider value={{ user, login, logout, loading }}>
-      {!loading && children}
-    </AuthContext.Provider>
-  );
+    return (
+        <AuthContext.Provider value={{ user, login, logout, loading }}>
+            {!loading && children}
+        </AuthContext.Provider>
+    );
 };
-
-export const useAuth = () => useContext(AuthContext);

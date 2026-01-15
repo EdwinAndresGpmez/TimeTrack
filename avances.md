@@ -73,7 +73,74 @@ Debemos migrar el HTML de "Servicios Asociados Integrados" a componentes React:
 
 ## 🛠️ 4. Comandos Útiles para Retomar
 
-**Levantar todo el ecosistema (reconstruyendo cambios):**
-```bash
-docker-compose down -v  # ¡OJO! Borra datos de BD. Usar solo en dev inicial.
-docker-compose up -d --build
+# 📅 Estado del Proyecto: TimeTrack (Microservicios Médicos)
+**Fecha:** 14 de Enero, 2026
+**Tecnologías:** React + Vite, Django REST, Docker, Nginx, PostgreSQL, TailwindCSS.
+
+---
+
+## ✅ 1. Lo Hecho (Completed)
+
+### 🏗️ Infraestructura y Configuración
+- [x] **Gateway (Nginx):** Configuración corregida para manejar `proxy_set_header Host $http_host;` (solución de carga de imágenes y puertos).
+- [x] **CORS:** Middleware de Django configurado en el orden correcto en `settings.py`.
+- [x] **Tailwind CSS:** Reinstalada versión estable (**v3.4.17**) para compatibilidad con Vite/PostCSS (se eliminó la v4 beta conflictiva).
+
+### 🖥️ Frontend - Portal Público
+- [x] **Componentes UI:** `Navbar` (Responsive), `Footer`.
+- [x] **Home:** `HeroSlider` (conectado a Banners del backend), `ServicesGrid` (Tarjetas animadas), `AboutSection` (Contadores animados con `react-countup`).
+- [x] **Estilos:** Diseño limpio en colores corporativos (Azul/Verde/Blanco) usando Tailwind.
+
+### 🔐 Frontend - Autenticación (Auth)
+- [x] **Layouts:** `AuthLayout` con fondo animado (burbujas flotantes) y tarjeta de cristal (`backdrop-blur`).
+- [x] **Modal de Términos:** Implementado con **React Portals** para superponerse correctamente (`z-index: 100`, pantalla completa) y diseño a dos columnas.
+- [x] **Alertas:** Reemplazo de `window.alert` por **SweetAlert2** (Toast y Modales animados).
+- [x] **Contexto (`AuthContext`):** Implementado para manejar sesión global, persistencia en `localStorage` y decodificación de JWT (`jwt-decode`).
+
+### ⚙️ Backend - Auth Microservice
+- [x] **Serializer Personalizado:** `UserSerializer` incluye campo `acepta_tratamiento_datos`.
+- [x] **Views:** `RegistroView` (Crear cuenta) y `CustomTokenObtainPairView` (Login con claims extra: rol, nombre, documento).
+- [x] **URLs:** Rutas expuestas correctamente en `/api/v1/auth/`.
+
+---
+
+## 🚧 2. Lo que estamos haciendo (In Progress)
+
+- [x] **Conexión Login:** Se corrigió el error `400 Bad Request`.
+    - *Solución:* El backend espera el campo `documento`, pero el frontend enviaba `username`. Se ajustó `authService.js`.
+- [x] **Validación de Sesión:** El token JWT ya se recibe y se guarda.
+- [ ] **Redirección y UI de Usuario Logueado:**
+    - Verificar que el Navbar cambie de "Agendar Cita" a "Hola, [Nombre]" tras el login.
+    - Asegurar la redirección correcta a `/` o `/dashboard`.
+
+---
+
+## 📋 3. Lo que falta (Pending / Next Steps)
+
+### 🔜 Inmediato (Próxima Sesión)
+1.  **Rutas Protegidas:** Crear componente `PrivateRoute` para bloquear acceso a `/dashboard` si no hay login.
+2.  **Dashboard Layout:** Crear la estructura interna (Sidebar lateral + Topbar) diferente al Portal público.
+3.  **Roles:** Diferenciar la vista del Dashboard según si es `PACIENTE` o `PROFESIONAL` (leído desde el JWT).
+
+### 📅 Funcionalidades Core
+- [ ] **Módulo de Citas:**
+    - Selección de especialidad -> Profesional -> Horario.
+    - Calendario visual para disponibilidad.
+- [ ] **Perfil de Usuario:** Editar datos personales y cambiar contraseña.
+- [ ] **PQRS y Trabaje con Nosotros:** Verificar envío real de formularios con archivos adjuntos al backend.
+
+---
+
+## 🧠 Notas Técnicas para la IA (Memoria)
+
+**1. Configuración Crítica de Auth (Frontend):**
+El servicio `authService.js` **DEBE** enviar el payload de login así, ya que el modelo de usuario personalizado usa `documento` como identificador:
+```javascript
+// frontend/src/services/authService.js
+login: async (credentials) => {
+    const response = await api.post('/auth/login/', {
+        documento: credentials.documento, // NO enviar 'username'
+        password: credentials.password
+    });
+    // ...
+}

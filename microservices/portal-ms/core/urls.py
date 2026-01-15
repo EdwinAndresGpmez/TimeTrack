@@ -15,17 +15,26 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import path
 from django.conf import settings
 from django.conf.urls.static import static
 
+# Importamos las vistas directamente
+from content.views import BannerListView, VideoListView
+from forms.views import PQRSCreateView, HVCreateView
+
 urlpatterns = [
     path('admin/', admin.site.urls),
-    # Aquí mapearemos las rutas de las apps más adelante
-    # path('api/v1/portal/content/', include('content.urls')),
-    # path('api/v1/portal/forms/', include('forms.urls')),
+
+    # --- Rutas de Contenido (GET) ---
+    path('api/v1/portal/banners/', BannerListView.as_view(), name='banner-list'),
+    path('api/v1/portal/videos/', VideoListView.as_view(), name='video-list'),
+
+    # --- Rutas de Formularios (POST) ---
+    path('api/v1/portal/pqrs/', PQRSCreateView.as_view(), name='pqrs-create'),
+    path('api/v1/portal/trabaje-con-nosotros/', HVCreateView.as_view(), name='hv-create'),
 ]
 
-# Esto permite ver las imágenes subidas cuando estás en localhost
+# Configuración para servir archivos multimedia (Imágenes/PDFs) en desarrollo
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

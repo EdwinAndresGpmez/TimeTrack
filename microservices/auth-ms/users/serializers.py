@@ -6,18 +6,25 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = CrearCuenta
         fields = [
-            'id', 'username', 'email', 'nombre', 
-            'documento', # <-- Cambio aquí
-            'tipo_documento', 'numero', 'paciente_id', 
-            'profesional_id', 'is_staff'
+            'id', 'username', 'correo', 'nombre', 
+            'documento', 
+            'tipo_documento', 'numero', 
+            'password',                
+            'acepta_tratamiento_datos', 
+            'paciente_id', 'profesional_id', 'is_staff'
         ]
-        extra_kwargs = {'password': {'write_only': True}}
+        extra_kwargs = {
+            'password': {'write_only': True},
+
+            'paciente_id': {'required': False, 'allow_null': True},
+            'profesional_id': {'required': False, 'allow_null': True},
+        }
 
     def create(self, validated_data):
         password = validated_data.pop('password', None)
         instance = self.Meta.model(**validated_data)
         if password:
-            instance.set_password(password)
+            instance.set_password(password) # Encriptamos la contraseña
         instance.save()
         return instance
 
@@ -31,7 +38,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         token = super().get_token(user)
 
         # Claims actualizados
-        token['documento'] = user.documento  # <-- Cambio aquí: ahora es genérico
+        token['documento'] = user.documento  
         token['nombre'] = user.nombre
         token['is_staff'] = user.is_staff
         token['paciente_id'] = user.paciente_id

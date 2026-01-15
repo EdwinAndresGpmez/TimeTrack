@@ -114,3 +114,20 @@ PowerShell
 docker-compose exec db psql -U postgres -c "CREATE DATABASE patients_db;"
 
 mkdir microservices/schedule-ms
+
+
+
+LIBRERIAS FRONT 
+
+# axios: Para conectar con tu API Gateway
+# react-router-dom: Para navegar entre Inicio, PQRS, Login, etc.
+# swiper: Para el carrusel de banners (la mejor librería para esto)
+docker-compose exec frontend npm install axios react-router-dom swiper react-icons
+
+docker-compose exec frontend npm install framer-motion react-countup react-intersection-observer
+
+docker-compose exec frontend npm install sweetalert2 sweetalert2-react-content
+
+docker-compose exec frontend npm install jwt-decode
+
+docker-compose restart frontend

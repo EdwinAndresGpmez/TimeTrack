@@ -15,9 +15,20 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import path
+from rest_framework_simplejwt.views import TokenRefreshView
+# Importamos TU vista personalizada desde users.views
+from users.views import RegistroView, CustomTokenObtainPairView 
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/v1/auth/', include('users.urls')),
+    
+    # 1. Login: Usamos tu vista personalizada para que el token traiga nombre/rol/documento
+    path('api/v1/auth/login/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
+    
+    # 2. Refresh: Usamos la por defecto de librería
+    path('api/v1/auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    
+    # 3. Registro: Tu vista de registro
+    path('api/v1/auth/register/', RegistroView.as_view(), name='auth_register'),
 ]
