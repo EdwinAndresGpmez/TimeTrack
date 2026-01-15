@@ -42,7 +42,7 @@ const Login = () => {
 
             // Redirigir al home
             setTimeout(() => {
-                navigate('/'); 
+                navigate('/dashboard'); 
             }, 1500);
 
         } catch (error) {

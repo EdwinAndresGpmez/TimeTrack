@@ -45,7 +45,14 @@ ROOT_URLCONF = 'core.urls'
 # --- BASE DE DATOS (Única definición) ---
 # Usa la URL de conexión del .env (DATABASE_URL=postgres://user:password@db:5432/dbname)
 DATABASES = {
-    'default': env.db(),
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': env('DB_NAME'),         
+        'USER': env('DB_USER'),         
+        'PASSWORD': env('DB_PASSWORD'), 
+        'HOST': env('DB_HOST'),         
+        'PORT': env('DB_PORT'),         
+    }
 }
 
 # --- CONFIGURACIÓN DE USUARIO (Vital para datos reales) ---

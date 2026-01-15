@@ -131,3 +131,29 @@ docker-compose exec frontend npm install sweetalert2 sweetalert2-react-content
 docker-compose exec frontend npm install jwt-decode
 
 docker-compose restart frontend
+
+
+# Iniciar la base de datos , imagenes y servicios.
+
+docker-compose exec portal-ms python manage.py makemigrations
+docker-compose exec portal-ms python manage.py migrate
+# Opcional: Solo si necesitas entrar al admin de Banners (localhost:8007/admin)
+docker-compose exec portal-ms python manage.py createsuperuser
+
+docker-compose exec patients-ms python manage.py makemigrations
+docker-compose exec patients-ms python manage.py migrate
+
+docker-compose exec professionals-ms python manage.py makemigrations
+docker-compose exec professionals-ms python manage.py migrate
+
+docker-compose exec schedule-ms python manage.py makemigrations
+docker-compose exec schedule-ms python manage.py migrate
+
+docker-compose exec appointments-ms python manage.py makemigrations
+docker-compose exec appointments-ms python manage.py migrate
+
+docker-compose exec notification-ms python manage.py makemigrations
+docker-compose exec notification-ms python manage.py migrate
+
+docker-compose exec ia-ms python manage.py makemigrations
+docker-compose exec ia-ms python manage.py migrate

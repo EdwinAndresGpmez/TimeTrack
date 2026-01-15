@@ -1,47 +1,56 @@
 from django.db import models
 
 class Cita(models.Model):
+    # AJUSTE: Estados alineados con la documentación Legacy + Mejora (No Asistió)
     ESTADOS = [
-        ('PROGRAMADA', 'Programada'),
-        ('CONFIRMADA', 'Confirmada'),
-        ('CANCELADA', 'Cancelada'),
-        ('REALIZADA', 'Realizada'), # Ya atendida
-        ('NO_ASISTIO', 'No Asistió'),
+        ('PENDIENTE', 'Pendiente'),   # Cita creada, esperando que el médico acepte
+        ('ACEPTADA', 'Aceptada'),     # Médico confirmó (Antes llamada Confirmada)
+        ('CANCELADA', 'Cancelada'),   # Cancelada por usuario o médico
+        ('REALIZADA', 'Realizada'),   # Ya atendida y finalizada
+        ('NO_ASISTIO', 'No Asistió'), # Mejora: El paciente nunca llegó
     ]
 
-    # --- Referencias Externas (IDs) ---
-    usuario_id = models.BigIntegerField(null=True, blank=True) # Quien pidió la cita
-    profesional_id = models.BigIntegerField(db_index=True)     # MS-8002
-    lugar_id = models.BigIntegerField(null=True, blank=True)   # MS-8002
-    horario_id = models.BigIntegerField(null=True, blank=True) # MS-8003
-    paciente_id = models.BigIntegerField(db_index=True)        # MS-8001
-    servicio_id = models.BigIntegerField(null=True, blank=True)# MS-8002
+    # --- Referencias Externas (IDs a otros Microservicios) ---
+    usuario_id = models.BigIntegerField(null=True, blank=True) # ID del usuario (Auth-MS) que pidió la cita
+    profesional_id = models.BigIntegerField(db_index=True)     # ID del médico (Professionals-MS)
+    lugar_id = models.BigIntegerField(null=True, blank=True)   # ID de la sede (Professionals-MS)
+    horario_id = models.BigIntegerField(null=True, blank=True) # ID del slot de tiempo (Schedule-MS)
+    paciente_id = models.BigIntegerField(db_index=True)        # ID del paciente (Patients-MS)
+    servicio_id = models.BigIntegerField(null=True, blank=True)# ID del servicio (Professionals-MS)
 
     # --- Datos de la Cita ---
     fecha = models.DateField()
     hora_inicio = models.TimeField() 
     hora_fin = models.TimeField()
     
-    nota = models.TextField(blank=True, null=True, verbose_name="Nota inicial")
-    estado = models.CharField(max_length=20, choices=ESTADOS, default='PROGRAMADA')
-    activo = models.BooleanField(default=True)
+    nota = models.TextField(blank=True, null=True, verbose_name="Nota inicial del paciente")
+    
+    # AJUSTE: Default ahora es PENDIENTE
+    estado = models.CharField(max_length=20, choices=ESTADOS, default='PENDIENTE', db_index=True)
+    
+    activo = models.BooleanField(default=True) # Soft delete
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        ordering = ['-fecha', '-hora_inicio']
+        verbose_name = "Cita"
+        verbose_name_plural = "Citas"
+
     def __str__(self):
-        return f"Cita {self.id} - {self.fecha} ({self.estado})"
+        return f"Cita {self.id} - {self.fecha} ({self.get_estado_display()})"
 
 class NotaMedica(models.Model):
     """
-    Información clínica diligenciada por el médico durante la consulta.
-    Reemplaza al modelo 'Consultorio' del legacy.
+    Información clínica diligenciada por el médico.
+    Equivale al modelo 'Consultorio' del Legacy.
     """
     cita = models.OneToOneField(Cita, on_delete=models.CASCADE, related_name='nota_medica')
     contenido = models.TextField(verbose_name="Evolución / Nota Médica")
     diagnostico = models.TextField(blank=True, null=True)
     
-    # Snapshot: Guardamos la edad/nacimiento del paciente AL MOMENTO de la cita
+    # Snapshot: Edad del paciente al momento de la consulta (Vital para pediatría/geriatría)
     nacimiento_paciente_snapshot = models.DateField(null=True, blank=True)
     
     activo = models.BooleanField(default=True)
@@ -52,28 +61,54 @@ class NotaMedica(models.Model):
 
 class HistoricoCita(models.Model):
     """
-    Tabla desnormalizada para reportes rápidos y auditoría.
-    Se llena automáticamente cuando una cita cambia de estado.
+    Auditoría completa. Se llena vía Signals o en el ViewSet cuando cambia el estado.
     """
     cita_original_id = models.BigIntegerField(db_index=True)
     
-    # IDs originales
+    # Copia de IDs
     profesional_id = models.IntegerField(null=True)
     paciente_id = models.IntegerField(null=True)
     servicio_id = models.IntegerField(null=True)
+    lugar_id = models.IntegerField(null=True) # Faltaba agregar este campo en tu modelo anterior
     
-    # Texto Plano (Snapshots para no perder info si borran el catálogo)
+    # SNAPSHOTS DE TEXTO: Esto es vital en microservicios.
+    # Si borran al médico en el otro microservicio, aquí conservamos su nombre para el reporte.
     nombre_profesional = models.CharField(max_length=255, blank=True, null=True)
     nombre_paciente = models.CharField(max_length=255, blank=True, null=True)
     nombre_servicio = models.CharField(max_length=255, blank=True, null=True)
     nombre_lugar = models.CharField(max_length=255, blank=True, null=True)
     
-    # Fechas
+    # Datos de tiempo
     fecha_cita = models.DateField()
     hora_inicio = models.TimeField()
     
     estado = models.CharField(max_length=50)
     fecha_registro = models.DateTimeField(auto_now_add=True)
+    usuario_responsable = models.CharField(max_length=100, null=True, blank=True) # Quién hizo el cambio
 
     def __str__(self):
-        return f"Histórico {self.cita_original_id} - {self.estado}"
+        return f"Histórico {self.cita_original_id} - {self.estado} ({self.fecha_registro})"
+    
+
+class ConfiguracionGlobal(models.Model):
+    """
+    Tabla Singleton (Solo 1 registro) para reglas de negocio parametrizables.
+    """
+    horas_antelacion_cancelar = models.IntegerField(
+        default=24, 
+        verbose_name="Horas mínimas para cancelar"
+    )
+    
+    # Aquí puedes agregar más reglas a futuro (Ej: max_citas_dia, hora_apertura, etc.)
+    mensaje_notificacion_cancelacion = models.TextField(
+        default="Su cita ha sido cancelada.", 
+        verbose_name="Mensaje default al cancelar"
+    )
+
+    def save(self, *args, **kwargs):
+        # Garantizar que siempre sea el ID 1 (Singleton)
+        self.pk = 1
+        super(ConfiguracionGlobal, self).save(*args, **kwargs)
+
+    def __str__(self):
+        return "Configuración Global del Sistema"

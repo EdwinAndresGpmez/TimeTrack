@@ -23,12 +23,9 @@ from users.views import RegistroView, CustomTokenObtainPairView
 urlpatterns = [
     path('admin/', admin.site.urls),
     
-    # 1. Login: Usamos tu vista personalizada para que el token traiga nombre/rol/documento
+    # Auth endpoints
     path('api/v1/auth/login/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
-    
-    # 2. Refresh: Usamos la por defecto de librería
     path('api/v1/auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-    
-    # 3. Registro: Tu vista de registro
     path('api/v1/auth/register/', RegistroView.as_view(), name='auth_register'),
+
 ]
