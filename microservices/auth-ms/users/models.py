@@ -28,7 +28,7 @@ class CrearCuenta(AbstractBaseUser, PermissionsMixin):
     # Este será el identificador único del usuario en el sistema
     documento = models.CharField(max_length=255, unique=True, db_index=True) 
     
-    numero = models.CharField(max_length=255) # Asumo que este es el Teléfono de contacto
+    numero = models.CharField(max_length=255) 
     
     # --- REFERENCIAS A OTROS MICROSERVICIOS (IDs) ---
     paciente_id = models.BigIntegerField(null=True, blank=True, db_index=True)
@@ -59,11 +59,16 @@ class Auditoria(models.Model):
     modulo = models.CharField(max_length=100, default='GENERAL') 
 
 class PermisoVista(models.Model):
-    nombre_vista = models.CharField(max_length=255, unique=True)
-    roles_permitidos = models.ManyToManyField(Group)
+    """
+    Define qué Roles (Groups) pueden acceder a rutas específicas del Frontend.
+    Ejemplo: codename='admin_panel' -> Solo roles 'Administrador'
+    """
+    codename = models.CharField(max_length=100, unique=True, help_text="ID único de la ruta en React (ej: '/dashboard/admin')")
+    descripcion = models.CharField(max_length=255, blank=True, null=True, help_text="Descripción legible (ej: Pantalla de Validación de Usuarios)")
+    roles = models.ManyToManyField(Group, related_name='vistas_permitidas', blank=True)
 
     def __str__(self):
-        return self.nombre_vista
+        return f"{self.codename} - {self.descripcion or ''}"
 
 class MenuItem(models.Model):
     label = models.CharField(max_length=100)

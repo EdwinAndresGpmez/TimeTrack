@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Paciente, TipoPaciente
+from .models import Paciente, TipoPaciente, SolicitudValidacion
 
 class TipoPacienteSerializer(serializers.ModelSerializer):
     class Meta:
@@ -18,3 +18,8 @@ class PacienteSerializer(serializers.ModelSerializer):
             'email_contacto', 'tipo_usuario', 'tipo_usuario_nombre', 
             'activo', 'created_at'
         ]
+
+class SolicitudValidacionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SolicitudValidacion
+        fields = '__all__'

@@ -39,6 +39,7 @@ class Paciente(models.Model):
     user_id = models.BigIntegerField(unique=True, null=True, blank=True, db_index=True)
     tipo_usuario = models.ForeignKey(TipoPaciente, on_delete=models.SET_NULL, null=True)
     
+    
     activo = models.BooleanField(default=True)
     
     created_at = models.DateTimeField(auto_now_add=True)
@@ -47,3 +48,15 @@ class Paciente(models.Model):
 
     def __str__(self):
         return f"{self.nombre} {self.apellido}"
+    
+
+class SolicitudValidacion(models.Model):
+    user_id = models.BigIntegerField(unique=True) # ID del Auth User
+    nombre = models.CharField(max_length=255)
+    email = models.EmailField()
+    fecha_solicitud = models.DateTimeField(auto_now_add=True)
+    procesado = models.BooleanField(default=False)
+    user_doc = models.CharField(max_length=50, blank=True, null=True)
+
+    def __str__(self):
+        return f"Solicitud: {self.nombre} ({'Procesada' if self.procesado else 'Pendiente'})"

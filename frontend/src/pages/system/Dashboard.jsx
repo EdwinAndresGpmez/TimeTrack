@@ -1,15 +1,19 @@
 import React, { useContext } from 'react';
 import { AuthContext } from '../../context/AuthContext';
+import PatientOnboarding from '../../components/system/PatientOnboarding'; // <--- IMPORTAR
 
 const Dashboard = () => {
     const { user } = useContext(AuthContext);
 
     return (
         <div>
+            {/* Lógica de Bienvenida / Redirección */}
+            <PatientOnboarding />
+
             {/* Tarjeta de Bienvenida */}
             <div className="bg-gradient-to-r from-blue-600 to-blue-800 rounded-2xl shadow-lg p-8 text-white mb-8">
                 <h1 className="text-3xl font-bold">
-                    ¡Bienvenido de nuevo, {user?.nombre || 'Usuario'}!
+                    ¡Bienvenido de nuevo, {user?.name || 'Usuario'}!
                 </h1>
                 <p className="mt-2 opacity-90">
                     Tienes acceso completo a tus servicios médicos. ¿Qué deseas hacer hoy?
@@ -23,7 +27,7 @@ const Dashboard = () => {
                     <p className="text-2xl font-bold text-gray-800 mt-2">-- / --</p>
                     <span className="text-xs text-blue-500 mt-1 block cursor-pointer">Ver calendario &rarr;</span>
                 </div>
-                {/* ... más widgets ... */}
+                {/* ... puedes agregar más widgets aquí ... */}
             </div>
         </div>
     );

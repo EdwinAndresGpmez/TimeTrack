@@ -1,9 +1,40 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom'; // <--- Agregamos useNavigate
 import { FaBars, FaTimes, FaPhone, FaWhatsapp } from 'react-icons/fa';
+import Swal from 'sweetalert2'; // <--- Importante para la alerta
 
 const Navbar = () => {
     const [isOpen, setIsOpen] = useState(false);
+    const navigate = useNavigate(); // Hook para redireccionar
+
+    // Lógica compartida para el botón Agendar
+    const handleAgendarClick = (e) => {
+        e.preventDefault();
+        
+        // 1. Guardar Intención
+        localStorage.setItem('intencionCita', 'PARTICULAR');
+
+        // 2. Preguntar ruta (Login o Registro)
+        Swal.fire({
+            title: '¿Ya tienes cuenta con nosotros?',
+            text: 'para agendar tu cita necesitamos identificarte', // <--- TEXTO EXACTO SOLICITADO
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#28a745',
+            confirmButtonText: 'Sí, Ingresar',
+            cancelButtonText: 'No, Registrarme'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                navigate('/login');
+            } else if (result.dismiss === Swal.DismissReason.cancel) {
+                navigate('/register');
+            }
+        });
+        
+        // Cerrar menú móvil si está abierto
+        setIsOpen(false);
+    };
 
     return (
         <header className="bg-white shadow-md fixed w-full z-50 top-0">
@@ -34,10 +65,13 @@ const Navbar = () => {
                     <Link to="/pqrs" className="hover:text-blue-600 transition">PQRS</Link>
                     <Link to="/trabaja-con-nosotros" className="hover:text-blue-600 transition">Trabaje con Nosotros</Link>
                     
-                    {/* Botón Agendar (Lleva al Login por ahora) */}
-                    <Link to="/login" className="bg-blue-600 text-white px-5 py-2 rounded-full hover:bg-blue-700 transition shadow-lg">
+                    {/* Botón Agendar (Ahora con lógica) */}
+                    <button 
+                        onClick={handleAgendarClick}
+                        className="bg-blue-600 text-white px-5 py-2 rounded-full hover:bg-blue-700 transition shadow-lg font-bold"
+                    >
                         Agendar Cita
-                    </Link>
+                    </button>
                 </div>
 
                 {/* Botón Móvil */}
@@ -52,9 +86,14 @@ const Navbar = () => {
                     <Link to="/" onClick={() => setIsOpen(false)}>Inicio</Link>
                     <Link to="/servicios" onClick={() => setIsOpen(false)}>Servicios</Link>
                     <Link to="/pqrs" onClick={() => setIsOpen(false)}>PQRS</Link>
-                    <Link to="/login" className="text-blue-600 font-bold" onClick={() => setIsOpen(false)}>
+                    
+                    {/* Botón Agendar Móvil (Ahora con lógica) */}
+                    <button 
+                        onClick={handleAgendarClick} 
+                        className="text-blue-600 font-bold text-left"
+                    >
                         Agendar Cita
-                    </Link>
+                    </button>
                 </div>
             )}
         </header>

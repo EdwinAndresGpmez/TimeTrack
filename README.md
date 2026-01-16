@@ -148,7 +148,7 @@ docker-compose exec patients-ms python manage.py createsuperuser
 docker-compose exec professionals-ms python manage.py makemigrations
 docker-compose exec professionals-ms python manage.py migrate
 
-docker-compose exec professionals-ms python manage.py createsuperuser
+docker-compose exec auth-ms python manage.py createsuperuser
 
 docker-compose exec schedule-ms python manage.py makemigrations
 docker-compose exec schedule-ms python manage.py migrate
@@ -166,3 +166,5 @@ docker-compose exec ia-ms python manage.py migrate
 
 docker-compose exec auth-ms python manage.py makemigrations
 docker-compose exec auth-ms python manage.py migrate
+
+docker-compose exec auth-ms python manage.py createsuperuser

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Paciente, TipoPaciente
+from .models import Paciente, TipoPaciente, SolicitudValidacion
 
 @admin.register(TipoPaciente)
 class TipoPacienteAdmin(admin.ModelAdmin):
@@ -13,6 +13,7 @@ class PacienteAdmin(admin.ModelAdmin):
         'nombre_completo', 
         'numero_documento', 
         'tipo_documento', 
+        'user_id',
         'tipo_usuario', 
         'telefono', 
         'activo'
@@ -24,10 +25,31 @@ class PacienteAdmin(admin.ModelAdmin):
     # Barra de búsqueda
     search_fields = ('nombre', 'apellido', 'numero_documento')
     
-    # Paginación (útil cuando tengas miles de pacientes)
+    # Paginación
     list_per_page = 25
 
     # Método helper para mostrar nombre completo en la lista
     def nombre_completo(self, obj):
         return f"{obj.nombre} {obj.apellido}"
     nombre_completo.short_description = 'Paciente'
+
+# --- NUEVO: ADMIN PARA SOLICITUDES DE VALIDACIÓN ---
+@admin.register(SolicitudValidacion)
+class SolicitudValidacionAdmin(admin.ModelAdmin):
+    list_display = (
+        'nombre', 
+        'user_doc', 
+        'email', 
+        'fecha_solicitud', 
+        'procesado', 
+        'user_id'
+    )
+    
+    # Filtros para ver rápidamente qué falta por procesar
+    list_filter = ('procesado', 'fecha_solicitud')
+    
+    # Búsqueda por documento o correo
+    search_fields = ('nombre', 'user_doc', 'email')
+    
+    # Ordenar por fecha descendente (lo más nuevo arriba)
+    ordering = ('-fecha_solicitud',)

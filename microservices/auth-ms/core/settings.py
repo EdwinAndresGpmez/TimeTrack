@@ -2,7 +2,7 @@ import environ
 import os
 from datetime import timedelta
 from pathlib import Path
-
+from corsheaders.defaults import default_headers
 # 1. Definir BASE_DIR (Faltaba en tu archivo)
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -15,6 +15,8 @@ SECRET_KEY = env('SECRET_KEY')
 DEBUG = env('DEBUG')
 ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['localhost', '127.0.0.1'])
 
+APPEND_SLASH = False
+ORS_ALLOW_PRIVATE_NETWORK = True
 # --- APPS Y MIDDLEWARE ---
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -23,14 +25,14 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'corsheaders',
     'rest_framework',
     'rest_framework_simplejwt',
-    'corsheaders',
-    'users', # Tu app de autenticación
+    'users', 
 ]
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware', # Indispensable para React
+    'corsheaders.middleware.CorsMiddleware', 
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -76,8 +78,30 @@ SIMPLE_JWT = {
 }
 
 # --- CORS CONFIG (Para permitir conexión desde React) ---
+
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173", # Puerto por defecto de Vite
+    "http://localhost:5173",
+     "http://127.0.0.1:5173" # Puerto por defecto de Vite
+]
+
+CORS_ALLOW_CREDENTIALS = True
+
+
+CORS_ALLOW_HEADERS = list(default_headers) + [
+    'content-disposition',
+    'accept-encoding',
+    'content-type',
+    'accept',
+    'origin',
+    'authorization', 
+]
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
 ]
 
 # --- RESTO DE CONFIGURACIÓN ESTÁNDAR ---

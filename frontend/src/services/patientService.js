@@ -1,31 +1,64 @@
 import api from '../api/axiosConfig';
 
-// Ruta base según Nginx y tu urls.py
-const BASE_URL = '/pacientes'; 
-
 export const patientService = {
-    // Buscar mi perfil usando el ID del login
+    // 1. Crear Perfil de Paciente
+    create: async (patientData) => {
+        const response = await api.post('/pacientes/listado/', patientData);
+        return response.data;
+    },
+
+    // 2. Obtener Mi Perfil (para el usuario logueado)
     getMyProfile: async (userId) => {
-        // Tu endpoint es /listado/
-        const response = await api.get(`${BASE_URL}/listado/?user_id=${userId}`);
-        return response.data.length > 0 ? response.data[0] : null;
+        try {
+            // Filtramos por user_id
+            const response = await api.get(`/pacientes/listado/?user_id=${userId}`);
+            // Si devuelve una lista, tomamos el primero
+            if (Array.isArray(response.data) && response.data.length > 0) {
+                return response.data[0];
+            }
+            return null;
+        } catch (error) {
+            console.error("Error obteniendo perfil:", error);
+            return null;
+        }
     },
 
-    // Crear perfil
-    create: async (data) => {
-        const response = await api.post(`${BASE_URL}/listado/`, data);
-        return response.data;
-    },
-
-    // Actualizar perfil
+    // 3. Actualizar Perfil
     update: async (id, data) => {
-        const response = await api.patch(`${BASE_URL}/listado/${id}/`, data);
+        const response = await api.put(`/pacientes/listado/${id}/`, data);
         return response.data;
     },
 
-    // Obtener tipos de paciente (EPS, Particular, etc.)
+    // 4. Obtener Tipos de Paciente (EPS, Prepagada, etc.)
     getTipos: async () => {
-        const response = await api.get(`${BASE_URL}/tipos/`);
+        const response = await api.get('/pacientes/tipos/');
+        return response.data;
+    },
+
+    // 5. Vincular Usuario Existente (Self-Healing)
+    vincularExistente: async (data) => {
+        const response = await api.post('/pacientes/internal/sync-user/', data);
+        return response.data;
+    },
+
+    // --- FUNCIONES ADMINISTRATIVAS (NUEVAS) ---
+
+    // 6. Crear/Actualizar Solicitud de Validación
+    // Se usa tanto para que el usuario pida validación, como para que el admin la marque "procesada"
+    crearSolicitudValidacion: async (data) => {
+        const response = await api.post('/pacientes/solicitudes/', data);
+        return response.data;
+    },
+
+    // 7. Obtener Solicitudes Pendientes (Admin)
+    // Esta es la que faltaba y causaba el error
+    getSolicitudesPendientes: async () => {
+        const response = await api.get('/pacientes/solicitudes/?procesado=false');
+        return response.data;
+    },
+
+    updateSolicitud: async (id, data) => {
+        const response = await api.put(`/pacientes/solicitudes/${id}/`, data);
         return response.data;
     }
 };

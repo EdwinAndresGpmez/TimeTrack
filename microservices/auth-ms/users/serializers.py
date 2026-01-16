@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from .models import CrearCuenta, MenuItem, PermisoVista
+from django.contrib.auth.models import Group
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -15,7 +16,7 @@ class UserSerializer(serializers.ModelSerializer):
         ]
         extra_kwargs = {
             'password': {'write_only': True},
-
+            # Es vital que estos sean opcionales para evitar errores de validación
             'paciente_id': {'required': False, 'allow_null': True},
             'profesional_id': {'required': False, 'allow_null': True},
         }
@@ -40,6 +41,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         # Claims actualizados
         token['documento'] = user.documento  
         token['nombre'] = user.nombre
+        token['email'] = user.correo
         token['is_staff'] = user.is_staff
         token['paciente_id'] = user.paciente_id
         token['profesional_id'] = user.profesional_id
@@ -51,3 +53,23 @@ class MenuItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = MenuItem
         fields = '__all__'
+
+
+class PermisoVistaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PermisoVista
+        fields = ['codename', 'descripcion'] 
+
+
+class UserAdminSerializer(serializers.ModelSerializer):
+    # Serializamos los grupos para verlos y editarlos
+    groups = serializers.SlugRelatedField(
+        many=True, 
+        queryset=Group.objects.all(), 
+        slug_field='name'
+    )
+
+    class Meta:
+        model = CrearCuenta
+        fields = ['id', 'email', 'nombre', 'documento', 'is_active', 'is_staff', 'groups', 'paciente_id']
+        read_only_fields = ['paciente_id'] # El admin gestiona usuarios, la vinculación es automática

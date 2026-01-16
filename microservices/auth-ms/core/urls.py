@@ -1,31 +1,28 @@
 """
 URL configuration for core project.
-
-The `urlpatterns` list routes URLs to views. For more information please see:
-    https://docs.djangoproject.com/en/4.2/topics/http/urls/
-Examples:
-Function views
-    1. Add an import:  from my_app import views
-    2. Add a URL to urlpatterns:  path('', views.home, name='home')
-Class-based views
-    1. Add an import:  from other_app.views import Home
-    2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
-Including another URLconf
-    1. Import the include() function: from django.urls import include, path
-    2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path
+from django.urls import path, include # <--- IMPORTANTE: AGREGAR INCLUDE
 from rest_framework_simplejwt.views import TokenRefreshView
-# Importamos TU vista personalizada desde users.views
-from users.views import RegistroView, CustomTokenObtainPairView 
+
+# 1. Agregamos MisPermisosView a los imports
+from users.views import (
+    RegistroView, 
+    CustomTokenObtainPairView, 
+    UserDetailView, 
+    DynamicMenuView,
+    MisPermisosView
+) 
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     
-    # Auth endpoints
+    # Rutas manuales (Auth)
     path('api/v1/auth/login/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/v1/auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('api/v1/auth/register/', RegistroView.as_view(), name='auth_register'),
-
+    path('api/v1/auth/me/', UserDetailView.as_view(), name='user_me'),
+    path('api/v1/auth/menu/', DynamicMenuView.as_view(), name='dynamic_menu'),
+    path('api/v1/auth/me/permisos/', MisPermisosView.as_view(), name='user_permissions'),
+    path('api/v1/users/', include('users.urls')),
 ]
