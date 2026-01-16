@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { configService } from '../../services/configService';
 import Swal from 'sweetalert2';
-import { FaCogs, FaSave, FaClock } from 'react-icons/fa';
+import { FaCogs, FaSave, FaClock, FaExclamationTriangle } from 'react-icons/fa'; // Agregué icono de alerta
 
 const ConfiguracionSistema = () => {
     const [config, setConfig] = useState({
@@ -19,7 +19,6 @@ const ConfiguracionSistema = () => {
             const data = await configService.getConfig();
             setConfig(data);
         } catch (error) {
-            // Si falla porque no existe (raro con nuestro hack), intentamos cargar la lista que lo crea
             console.error(error);
         } finally {
             setLoading(false);
@@ -82,17 +81,24 @@ const ConfiguracionSistema = () => {
                     </div>
                 </div>
 
-                {/* Regla: Mensajes (Ejemplo de extensibilidad) */}
+                {/* Regla: Mensajes de Bloqueo */}
                 <div className="mb-6">
+                    <h3 className="text-lg font-bold text-blue-900 mb-4 flex items-center gap-2">
+                        <FaExclamationTriangle /> Mensajes de Alerta
+                    </h3>
                     <label className="block text-gray-700 font-bold mb-2">
-                        Mensaje automático al cancelar
+                        Mensaje de rechazo (Error al Cancelar)
                     </label>
+                    <p className="text-xs text-gray-500 mb-2">
+                        Este texto aparecerá en la alerta roja cuando el paciente intente cancelar y <strong>no cumpla</strong> con las horas mínimas.
+                    </p>
                     <textarea
                         name="mensaje_notificacion_cancelacion"
                         value={config.mensaje_notificacion_cancelacion}
                         onChange={handleChange}
-                        rows="2"
-                        className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none"
+                        rows="3"
+                        placeholder="Ej: Lo sentimos, no es posible cancelar su cita porque faltan menos de 24 horas..."
+                        className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-red-500 outline-none bg-red-50 text-red-900"
                     ></textarea>
                 </div>
 

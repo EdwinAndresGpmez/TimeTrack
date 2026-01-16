@@ -36,12 +36,14 @@ class Paciente(models.Model):
     email_contacto = models.EmailField(blank=True, null=True)
 
     # Relación interna
+    user_id = models.BigIntegerField(unique=True, null=True, blank=True, db_index=True)
     tipo_usuario = models.ForeignKey(TipoPaciente, on_delete=models.SET_NULL, null=True)
     
     activo = models.BooleanField(default=True)
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    
 
     def __str__(self):
         return f"{self.nombre} {self.apellido}"

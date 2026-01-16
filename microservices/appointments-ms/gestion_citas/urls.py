@@ -7,7 +7,7 @@ router = DefaultRouter()
 router.register(r'citas', CitaViewSet)
 router.register(r'notas', NotaMedicaViewSet)
 router.register(r'historico', HistoricoCitaViewSet)
-router.register(r'configuracion', ConfiguracionViewSet)
+router.register(r'citas/configuracion', ConfiguracionViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),

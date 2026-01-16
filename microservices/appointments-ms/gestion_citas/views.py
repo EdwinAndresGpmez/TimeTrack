@@ -74,17 +74,17 @@ class CitaViewSet(viewsets.ModelViewSet):
 
             # C. Validar la regla
             if horas_restantes < horas_limite:
+                # Usamos el mensaje configurado en BD, o uno por defecto si está vacío
+                mensaje_error = config.mensaje_notificacion_cancelacion or f"La política de cancelación requiere al menos {horas_limite} horas de antelación."
+                
                 return Response(
                     {
                         "error": "No es posible cancelar la cita.",
-                        "detalle": f"La política de cancelación requiere al menos {horas_limite} horas de antelación.",
+                        "detalle": mensaje_error, 
                         "horas_restantes": round(horas_restantes, 1)
                     },
                     status=status.HTTP_400_BAD_REQUEST
                 )
-            # --- FIN LÓGICA PARAMETRIZADA ---
-
-        # Si pasa la validación (o si no es cancelación), procedemos con el update normal
         return super().update(request, *args, **kwargs)
 
 class NotaMedicaViewSet(viewsets.ModelViewSet):

@@ -16,6 +16,7 @@ import DashboardLayout from './components/system/DashboardLayout';
 import MisCitas from './pages/system/MisCitas';
 import NuevaCita from './pages/system/NuevaCita';
 import ConfiguracionSistema from './pages/admin/ConfiguracionSistema';
+import Perfil from './pages/system/Perfil';
 
 // Placeholders
 const Servicios = () => <div className="p-20 text-center text-2xl font-bold text-blue-900">Servicios</div>;
@@ -51,6 +52,7 @@ function App() {
                  <Route path="/dashboard/citas" element={<MisCitas />} /> 
                  <Route path="/dashboard/citas/nueva" element={<NuevaCita />} />
                  <Route path="/dashboard/configuracion" element={<ConfiguracionSistema />} />
+                 <Route path="/dashboard/perfil" element={<Perfil />} />
              
              </Route>
 

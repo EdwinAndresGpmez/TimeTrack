@@ -24,6 +24,7 @@ const MisCitas = () => {
     };
 
     // Lógica de cancelación (Regla de negocio: > 24 horas)
+    // Lógica de cancelación con manejo de errores inteligente
     const handleCancelar = async (id) => {
         const result = await Swal.fire({
             title: '¿Cancelar cita?',
@@ -41,7 +42,15 @@ const MisCitas = () => {
                 Swal.fire('Cancelada', 'La cita ha sido cancelada.', 'success');
                 cargarCitas(); // Recargar tabla
             } catch (error) {
-                Swal.fire('Error', 'No se pudo cancelar la cita.', 'error');
+                // AQUÍ ESTÁ LA MAGIA: Leemos el mensaje que nos mandó el Backend
+                const mensajeBackend = error.response?.data?.detalle;
+                const mensajeError = mensajeBackend || 'No se pudo cancelar la cita. Intente más tarde.';
+                
+                Swal.fire({
+                    icon: 'error',
+                    title: 'No permitido',
+                    text: mensajeError // Mostramos el texto parametrizado ("Faltan menos de 24 horas...")
+                });
             }
         }
     };
