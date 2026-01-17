@@ -19,7 +19,11 @@ import NuevaCita from './pages/system/NuevaCita';
 import ConfiguracionSistema from './pages/admin/ConfiguracionSistema';
 import Perfil from './pages/system/Perfil';
 import ValidarUsuarios from './pages/admin/ValidarUsuarios';
-import AdminUsuarios from './pages/admin/AdminUsuarios'; // <--- Tu nuevo componente
+import AdminUsuarios from './pages/admin/AdminUsuarios';
+import AdminProfesionales from './pages/admin/AdminProfesionales';
+import AdminParametricas from './pages/admin/AdminParametricas';
+import GestionAgenda from './pages/admin/GestionAgenda'; 
+import AdminCitas from './pages/admin/AdminCitas';
 
 // Placeholders
 const Servicios = () => <div className="p-20 text-center text-2xl font-bold text-blue-900">Servicios</div>;
@@ -58,9 +62,13 @@ function App() {
                  <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
                      <Route path="/dashboard/configuracion" element={<ConfiguracionSistema />} />
                      <Route path="/dashboard/admin/validar-usuarios" element={<ValidarUsuarios />} />
-                     
-                     {/* CORRECCIÓN: Usamos el prefijo /dashboard/admin para mantener consistencia */}
                      <Route path="/dashboard/admin/usuarios" element={<AdminUsuarios />} />
+                     <Route path="/dashboard/admin/parametricas" element={<AdminParametricas />} />
+                     <Route path="/dashboard/admin/profesionales" element={<AdminProfesionales />} />
+                     <Route path="/dashboard/admin/citas" element={<AdminCitas />} />
+                     
+                     {/* NUEVA RUTA DE AGENDA */}
+                     <Route path="/dashboard/admin/agenda" element={<GestionAgenda />} />
                  </Route>
              
              </Route>

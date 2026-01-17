@@ -490,3 +490,28 @@ Documentar el flujo de autenticación y cómo el Gateway (Nginx) enruta las peti
 > Avances registrados automáticamente por GitHub Copilot.
 
 > Documento generado automáticamente para diagnóstico y planificación.
+
+
+Aquí tienes el resumen de tu Stack de Diseño (UI) actual:
+
+Estilos y Maquetación: Tailwind CSS
+
+Lo identificas por las clases utilitarias en el código: className="bg-blue-900 text-white p-4 rounded-xl shadow-lg".
+
+No estamos usando componentes prefabricados (como Material UI o Bootstrap), sino construyendo los nuestros con HTML + clases de Tailwind.
+
+Íconos: React Icons
+
+Específicamente el paquete FontAwesome 5 (react-icons/fa).
+
+Ejemplo: <FaUserMd />, <FaCalendarCheck />.
+
+Alertas y Modales: SweetAlert2
+
+Para todas las ventanas emergentes bonitas, confirmaciones y el formulario de registro rápido ("Modal Express").
+
+Ejemplo: Swal.fire({...}).
+
+Animaciones (Leves):
+
+Estamos usando las transiciones nativas de Tailwind (transition duration-300 hover:scale-105) para los efectos de los botones y el sidebar.

@@ -4,7 +4,7 @@ import { AuthContext } from '../../context/AuthContext';
 import { authService } from '../../services/authService';
 import { 
     FaHome, FaCalendarAlt, FaUserMd, FaHistory, FaSignOutAlt, 
-    FaCogs, FaUserCheck, FaNotesMedical, FaStethoscope, FaChartBar 
+    FaCogs, FaUserCheck, FaNotesMedical, FaStethoscope, FaChartBar, FaCalendarCheck
 } from 'react-icons/fa';
 
 // Mapa de Iconos: Asocia el string de la BD con el componente real
@@ -18,7 +18,8 @@ const iconMap = {
     'FaUserCheck': <FaUserCheck />,
     'FaNotesMedical': <FaNotesMedical />,
     'FaStethoscope': <FaStethoscope />,
-    'FaChartBar': <FaChartBar />
+    'FaChartBar': <FaChartBar />,
+    'FaCalendarCheck': <FaCalendarCheck />
 };
 
 const Sidebar = ({ isOpen, logout }) => {

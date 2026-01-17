@@ -12,19 +12,27 @@ class LugarSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class ProfesionalSerializer(serializers.ModelSerializer):
-    # Campos de solo lectura para mostrar nombres en el frontend
+    # Campo calculado para leer nombres
     especialidades_nombres = serializers.StringRelatedField(many=True, source='especialidades', read_only=True)
-    lugares_nombres = serializers.StringRelatedField(many=True, source='lugares_atencion', read_only=True)
+    
+    # IMPORTANTE: Definimos la relación inversa para poder escribirla
+    # 'servicios_habilitados' es el related_name que pusimos en el modelo Servicio
+    servicios_habilitados = serializers.PrimaryKeyRelatedField(
+        many=True, 
+        queryset=Servicio.objects.all(),
+        required=False
+    )
 
     class Meta:
         model = Profesional
         fields = [
             'id', 'nombre', 'numero_documento', 'registro_medico',
-            'email_profesional', 'telefono_profesional', 'activo',
-            'especialidades', 'especialidades_nombres', # IDs para escribir, Nombres para leer
-            'lugares_atencion', 'lugares_nombres'
+            'email_profesional', 'telefono_profesional',
+            'especialidades', 'especialidades_nombres', 
+            'lugares_atencion', 
+            'servicios_habilitados', 
+            'activo'
         ]
-
 class ServicioSerializer(serializers.ModelSerializer):
     # Mostramos cuántos médicos hacen este servicio
     total_profesionales = serializers.SerializerMethodField()
