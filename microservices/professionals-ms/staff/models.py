@@ -73,6 +73,14 @@ class Servicio(models.Model):
     
     activo = models.BooleanField(default=True)
 
+    TIPO_ACCESO = [
+        ('TODOS', 'Para todos los pacientes'),
+        ('PARTICULAR', 'Solo Particulares'),
+        ('EPS', 'Solo EPS/Convenios'),
+    ]
+
+    acceso_permitido = models.CharField(max_length=20, choices=TIPO_ACCESO, default='TODOS')
+
     class Meta:
         verbose_name = "Servicio"
         verbose_name_plural = "Servicios"
