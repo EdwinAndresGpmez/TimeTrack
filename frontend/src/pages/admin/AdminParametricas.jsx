@@ -49,10 +49,17 @@ const AdminParametricas = () => {
         if (activeTab === 'sedes') {
             setFormData(item || { nombre: '', direccion: '', ciudad: '', activo: true });
         } else if (activeTab === 'especialidades') {
-            // AHORA INCLUYE 'activo' POR DEFECTO
             setFormData(item || { nombre: '', descripcion: '', activo: true });
         } else if (activeTab === 'servicios') {
-            setFormData(item || { nombre: '', descripcion: '', duracion_minutos: 30, precio_base: 0, activo: true });
+            setFormData(item || { 
+                nombre: '', 
+                descripcion: '', 
+                duracion_minutos: 30, 
+                precio_base: 0, 
+                acceso_permitido: 'TODOS', // <--- Default
+                activo: true,
+                profesionales: [] // Evita error 400 del backend
+            });
         }
         setIsModalOpen(true);
     };
@@ -102,7 +109,6 @@ const AdminParametricas = () => {
                 Swal.fire('Eliminado', 'Registro borrado permanentemente.', 'success');
                 cargarDatos();
             } catch (error) {
-                // Si el backend devuelve error (por Foreign Key protection)
                 Swal.fire({
                     title: 'No se puede eliminar',
                     text: 'Este ítem está en uso. Debes DESACTIVARLO en lugar de borrarlo.',
@@ -125,7 +131,6 @@ const AdminParametricas = () => {
 
             const msg = newState ? 'Activado' : 'Desactivado';
             
-            // Alerta pequeña tipo "Toast"
             const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
             Toast.fire({ icon: 'success', title: `Registro ${msg}` });
             
@@ -183,7 +188,17 @@ const AdminParametricas = () => {
                                     <td className="px-5 py-4 text-sm text-gray-600">
                                         {activeTab === 'sedes' && `${item.ciudad} - ${item.direccion}`}
                                         {activeTab === 'especialidades' && (item.descripcion || 'Sin descripción')}
-                                        {activeTab === 'servicios' && `${item.duracion_minutos} min - $${item.precio_base}`}
+                                        {activeTab === 'servicios' && (
+                                            <div>
+                                                <span>{item.duracion_minutos} min - ${item.precio_base}</span>
+                                                {/* Mostrar etiqueta de acceso */}
+                                                {item.acceso_permitido && item.acceso_permitido !== 'TODOS' && (
+                                                    <span className="ml-2 text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded border border-purple-200">
+                                                        {item.acceso_permitido}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        )}
                                     </td>
                                     
                                     {/* COLUMNA TOGGLE (ESTADO) */}
@@ -251,7 +266,6 @@ const AdminParametricas = () => {
                                 <>
                                     <div><label className="block text-sm font-bold mb-1 text-gray-700">Descripción</label><textarea name="descripcion" value={formData.descripcion} onChange={handleChange} className="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500" rows="3"></textarea></div>
                                     
-                                    {/* AÑADIDO CHECKBOX PARA ESPECIALIDADES */}
                                     <div className="flex items-center gap-2 mt-2 p-2 bg-gray-50 rounded border border-gray-100">
                                         <input type="checkbox" name="activo" checked={formData.activo} onChange={handleChange} id="chk_esp_activo" className="h-4 w-4 text-blue-600" /> 
                                         <label htmlFor="chk_esp_activo" className="text-sm font-medium text-gray-700">Especialidad Activa</label>
@@ -262,9 +276,31 @@ const AdminParametricas = () => {
                             {activeTab === 'servicios' && (
                                 <>
                                     <div className="grid grid-cols-2 gap-4">
-                                        <div><label className="block text-sm font-bold mb-1 text-gray-700">Duración (min)</label><input type="number" name="duracion_minutos" value={formData.duracion_minutos} onChange={handleChange} required className="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500" /></div>
-                                        <div><label className="block text-sm font-bold mb-1 text-gray-700">Precio Base</label><input type="number" name="precio_base" value={formData.precio_base} onChange={handleChange} required className="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500" /></div>
+                                        <div>
+                                            <label className="block text-sm font-bold mb-1 text-gray-700">Duración (min)</label>
+                                            <input type="number" name="duracion_minutos" value={formData.duracion_minutos} onChange={handleChange} required className="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-bold mb-1 text-gray-700">Precio Base</label>
+                                            <input type="number" name="precio_base" value={formData.precio_base} onChange={handleChange} required className="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500" />
+                                        </div>
                                     </div>
+
+                                    {/* NUEVO CAMPO: TIPO DE ACCESO */}
+                                    <div>
+                                        <label className="block text-sm font-bold mb-1 text-gray-700">Tipo de Paciente Permitido</label>
+                                        <select 
+                                            name="acceso_permitido" 
+                                            value={formData.acceso_permitido || 'TODOS'} 
+                                            onChange={handleChange} 
+                                            className="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 bg-white"
+                                        >
+                                            <option value="TODOS">Para todos los pacientes</option>
+                                            <option value="PARTICULAR">Solo Particulares</option>
+                                            <option value="EPS">Solo EPS / Convenios</option>
+                                        </select>
+                                    </div>
+
                                     <div><label className="block text-sm font-bold mb-1 text-gray-700">Descripción</label><textarea name="descripcion" value={formData.descripcion} onChange={handleChange} className="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500" rows="2"></textarea></div>
                                     <div className="flex items-center gap-2 mt-2 p-2 bg-gray-50 rounded border border-gray-100">
                                         <input type="checkbox" name="activo" checked={formData.activo} onChange={handleChange} id="chk_serv_activo" className="h-4 w-4 text-blue-600" /> 

@@ -22,7 +22,7 @@ import ValidarUsuarios from './pages/admin/ValidarUsuarios';
 import AdminUsuarios from './pages/admin/AdminUsuarios';
 import AdminProfesionales from './pages/admin/AdminProfesionales';
 import AdminParametricas from './pages/admin/AdminParametricas';
-import GestionAgenda from './pages/admin/GestionAgenda'; 
+import GestionAgenda from './pages/admin/agenda/GestionAgenda'; 
 import AdminCitas from './pages/admin/AdminCitas';
 
 // Placeholders
