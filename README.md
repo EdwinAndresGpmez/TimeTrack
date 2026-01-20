@@ -156,7 +156,7 @@ docker-compose exec schedule-ms python manage.py migrate
 docker-compose exec appointments-ms python manage.py makemigrations
 docker-compose exec appointments-ms python manage.py migrate
 
-docker-compose exec appointments-ms python manage.py createsuperuser
+docker-compose exec patients-ms python manage.py createsuperuser
 
 docker-compose exec notification-ms python manage.py makemigrations
 docker-compose exec notification-ms python manage.py migrate

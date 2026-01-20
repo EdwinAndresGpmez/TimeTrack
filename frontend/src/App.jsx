@@ -24,6 +24,7 @@ import AdminProfesionales from './pages/admin/AdminProfesionales';
 import AdminParametricas from './pages/admin/AdminParametricas';
 import GestionAgenda from './pages/admin/agenda/GestionAgenda'; 
 import AdminCitas from './pages/admin/AdminCitas';
+import RecepcionConsultorio from './pages/system/RecepcionConsultorio'; // <--- IMPORTADO AQUÍ
 
 // Placeholders
 const Servicios = () => <div className="p-20 text-center text-2xl font-bold text-blue-900">Servicios</div>;
@@ -67,8 +68,9 @@ function App() {
                      <Route path="/dashboard/admin/profesionales" element={<AdminProfesionales />} />
                      <Route path="/dashboard/admin/citas" element={<AdminCitas />} />
                      
-                     {/* NUEVA RUTA DE AGENDA */}
+                     {/* RUTAS DE GESTIÓN CLÍNICA Y AGENDA */}
                      <Route path="/dashboard/admin/agenda" element={<GestionAgenda />} />
+                     <Route path="/dashboard/admin/recepcion" element={<RecepcionConsultorio />} /> {/* <--- NUEVA RUTA */}
                  </Route>
              
              </Route>

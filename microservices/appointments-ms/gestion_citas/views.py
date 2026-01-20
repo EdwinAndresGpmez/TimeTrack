@@ -1,8 +1,9 @@
 from django.utils import timezone
 from datetime import datetime, timedelta
-from rest_framework import viewsets, permissions, status
+from rest_framework import viewsets, permissions, status, filters
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
+from django_filters.rest_framework import DjangoFilterBackend
 
 # Importación de Modelos
 from .models import Cita, NotaMedica, HistoricoCita, ConfiguracionGlobal
@@ -36,6 +37,18 @@ class CitaViewSet(viewsets.ModelViewSet):
     """
     queryset = Cita.objects.all().order_by('-fecha', '-hora_inicio')
     serializer_class = CitaSerializer
+
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+
+    filterset_fields = [
+        'fecha',           # Para buscar citas de hoy
+        'paciente_id',     # Para el historial del paciente
+        'profesional_id',  # Para la agenda del médico
+        'estado',          # Para ver solo PENDIENTES o EN_SALA
+        'lugar_id'
+    ]
+
+    ordering_fields = ['fecha', 'hora_inicio']
 
     def update(self, request, *args, **kwargs):
         """

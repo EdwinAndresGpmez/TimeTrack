@@ -1,35 +1,38 @@
 from django.db import models
 
 class Cita(models.Model):
-    # AJUSTE: Estados alineados con la documentación Legacy + Mejora (No Asistió)
     ESTADOS = [
-        ('PENDIENTE', 'Pendiente'),   # Cita creada, esperando que el médico acepte
-        ('ACEPTADA', 'Aceptada'),     # Médico confirmó (Antes llamada Confirmada)
-        ('CANCELADA', 'Cancelada'),   # Cancelada por usuario o médico
-        ('REALIZADA', 'Realizada'),   # Ya atendida y finalizada
-        ('NO_ASISTIO', 'No Asistió'), # Mejora: El paciente nunca llegó
+        ('PENDIENTE', 'Pendiente'),   
+        ('ACEPTADA', 'Aceptada'),     
+        ('CANCELADA', 'Cancelada'),   
+        ('REALIZADA', 'Realizada'),   
+        ('NO_ASISTIO', 'No Asistió'),
+        ('EN_SALA', 'En Sala de Espera'), # <--- NUEVO ESTADO: Paciente llegó y está listo
     ]
 
-    # --- Referencias Externas (IDs a otros Microservicios) ---
-    usuario_id = models.BigIntegerField(null=True, blank=True) # ID del usuario (Auth-MS) que pidió la cita
-    profesional_id = models.BigIntegerField(db_index=True)     # ID del médico (Professionals-MS)
-    lugar_id = models.BigIntegerField(null=True, blank=True)   # ID de la sede (Professionals-MS)
-    horario_id = models.BigIntegerField(null=True, blank=True) # ID del slot de tiempo (Schedule-MS)
-    paciente_id = models.BigIntegerField(db_index=True)        # ID del paciente (Patients-MS)
-    servicio_id = models.BigIntegerField(null=True, blank=True)# ID del servicio (Professionals-MS)
+    # ... (Referencias Externas iguales) ...
+    usuario_id = models.BigIntegerField(null=True, blank=True)
+    profesional_id = models.BigIntegerField(db_index=True)
+    lugar_id = models.BigIntegerField(null=True, blank=True)
+    horario_id = models.BigIntegerField(null=True, blank=True)
+    paciente_id = models.BigIntegerField(db_index=True)
+    servicio_id = models.BigIntegerField(null=True, blank=True)
 
     # --- Datos de la Cita ---
     fecha = models.DateField()
     hora_inicio = models.TimeField() 
     hora_fin = models.TimeField()
     
+    # Nota que escribe el PACIENTE al pedir la cita
     nota = models.TextField(blank=True, null=True, verbose_name="Nota inicial del paciente")
     
-    # AJUSTE: Default ahora es PENDIENTE
+    # --- NUEVO CAMPO ---
+    # Nota que escribe la SECRETARIA/RECEPCIÓN (Signos vitales, copago, alertas)
+    nota_interna = models.TextField(blank=True, null=True, verbose_name="Nota de Recepción/Administrativa")
+
     estado = models.CharField(max_length=20, choices=ESTADOS, default='PENDIENTE', db_index=True)
     
-    activo = models.BooleanField(default=True) # Soft delete
-    
+    activo = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

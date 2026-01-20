@@ -1,29 +1,54 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { staffService } from '../../../services/staffService';
 import { agendaService } from '../../../services/agendaService';
 import Swal from 'sweetalert2';
-import { FaCogs, FaCalendarAlt, FaHistory } from 'react-icons/fa';
+import { FaCalendarAlt, FaChevronLeft, FaChevronRight, FaTimes, FaUsers, FaSearch, FaPlusCircle } from 'react-icons/fa';
 
 import ListaProfesionales from './ListaProfesionales';
 import GrillaSemanal from './GrillaSemanal';
 import HistorialPanel from './HistorialAgendas'; 
 
+// Paleta de colores para asignar visualmente a cada médico
+const PALETA_COLORES = [
+    { nombre: 'blue', clase: 'bg-blue-100 text-blue-800 border-blue-300' },
+    { nombre: 'green', clase: 'bg-green-100 text-green-800 border-green-300' },
+    { nombre: 'purple', clase: 'bg-purple-100 text-purple-800 border-purple-300' },
+    { nombre: 'orange', clase: 'bg-orange-100 text-orange-800 border-orange-300' },
+    { nombre: 'pink', clase: 'bg-pink-100 text-pink-800 border-pink-300' },
+    { nombre: 'teal', clase: 'bg-teal-100 text-teal-800 border-teal-300' },
+];
+
 const GestionAgenda = () => {
-    // --- ESTADOS ---
+    // --- ESTADOS DE DATOS ---
     const [sedes, setSedes] = useState([]);
     const [profesionales, setProfesionales] = useState([]);
     const [servicios, setServicios] = useState([]); 
     
     const [sedeSeleccionada, setSedeSeleccionada] = useState(null);
-    const [profesionalSeleccionado, setProfesionalSeleccionado] = useState(null);
     
-    const [agenda, setAgenda] = useState({ horarios: [], bloqueos: [] });
+    // MULTI-SELECCIÓN: Array de objetos médico
+    const [selectedProfs, setSelectedProfs] = useState([]); 
+
+    // DATA COMBINADA: { [profId]: { horarios: [], bloqueos: [] } }
+    const [agendasCombinadas, setAgendasCombinadas] = useState({});
+    
     const [loadingAgenda, setLoadingAgenda] = useState(false);
     const [duracionDefecto, setDuracionDefecto] = useState(20);
+    const [viewMode, setViewMode] = useState('config'); // 'config' | 'historial'
+    
+    // --- ESTADOS CALENDARIO ---
+    const [calendarView, setCalendarView] = useState('week'); // 'day', 'week', 'month'
+    const [fechaReferencia, setFechaReferencia] = useState(new Date());
+    
+    // --- ESTADO MODAL FULL SCREEN ---
+    const [isGridOpen, setIsGridOpen] = useState(false);
+    
+    // --- ESTADO BUSCADOR FOOTER ---
+    const [footerSearch, setFooterSearch] = useState('');
+    const [showFooterResults, setShowFooterResults] = useState(false);
+    const footerInputRef = useRef(null);
 
-    const [viewMode, setViewMode] = useState('config'); 
-
-    // Carga Inicial
+    // 1. Carga Inicial de Catálogos
     useEffect(() => {
         const cargarDatos = async () => {
             try {
@@ -41,153 +66,127 @@ const GestionAgenda = () => {
         cargarDatos();
     }, []);
 
-    // Cargar Agenda
+    // 2. Reaccionar a cambios en selección para cargar agendas
     useEffect(() => {
-        if (profesionalSeleccionado && sedeSeleccionada && viewMode === 'config') {
-            cargarAgendaMedico();
+        if (selectedProfs.length > 0 && sedeSeleccionada && viewMode === 'config') {
+            cargarMultiplesAgendas();
+        } else {
+            setAgendasCombinadas({});
         }
-    }, [profesionalSeleccionado, sedeSeleccionada, viewMode]);
+    }, [selectedProfs, sedeSeleccionada, viewMode]);
 
-    const cargarAgendaMedico = async () => {
+    // --- LÓGICA MULTI-AGENDA ---
+    const toggleProfesional = (prof) => {
+        const isSelected = selectedProfs.some(p => p.id === prof.id);
+        
+        if (isSelected) {
+            // Deseleccionar (Quitar de la lista)
+            setSelectedProfs(prev => prev.filter(p => p.id !== prof.id));
+        } else {
+            // Seleccionar (Asignar color cíclico)
+            const colorIndex = selectedProfs.length % PALETA_COLORES.length;
+            const nuevoProf = { ...prof, colorInfo: PALETA_COLORES[colorIndex] };
+            setSelectedProfs(prev => [...prev, nuevoProf]);
+        }
+        // Limpiar buscador footer si se usó
+        setFooterSearch('');
+        setShowFooterResults(false);
+    };
+
+    const cargarMultiplesAgendas = async () => {
         setLoadingAgenda(true);
+        const nuevasAgendas = {};
+        
         try {
-            const [h, b] = await Promise.all([
-                agendaService.getDisponibilidades({ profesional_id: profesionalSeleccionado.id, lugar_id: sedeSeleccionada }),
-                agendaService.getBloqueos({ profesional_id: profesionalSeleccionado.id })
-            ]);
-            setAgenda({ horarios: h, bloqueos: b });
-        } catch (error) { console.error(error); }
-        finally { setLoadingAgenda(false); }
-    };
-
-    // --- HELPER FECHA ---
-    const calcularProximaFecha = (diaSemanaAgenda) => {
-        const hoy = new Date();
-        const diaHoyJS = hoy.getDay(); 
-        const diaObjetivoJS = diaSemanaAgenda === 6 ? 0 : diaSemanaAgenda + 1;
-        let diferencia = diaObjetivoJS - diaHoyJS;
-        if (diferencia < 0) diferencia += 7;
-        const proximaFecha = new Date();
-        proximaFecha.setDate(hoy.getDate() + diferencia);
-        return proximaFecha.toISOString().split('T')[0];
-    };
-
-    // --- GESTIÓN DE TURNOS ---
-    const handleGestionarTurno = async (turno, fechaPreseleccionada = null) => {
-        const fechaDefecto = fechaPreseleccionada || calcularProximaFecha(turno.dia_semana);
-
-        const { value: fechaGestion } = await Swal.fire({
-            title: 'Gestionar Disponibilidad',
-            text: 'Selecciona la fecha para gestionar excepciones:',
-            input: 'date',
-            inputValue: fechaDefecto,
-            showCancelButton: true,
-            confirmButtonText: 'Ver Slots'
-        });
-
-        if (!fechaGestion) return;
-
-        let duracion = duracionDefecto;
-        let nombreServicio = "General / Mixto";
-        if (turno.servicio_id) {
-            const s = servicios.find(srv => srv.id === turno.servicio_id);
-            if (s) { duracion = s.duracion_minutos; nombreServicio = s.nombre; }
-        }
-
-        let bloqueosFrescos = [];
-        try {
-            bloqueosFrescos = await agendaService.getBloqueos({ profesional_id: profesionalSeleccionado.id });
-        } catch(e) { console.error(e); }
-
-        const slots = [];
-        let [h, m] = turno.hora_inicio.split(':').map(Number);
-        const [hFin, mFin] = turno.hora_fin.split(':').map(Number);
-        let actualMin = h * 60 + m;
-        const finMin = hFin * 60 + mFin;
-        const ahora = new Date();
-
-        while (actualMin + duracion <= finMin) {
-            const hh = Math.floor(actualMin / 60).toString().padStart(2, '0');
-            const mm = (actualMin % 60).toString().padStart(2, '0');
-            const finHH = Math.floor((actualMin + duracion) / 60).toString().padStart(2, '0');
-            const finMM = ((actualMin + duracion) % 60).toString().padStart(2, '0');
-            
-            const inicioStr = `${hh}:${mm}`;
-            const finStr = `${finHH}:${finMM}`;
-            
-            const bloqueoMatch = bloqueosFrescos.find(b => b.fecha_inicio.startsWith(`${fechaGestion}T${inicioStr}`));
-            const slotDate = new Date(`${fechaGestion}T${inicioStr}:00`);
-            const esPasado = slotDate < ahora;
-
-            slots.push({
-                inicio: inicioStr, fin: finStr,
-                bloqueado: !!bloqueoMatch,
-                bloqueoId: bloqueoMatch?.id,
-                motivo: bloqueoMatch?.motivo,
-                esPasado: esPasado
+            // Ejecutamos peticiones en paralelo para todos los seleccionados
+            const promesas = selectedProfs.map(async (prof) => {
+                const [h, b] = await Promise.all([
+                    agendaService.getDisponibilidades({ profesional_id: prof.id, lugar_id: sedeSeleccionada }),
+                    agendaService.getBloqueos({ profesional_id: prof.id })
+                ]);
+                return { id: prof.id, data: { horarios: h, bloqueos: b } };
             });
-            actualMin += duracion;
+
+            const resultados = await Promise.all(promesas);
+            
+            resultados.forEach(res => {
+                nuevasAgendas[res.id] = res.data;
+            });
+            
+            setAgendasCombinadas(nuevasAgendas);
+
+        } catch (error) { 
+            console.error("Error cargando agendas", error);
+            Swal.fire('Error', 'No se pudieron cargar todas las agendas', 'error');
+        } finally { 
+            setLoadingAgenda(false); 
         }
-
-        const slotsHtml = slots.map(slot => {
-            let style = "bg-white border-gray-200";
-            let btn = "";
-            let extra = "";
-
-            if (slot.esPasado) {
-                style = "bg-gray-100 border-gray-300 opacity-60";
-                btn = `<span class="text-xs text-gray-500 font-bold">Pasado</span>`;
-            } else if (slot.bloqueado) {
-                style = "bg-red-100 border-red-400"; 
-                extra = `<div class="text-[10px] text-red-800 italic font-bold"><i class="fas fa-lock"></i> ${slot.motivo}</div>`;
-                btn = `<button onclick="window.gestionarSlot('DESBLOQUEAR', null, null, '${slot.bloqueoId}')" class="text-xs bg-white text-red-600 border border-red-200 px-2 py-1 rounded hover:bg-red-100 font-bold shadow-sm">Desbloquear</button>`;
-            } else {
-                btn = `<button onclick="window.gestionarSlot('BLOQUEAR', '${slot.inicio}', '${slot.fin}', null)" class="text-xs bg-blue-50 text-blue-700 border border-blue-200 px-3 py-1 rounded hover:bg-blue-100 font-bold">Bloquear</button>`;
-            }
-
-            return `<div class="flex justify-between items-center p-2 mb-2 rounded border ${style} transition-colors"><div class="flex items-center gap-3"><span class="font-mono text-sm font-bold text-gray-700">${slot.inicio} - ${slot.fin}</span>${extra}</div>${btn}</div>`;
-        }).join('');
-
-        window.gestionarSlot = async (accion, inicio, fin, bloqueoId) => {
-            if (accion === 'BLOQUEAR') {
-                const { value: motivo } = await Swal.fire({ title: `Bloquear ${inicio}`, input: 'text', showCancelButton: true });
-                if (motivo) {
-                    try {
-                        await agendaService.createBloqueo({
-                            profesional_id: profesionalSeleccionado.id,
-                            fecha_inicio: `${fechaGestion}T${inicio}:00`,
-                            fecha_fin: `${fechaGestion}T${fin}:00`,
-                            motivo: motivo
-                        });
-                        handleGestionarTurno(turno, fechaGestion); 
-                    } catch (e) { Swal.fire('Error', 'Fallo al bloquear', 'error'); }
-                } else { handleGestionarTurno(turno, fechaGestion); }
-            } 
-            if (accion === 'DESBLOQUEAR') {
-                try {
-                    await agendaService.deleteBloqueo(bloqueoId);
-                    handleGestionarTurno(turno, fechaGestion); 
-                } catch (e) { Swal.fire('Error', 'Fallo al desbloquear', 'error'); }
-            }
-        };
-
-        Swal.fire({
-            title: `Agenda del ${fechaGestion}`,
-            html: `<div class="text-left bg-gray-50 p-4 rounded border border-gray-200"><p class="text-xs text-gray-500 mb-3 flex justify-between"><span><b>Servicio:</b> ${nombreServicio}</span><span><b>Intervalo:</b> ${duracion} min</span></p><div class="max-h-[400px] overflow-y-auto pr-1 custom-scroll">${slotsHtml}</div></div>`,
-            showConfirmButton: false, showCloseButton: true, width: '600px',
-            didDestroy: () => { delete window.gestionarSlot; }
-        });
     };
 
+    // --- NAVEGACIÓN CALENDARIO ---
+    const navegarCalendario = (direccion) => {
+        const nuevaFecha = new Date(fechaReferencia);
+        if (calendarView === 'day') nuevaFecha.setDate(nuevaFecha.getDate() + direccion);
+        else if (calendarView === 'week') nuevaFecha.setDate(nuevaFecha.getDate() + (direccion * 7));
+        else if (calendarView === 'month') nuevaFecha.setMonth(nuevaFecha.getMonth() + direccion);
+        setFechaReferencia(nuevaFecha);
+    };
+
+    const irAHoy = () => setFechaReferencia(new Date());
+
+
+    // --- GESTIÓN DE TURNOS (CRUD) ---
+
+    // 1. Crear Turno (Clic en el +)
     const handleCrearTurno = async (diaIndex, hora) => {
+        let targetProfId = null;
+        const diaNombre = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'][diaIndex];
+
+        // A. Si hay múltiples seleccionados, preguntar para quién es
+        if (selectedProfs.length > 1) {
+            const inputOptions = {};
+            selectedProfs.forEach(p => {
+                inputOptions[p.id] = p.nombre;
+            });
+            
+            const { value: profId } = await Swal.fire({
+                title: 'Seleccione Profesional',
+                text: `¿Para quién deseas crear el horario del ${diaNombre} a las ${hora}:00?`,
+                input: 'select',
+                inputOptions: inputOptions,
+                showCancelButton: true,
+                confirmButtonText: 'Continuar'
+            });
+
+            if (!profId) return; // Cancelado
+            targetProfId = profId;
+        } else if (selectedProfs.length === 1) {
+            // B. Si solo hay uno, seleccionarlo directo
+            targetProfId = selectedProfs[0].id;
+        } else {
+            return;
+        }
+
+        // C. Formulario de detalles
         const horaInicio = `${hora.toString().padStart(2, '0')}:00`;
         const horaFin = `${(hora+1).toString().padStart(2, '0')}:00`;
-        const diaNombre = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'][diaIndex];
         const opcionesServicios = servicios.map(s => `<option value="${s.id}">${s.nombre} (${s.duracion_minutos} min)</option>`).join('');
 
         const { value: formValues } = await Swal.fire({
             title: `Nuevo Turno: ${diaNombre}`,
-            html: `<div class="text-left"><label class="block text-sm font-bold text-gray-700">Horario</label><div class="flex gap-2 mb-3"><input id="swal-inicio" type="time" class="swal2-input" value="${horaInicio}" style="margin:0"><input id="swal-fin" type="time" class="swal2-input" value="${horaFin}" style="margin:0"></div><label class="block text-sm font-bold text-gray-700">Enfoque</label><select id="swal-servicio" class="swal2-select" style="margin:0; width:100%"><option value="">General / Mixto (${duracionDefecto} min)</option>${opcionesServicios}</select></div>`,
+            html: `
+                <div class="text-left">
+                    <label class="block text-sm font-bold text-gray-700">Horario</label>
+                    <div class="flex gap-2 mb-3">
+                        <input id="swal-inicio" type="time" class="swal2-input" value="${horaInicio}" style="margin:0">
+                        <input id="swal-fin" type="time" class="swal2-input" value="${horaFin}" style="margin:0">
+                    </div>
+                    <label class="block text-sm font-bold text-gray-700">Enfoque / Servicio</label>
+                    <select id="swal-servicio" class="swal2-select" style="margin:0; width:100%">
+                        <option value="">General / Mixto (${duracionDefecto} min)</option>
+                        ${opcionesServicios}
+                    </select>
+                </div>`,
             focusConfirm: false, showCancelButton: true, confirmButtonText: 'Guardar',
             preConfirm: () => ({
                 inicio: document.getElementById('swal-inicio').value,
@@ -196,69 +195,246 @@ const GestionAgenda = () => {
             })
         });
 
+        // D. Guardar en Backend
         if (formValues) {
             try {
                 await agendaService.createDisponibilidad({
-                    profesional_id: profesionalSeleccionado.id, lugar_id: sedeSeleccionada, dia_semana: diaIndex,
-                    hora_inicio: formValues.inicio, hora_fin: formValues.fin, servicio_id: formValues.servicio || null
+                    profesional_id: targetProfId,
+                    lugar_id: sedeSeleccionada, 
+                    dia_semana: diaIndex,
+                    hora_inicio: formValues.inicio, 
+                    hora_fin: formValues.fin, 
+                    servicio_id: formValues.servicio || null
                 });
-                cargarAgendaMedico();
-                Swal.fire('Guardado', '', 'success');
-            } catch (e) { Swal.fire('Error', 'Verifica solapamientos', 'error'); }
+                
+                await Swal.fire('Guardado', 'Horario creado exitosamente', 'success');
+                cargarMultiplesAgendas(); // Recargar datos
+            } catch (e) { 
+                Swal.fire('Error', 'Verifica si ya existe un horario solapado', 'error'); 
+            }
         }
     };
 
+    // 2. Gestionar Turno Existente (Clic en slot)
+    const handleGestionarTurno = async (turno, fechaPreseleccionada) => {
+        const { value: accion } = await Swal.fire({
+            title: 'Gestionar Horario',
+            text: `Horario de ${turno.hora_inicio} a ${turno.hora_fin}`,
+            showDenyButton: true,
+            showCancelButton: true,
+            confirmButtonText: 'Gestionar Bloqueos (Día)',
+            denyButtonText: 'Eliminar Horario Base',
+            confirmButtonColor: '#3085d6',
+            denyButtonColor: '#d33'
+        });
+
+        if (accion === true) {
+             Swal.fire('Gestión de Bloqueos', `Gestionar para fecha: ${fechaPreseleccionada}`, 'info');
+
+        } else if (accion === false) { // Deny -> Eliminar
+             try {
+                 await agendaService.deleteDisponibilidad(turno.id);
+                 Swal.fire('Eliminado', 'Horario base eliminado', 'success');
+                 cargarMultiplesAgendas();
+             } catch(e) { Swal.fire('Error', 'No se pudo eliminar', 'error'); }
+        }
+    };
+
+    // --- LÓGICA FILTRO FOOTER ---
+    // Filtramos profesionales que NO estén ya seleccionados y que coincidan con la búsqueda
+    const resultadosFooter = footerSearch.length > 0 
+        ? profesionales.filter(p => 
+            !selectedProfs.find(sel => sel.id === p.id) && 
+            p.nombre.toLowerCase().includes(footerSearch.toLowerCase())
+          )
+        : [];
+
     return (
-        // CONTENEDOR PRINCIPAL AJUSTADO
-        // h-[calc(100vh-64px)] asume que tienes un Navbar arriba de unos 64px. Si no, usa h-screen.
-        // overflow-hidden es CRUCIAL para que el scroll interno funcione.
-        <div className="w-full h-screen flex flex-col md:flex-row bg-gray-100 overflow-hidden">
+        <div className="flex flex-col md:flex-row h-screen w-full bg-gray-100 overflow-hidden relative">
             
-            {/* PANEL IZQUIERDO */}
-            <div className="w-full md:w-80 border-r border-gray-200 bg-white h-auto md:h-full shrink-0 z-20">
+            {/* --- 1. SIDEBAR (Lista de Profesionales) --- */}
+            <div className="w-full md:w-80 flex-shrink-0 border-r border-gray-200 bg-white h-full z-20 flex flex-col shadow-lg">
                 <ListaProfesionales 
                     sedes={sedes} profesionales={profesionales}
                     sedeSeleccionada={sedeSeleccionada} setSedeSeleccionada={setSedeSeleccionada}
-                    profesionalSeleccionado={profesionalSeleccionado} setProfesionalSeleccionado={setProfesionalSeleccionado}
+                    selectedProfs={selectedProfs} 
+                    toggleProfesional={toggleProfesional} 
+                    onOpenModal={() => setIsGridOpen(true)}
                 />
             </div>
             
-            {/* PANEL DERECHO: min-w-0 permite que el flex item se encoja */}
-            <div className="flex-1 flex flex-col h-full bg-white min-w-0 overflow-hidden">
-                
-                {/* HEADER PESTAÑAS */}
-                <div className="bg-white border-b px-4 h-14 flex items-center justify-between shadow-sm z-20 shrink-0">
-                    <div className="flex bg-gray-100 p-1 rounded-lg">
-                        <button onClick={() => setViewMode('config')} className={`flex items-center gap-2 px-3 md:px-4 py-1.5 rounded-md text-xs md:text-sm font-bold transition-all ${viewMode === 'config' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
-                            <FaCalendarAlt/> <span className="hidden sm:inline">Configurar</span> Agenda
-                        </button>
-                        <button onClick={() => setViewMode('historial')} className={`flex items-center gap-2 px-3 md:px-4 py-1.5 rounded-md text-xs md:text-sm font-bold transition-all ${viewMode === 'historial' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
-                            <FaHistory/> <span className="hidden sm:inline">Ver</span> Historial
-                        </button>
+            {/* --- 2. PANEL DERECHO (Historial o Dashboard Vacío) --- */}
+            <div className="flex-1 flex flex-col h-full bg-gray-50 relative overflow-hidden">
+                {viewMode === 'historial' ? (
+                    <HistorialPanel profesionalSeleccionado={selectedProfs[0]} />
+                ) : (
+                    <div className="flex-1 flex flex-col items-center justify-center text-gray-400 p-8 text-center">
+                        <div className="bg-white p-8 rounded-2xl shadow-sm max-w-md border border-gray-100">
+                            <FaUsers size={48} className="mx-auto mb-4 text-blue-200"/>
+                            <h3 className="text-xl font-bold text-gray-700 mb-2">Gestión de Agendas</h3>
+                            <p className="mb-6 text-sm">
+                                Selecciona uno o varios profesionales del menú izquierdo. <br/>
+                                Luego presiona el botón para gestionar sus horarios.
+                            </p>
+                            
+                            {selectedProfs.length > 0 ? (
+                                <button 
+                                    onClick={() => setIsGridOpen(true)}
+                                    className="bg-blue-600 text-white px-6 py-3 rounded-xl shadow-lg hover:bg-blue-700 transition font-bold flex items-center gap-2 mx-auto animate-pulse"
+                                >
+                                    <FaCalendarAlt /> Abrir Agenda ({selectedProfs.length})
+                                </button>
+                            ) : (
+                                <div className="text-xs text-orange-400 bg-orange-50 p-2 rounded">
+                                    ← Selecciona un médico para comenzar
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* --- 3. MODAL FULL SCREEN (La Grilla) --- */}
+            {isGridOpen && (
+                <div className="fixed inset-0 z-50 bg-white flex flex-col animate-fadeIn">
+                    
+                    {/* Header del Modal */}
+                    <div className="h-16 px-4 border-b flex items-center justify-between bg-white shadow-sm shrink-0 z-50">
+                        <div className="flex items-center gap-4">
+                            <button onClick={() => setIsGridOpen(false)} className="p-2 hover:bg-red-50 text-gray-500 hover:text-red-600 rounded-full transition" title="Cerrar">
+                                <FaTimes size={20}/>
+                            </button>
+                            <div>
+                                <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                                    <FaCalendarAlt className="text-blue-600"/> Agenda
+                                </h2>
+                                <p className="text-xs text-gray-500 hidden sm:block">
+                                    Viendo {selectedProfs.length} profesionales
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Controles de Calendario */}
+                        <div className="flex items-center gap-2 md:gap-4">
+                            <div className="flex items-center bg-gray-100 rounded-lg p-1">
+                                <button onClick={() => navegarCalendario(-1)} className="p-1.5 hover:bg-white rounded shadow-sm text-gray-600"><FaChevronLeft/></button>
+                                <button onClick={irAHoy} className="mx-1 px-3 py-1 text-sm font-bold text-gray-600 hover:bg-white rounded">Hoy</button>
+                                <button onClick={() => navegarCalendario(1)} className="p-1.5 hover:bg-white rounded shadow-sm text-gray-600"><FaChevronRight/></button>
+                            </div>
+                            
+                            <span className="font-bold text-gray-700 capitalize w-32 text-center hidden md:block">
+                                {fechaReferencia.toLocaleString('es-ES', { month: 'long', year: 'numeric' })}
+                            </span>
+                            
+                            <div className="flex bg-gray-100 p-1 rounded-lg">
+                                <button onClick={() => setCalendarView('day')} className={`px-3 py-1 rounded text-xs font-bold ${calendarView === 'day' ? 'bg-white shadow text-blue-600' : 'text-gray-500'}`}>Día</button>
+                                <button onClick={() => setCalendarView('week')} className={`px-3 py-1 rounded text-xs font-bold ${calendarView === 'week' ? 'bg-white shadow text-blue-600' : 'text-gray-500'}`}>Semana</button>
+                                <button onClick={() => setCalendarView('month')} className={`px-3 py-1 rounded text-xs font-bold ${calendarView === 'month' ? 'bg-white shadow text-blue-600' : 'text-gray-500'}`}>Mes</button>
+                            </div>
+                        </div>
                     </div>
 
-                    {viewMode === 'config' && (
-                        <div className="flex items-center gap-2 text-gray-600 text-xs">
-                            <FaCogs className="text-gray-400"/>
-                            <span className="font-bold hidden md:inline">Intervalo:</span>
-                            <input type="number" min="10" max="60" step="5" value={duracionDefecto} onChange={(e) => setDuracionDefecto(parseInt(e.target.value) || 20)} className="border rounded w-12 px-1 py-1 text-center font-bold text-blue-600 focus:outline-none" />
-                            <span className="hidden md:inline text-gray-400">min</span>
+                    {/* Contenido Grilla */}
+                    <div className="flex-1 overflow-hidden relative bg-gray-50">
+                        {loadingAgenda ? (
+                            <div className="h-full flex items-center justify-center">
+                                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                            </div>
+                        ) : (
+                            <GrillaSemanal 
+                                selectedProfs={selectedProfs} 
+                                agendasCombinadas={agendasCombinadas} 
+                                servicios={servicios}
+                                duracionDefecto={duracionDefecto} 
+                                onCrearTurno={handleCrearTurno} 
+                                onGestionarTurno={handleGestionarTurno}
+                                calendarView={calendarView}
+                                fechaReferencia={fechaReferencia}
+                                setCalendarView={setCalendarView}
+                                setFechaReferencia={setFechaReferencia}
+                            />
+                        )}
+                    </div>
+                    
+                    {/* FOOTER CON BUSCADOR "QUICK ADD" */}
+                    <div className="h-14 border-t bg-white flex items-center shrink-0 z-50">
+                        
+                        {/* ZONA 1: CHIPS SCROLLABLE (Izquierda) */}
+                        <div className="flex-1 flex gap-3 overflow-x-auto p-2 scrollbar-thin items-center">
+                            {selectedProfs.length === 0 && (
+                                <span className="text-xs text-gray-400 italic px-2">No hay profesionales seleccionados</span>
+                            )}
+                            {selectedProfs.map(p => (
+                                <div 
+                                    key={p.id} 
+                                    className={`px-2 py-1 rounded border flex items-center gap-2 shrink-0 ${p.colorInfo.clase} shadow-sm animate-fadeIn`}
+                                >
+                                    <div className="flex items-center gap-1">
+                                        <div className="w-2 h-2 rounded-full bg-current opacity-50"></div>
+                                        <span className="font-bold truncate max-w-[150px] text-xs">{p.nombre}</span>
+                                    </div>
+                                    <button 
+                                        onClick={() => toggleProfesional(p)} 
+                                        className="hover:bg-white/50 rounded-full p-0.5 transition focus:outline-none text-current opacity-70 hover:opacity-100"
+                                        title="Quitar de la vista"
+                                    >
+                                        <FaTimes size={10} />
+                                    </button>
+                                </div>
+                            ))}
                         </div>
-                    )}
-                </div>
 
-                {/* CONTENIDO PRINCIPAL: Flex-1 y overflow-hidden para contener al hijo scrollable */}
-                <div className="flex-1 overflow-hidden relative flex flex-col w-full">
-                    {viewMode === 'config' ? (
-                        <GrillaSemanal 
-                            profesional={profesionalSeleccionado} agenda={agenda} servicios={servicios}
-                            duracionDefecto={duracionDefecto} onCrearTurno={handleCrearTurno} onGestionarTurno={handleGestionarTurno}
-                        />
-                    ) : (
-                        <HistorialPanel profesionalSeleccionado={profesionalSeleccionado} />
-                    )}
+                        {/* ZONA 2: BUSCADOR QUICK ADD (Fijo a la Derecha) */}
+                        <div className="w-64 border-l pl-3 pr-3 py-2 bg-gray-50 relative h-full flex items-center group">
+                            <FaSearch className="text-gray-400 mr-2 text-xs"/>
+                            <input 
+                                ref={footerInputRef}
+                                type="text" 
+                                placeholder="Agregar otro médico..." 
+                                className="w-full bg-transparent text-sm outline-none placeholder-gray-400 text-gray-700"
+                                value={footerSearch}
+                                onChange={(e) => {
+                                    setFooterSearch(e.target.value);
+                                    setShowFooterResults(true);
+                                }}
+                                onFocus={() => setShowFooterResults(true)}
+                                // onBlur se maneja con cuidado para permitir clic en resultados
+                            />
+
+                            {/* DROPDOWN DE RESULTADOS (Flotante hacia ARRIBA) */}
+                            {showFooterResults && footerSearch.length > 0 && (
+                                <div className="absolute bottom-full right-0 left-0 mb-1 bg-white border border-gray-200 rounded-t-lg shadow-xl max-h-60 overflow-y-auto z-50">
+                                    {resultadosFooter.length === 0 ? (
+                                        <div className="p-3 text-xs text-gray-400 text-center italic">No se encontraron profesionales</div>
+                                    ) : (
+                                        resultadosFooter.map(p => (
+                                            <div 
+                                                key={p.id}
+                                                className="p-2 hover:bg-blue-50 cursor-pointer border-b last:border-0 border-gray-100 flex items-center justify-between group/item"
+                                                onClick={() => toggleProfesional(p)}
+                                            >
+                                                <div className="flex flex-col">
+                                                    <span className="text-sm font-bold text-gray-700 group-hover/item:text-blue-700">{p.nombre}</span>
+                                                    <span className="text-[10px] text-gray-400">{p.especialidades_nombres?.[0] || 'General'}</span>
+                                                </div>
+                                                <FaPlusCircle className="text-gray-300 group-hover/item:text-blue-500 transition"/>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            )}
+                            
+                            {/* Overlay para cerrar al hacer clic fuera (opcional, o usar onBlur con timeout) */}
+                            {showFooterResults && (
+                                <div 
+                                    className="fixed inset-0 z-40 bg-transparent" 
+                                    onClick={() => setShowFooterResults(false)}
+                                ></div>
+                            )}
+                        </div>
+                    </div>
                 </div>
-            </div>
+            )}
         </div>
     );
 };

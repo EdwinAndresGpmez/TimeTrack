@@ -9,6 +9,8 @@ class NotaMedicaSerializer(serializers.ModelSerializer):
 class CitaSerializer(serializers.ModelSerializer):
     # Opcional: Incluir la nota médica anidada si se quiere ver todo junto
     nota_medica = NotaMedicaSerializer(read_only=True, required=False)
+    paciente_nombre = serializers.CharField(source='paciente_nombre_readonly', read_only=True) 
+    profesional_nombre = serializers.CharField(source='profesional_nombre_readonly', read_only=True)
 
     class Meta:
         model = Cita

@@ -1,203 +1,401 @@
 # Mapeo y Estado del Proyecto TimeTrack
+**Actualizado:** 20 de Enero, 2026
 
-## Microservicios y sus Componentes
-
-### 1. **appointments-ms (gestion_citas)**
-- **Modelos:**
-  - Cita
-  - NotaMedica
-  - HistoricoCita
-  - ConfiguracionGlobal (reglas de negocio parametrizables)
-- **Serializers:**
-  - class NotaMedicaSerializer(serializers.ModelSerializer)
-  - class CitaSerializer(serializers.ModelSerializer)
-  - class HistoricoCitaSerializer(serializers.ModelSerializer)
-  - class ConfiguracionGlobalSerializer(serializers.ModelSerializer)
-- **Views:**
-  - class ConfiguracionViewSet(viewsets.ModelViewSet)
-  - class CitaViewSet(viewsets.ModelViewSet)
-  - class NotaMedicaViewSet(viewsets.ModelViewSet)
-  - class HistoricoCitaViewSet(viewsets.ReadOnlyModelViewSet)
-- **URLs:**
-  - `/citas/` (CitaViewSet)
-  - `/notas/` (NotaMedicaViewSet)
-  - `/historico/` (HistoricoCitaViewSet)
-  - `/citas/configuracion/` (ConfiguracionViewSet)
-- **Core:**
-  - asgi.py, settings.py, urls.py, wsgi.py, __init__.py
-
-### 2. **schedule-ms (agenda)**
-- **Modelos:**
-  - Disponibilidad (con validación de solapamiento y horas)
-  - BloqueoAgenda (vacaciones, permisos, etc.)
-- **Serializers:**
-  - class DisponibilidadSerializer(serializers.ModelSerializer)
-  - class BloqueoAgendaSerializer(serializers.ModelSerializer)
-- **Views:**
-  - class DisponibilidadViewSet(viewsets.ModelViewSet)
-  - class BloqueoAgendaViewSet(viewsets.ModelViewSet)
-- **URLs:**
-  - `/disponibilidad/` (DisponibilidadViewSet)
-  - `/bloqueos/` (BloqueoAgendaViewSet)
-- **Core:**
-  - asgi.py, settings.py, urls.py, wsgi.py, __init__.py
-
-### 3. **professionals-ms (staff)**
-- **Modelos:**
-  - Especialidad
-  - Lugar
-  - Profesional (relaciones con especialidad y lugar)
-  - Servicio (relación con profesional)
-- **Serializers:**
-  - class EspecialidadSerializer(serializers.ModelSerializer)
-  - class LugarSerializer(serializers.ModelSerializer)
-  - class ProfesionalSerializer(serializers.ModelSerializer)
-  - class ServicioSerializer(serializers.ModelSerializer)
-- **Views:**
-  - class EspecialidadViewSet(viewsets.ModelViewSet)
-  - class LugarViewSet(viewsets.ModelViewSet)
-  - class ProfesionalViewSet(viewsets.ModelViewSet)
-  - class ServicioViewSet(viewsets.ModelViewSet)
-- **URLs:**
-  - `/especialidades/` (EspecialidadViewSet)
-  - `/lugares/` (LugarViewSet)
-  - `/profesionales/` (ProfesionalViewSet)
-  - `/servicios/` (ServicioViewSet)
-- **Core:**
-  - asgi.py, settings.py, urls.py, wsgi.py, __init__.py
-
-### 4. **patients-ms (patients)**
-- **Modelos:**
-  - TipoPaciente
-  - Paciente
-  - SolicitudValidacion
-- **Serializers:**
-  - class TipoPacienteSerializer(serializers.ModelSerializer)
-  - class PacienteSerializer(serializers.ModelSerializer)
-- **Views:**
-  - class TipoPacienteViewSet(viewsets.ModelViewSet)
-  - class PacienteViewSet(viewsets.ModelViewSet)
-- **URLs:**
-  - `/listado/` (PacienteViewSet)
-  - `/tipos/` (TipoPacienteViewSet)
-- **Core:**
-  - asgi.py, settings.py, urls.py, wsgi.py, __init__.py
-
-### 5. **auth-ms (users)**
-- **Modelos:**
-  - CrearCuenta (usuario)
-  - Auditoria
-  - PermisoVista
-  - MenuItem
-- **Serializers:**
-  - class UserSerializer(serializers.ModelSerializer)
-  - class CustomTokenObtainPairSerializer(TokenObtainPairSerializer)
-  - class MenuItemSerializer(serializers.ModelSerializer)
-- **Views:**
-  - class RegistroView(generics.CreateAPIView)
-  - class CustomTokenObtainPairView(TokenObtainPairView)
-  - class UserDetailView(generics.RetrieveUpdateAPIView)
-  - class DynamicMenuView(APIView)
-- **URLs:**
-  - `/register/` (RegistroView)
-  - `/login/` (CustomTokenObtainPairView)
-  - `/login/refresh/` (TokenRefreshView)
-  - `/me/` (UserDetailView)
-  - `/menu/` (DynamicMenuView)
-- **Core:**
-  - asgi.py, settings.py, urls.py, wsgi.py, __init__.py
-
-### 6. **notification-ms (comunicaciones)**
-- **Modelos:**
-  - Notificacion
-- **Serializers:**
-  - class NotificacionSerializer(serializers.ModelSerializer)
-- **Views:**
-  - class NotificacionViewSet(viewsets.ModelViewSet)
-- **URLs:**
-  - `/buzon/` (NotificacionViewSet)
-- **Core:**
-  - asgi.py, settings.py, urls.py, wsgi.py, __init__.py
-
-### 7. **ia-ms (agent)**
-- **Modelos:**
-  - AIConfiguration (prompt, temperatura, activo)
-  - ChatSession
-  - ChatMessage
-- **Serializers:**
-  - class AIConfigurationSerializer(serializers.ModelSerializer)
-  - class ChatMessageSerializer(serializers.ModelSerializer)
-  - class ChatSessionSerializer(serializers.ModelSerializer)
-- **Views:**
-  - class ChatView(APIView)
-  - class HistoryView(APIView)
-- **URLs:**
-  - `/chat/` (ChatView)
-  - `/history/<usuario_id>/` (HistoryView)
-- **Core:**
-  - asgi.py, settings.py, urls.py, wsgi.py, __init__.py
-
-### 8. **portal-ms (content, forms)**
-- **Modelos:**
-  - Banner, VideoGaleria (content)
-  - ConvocatoriaHV, PQRS (forms)
-- **Serializers:**
-  - class BannerSerializer(serializers.ModelSerializer)
-  - class VideoGaleriaSerializer(serializers.ModelSerializer)
-  - class PQRSSerializer(serializers.ModelSerializer)
-  - class ConvocatoriaHVSerializer(serializers.ModelSerializer)
-- **Views:**
-  - class BannerListView(generics.ListAPIView)
-  - class VideoListView(generics.ListAPIView)
-  - class PQRSCreateView(generics.CreateAPIView)
-  - class HVCreateView(generics.CreateAPIView)
-- **URLs:**
-  - `/banners/` (BannerListView)
-  - `/videos/` (VideoListView)
-  - `/pqrs/` (PQRSCreateView)
-  - `/trabaje-con-nosotros/` (HVCreateView)
-- **Core:**
-  - asgi.py, settings.py, urls.py, wsgi.py, __init__.py
+> Arquitectura de Microservicios con Django (Backend), React + Vite (Frontend), Nginx (Gateway), PostgreSQL (DB Centralizada) y Redis
 
 ---
 
-## Mapeo Frontend - Microservicios
+## 📊 Resumen de Infraestructura
 
-- **appointments-ms:**
-  - Servicios: citasService.js
-  - Páginas: MisCitas.jsx, NuevaCita.jsx
-  - Estado: Implementado para listar, crear, cancelar citas. Falta: gestión de notas médicas, histórico.
+| Microservicio | Puerto | Estado | Descripción |
+|:---|:---:|:---:|:---|
+| **API Gateway** (Nginx) | 8080 | ✅ Operativo | Proxy inverso enrutando `/api/v1/` |
+| **Database** (PostgreSQL 15) | 5432 | ✅ Operativo | Base de datos centralizada 7→1 |
+| **Cache** (Redis) | 6379 | ✅ Operativo | Cache y sesiones |
+| **auth-ms** | 8000 | ✅ Completo | Autenticación JWT, usuarios, roles |
+| **patients-ms** | 8001 | ✅ Completo | Gestión de pacientes e historias |
+| **professionals-ms** | 8002 | ✅ Completo | Profesionales, especialidades, servicios |
+| **schedule-ms** | 8003 | ✅ Completo | Disponibilidad y bloqueos de agenda |
+| **appointments-ms** | 8004 | ✅ Completo | Reserva y gestión de citas |
+| **notification-ms** | 8005 | 🔄 Parcial | Backend listo, integración email/SMS pendiente |
+| **ia-ms** | 8006 | ✅ Completo | Chatbot IA, sesiones y configuración |
+| **portal-ms** | 8007 | 🔄 Parcial | Modelos listos, API endpoints pendientes |
+| **frontend** | 5173 | ✅ Avanzado | React + Vite + TailwindCSS |
 
-- **schedule-ms:**
-  - No se detectan páginas directas, pero la lógica de agenda puede estar integrada en la gestión de citas.
-  - Falta: UI para gestión de disponibilidad/bloqueos (solo admin/profesional).
+---
 
-- **professionals-ms:**
-  - Servicios: staffService.js
-  - Páginas: Selección de profesional/servicio en NuevaCita.jsx
-  - Estado: Implementado para consulta de servicios, lugares, profesionales.
+## 🔧 Microservicios - Detalle Técnico
 
-- **patients-ms:**
-  - Servicios: patientService.js
-  - Páginas: Perfil.jsx, ValidarUsuarios.jsx
-  - Estado: Implementado para perfil y validación. Falta: gestión avanzada de pacientes (admin).
+### 1. **auth-ms** (Puerto 8000) ✅ COMPLETO
+**BD:** `auth_db` → User(Django), Auditoria, PermisoVista, MenuItem
 
-- **auth-ms:**
-  - Servicios: authService.js
-  - Páginas: Login.jsx, Register.jsx
-  - Estado: Implementado registro, login, validación de token. Falta: gestión avanzada de usuarios, auditoría.
+**Modelos:**
+- `User` (Django nativo + custom fields)
+- `Auditoria` - Registra acciones de usuarios
+- `PermisoVista` - Asignación de vistas por rol
+- `MenuItem` - Menú dinámico
 
-- **notification-ms:**
-  - No se detecta integración directa en frontend.
-  - Falta: UI para buzón de notificaciones.
+**Endpoints:**
+- `POST /api/v1/auth/register/` - Registro de usuarios
+- `POST /api/v1/auth/login/` - Login con JWT (cedula + password)
+- `POST /api/v1/auth/login/refresh/` - Refresh token
+- `GET /api/v1/auth/me/` - Datos del usuario autenticado
+- `GET /api/v1/auth/menu/` - Menú dinámico por rol
 
-- **ia-ms:**
-  - No se detecta integración directa en frontend.
-  - Falta: UI para chat IA y visualización de historial.
+**Estado:** ✅ Funcional - Login probado, JWT operativo, CORS configurado
 
-- **portal-ms:**
-  - Servicios: portalService.js
-  - Páginas: Home.jsx, PQRS.jsx, TrabajeConNosotros.jsx
+---
+
+### 2. **patients-ms** (Puerto 8001) ✅ COMPLETO
+**BD:** `patients_db` → TipoPaciente, Paciente, SolicitudValidacion
+
+**Modelos:**
+```python
+- TipoPaciente: Categorización (EPS, Particular, Prepagada)
+- Paciente: Datos clínicos, contacto, tipo_documento, referencias a Auth-MS
+- SolicitudValidacion: Auditoría de solicitudes de acceso
+```
+
+**Endpoints:**
+- `GET /api/v1/patients/listado/` - Listar pacientes
+- `POST /api/v1/patients/listado/` - Crear paciente
+- `GET /api/v1/patients/tipos/` - Tipos de paciente
+- `GET /api/v1/patients/<id>/` - Detalle paciente
+
+**Estado:** ✅ Funcional - Modelos completos, admin habilitado
+
+---
+
+### 3. **professionals-ms** (Puerto 8002) ✅ COMPLETO
+**BD:** `professionals_db` → Especialidad, Lugar, Profesional, Servicio
+
+**Modelos:**
+```python
+- Especialidad: Médico, Odontología, etc.
+- Lugar: Sedes/consultorios con dirección y ciudad
+- Profesional: Datos del médico (M:M con Especialidad y Lugar)
+- Servicio: Servicios ofrecidos con duración, precio, acceso (TODOS/PARTICULAR/EPS)
+```
+
+**Endpoints:**
+- `GET /api/v1/professionals/especialidades/` - Listado de especialidades
+- `GET /api/v1/professionals/lugares/` - Sedes disponibles
+- `GET /api/v1/professionals/profesionales/` - Médicos y detalles
+- `GET /api/v1/professionals/servicios/` - Servicios disponibles
+- CRUD completo para cada recurso
+
+**Estado:** ✅ Funcional - Validaciones de borrado implementadas (protección de foreign keys)
+
+---
+
+### 4. **schedule-ms** (Puerto 8003) ✅ COMPLETO
+**BD:** `schedule_db` → Disponibilidad, BloqueoAgenda
+
+**Modelos:**
+```python
+- Disponibilidad: Horarios de atención (profesional_id, fecha, hora_inicio, hora_fin)
+  - Validación: No solapamiento, rango de horas válido
+- BloqueoAgenda: Vacaciones, permisos, mantenimiento
+  - Campos: profesional_id, fecha_inicio, fecha_fin, motivo
+```
+
+**Endpoints:**
+- `GET /api/v1/schedule/disponibilidad/` - Horarios disponibles
+- `POST /api/v1/schedule/disponibilidad/` - Crear disponibilidad
+- `GET /api/v1/schedule/bloqueos/` - Ver bloqueos
+- `POST /api/v1/schedule/bloqueos/` - Crear bloqueo
+- PUT, DELETE para cada recurso
+
+**Estado:** ✅ Funcional - Validaciones de negocio implementadas
+
+---
+
+### 5. **appointments-ms** (Puerto 8004) ✅ COMPLETO
+**BD:** `appointments_db` → Cita, NotaMedica, HistoricoCita, ConfiguracionGlobal
+
+**Modelos:**
+```python
+- Cita: Estados PENDIENTE→ACEPTADA→REALIZADA (+ CANCELADA, NO_ASISTIO)
+  - IDs de referencia: usuario_id, profesional_id, paciente_id, 
+                       lugar_id, horario_id, servicio_id
+- NotaMedica: Evolución clínica (1:1 con Cita)
+- HistoricoCita: Auditoría completa con snapshots de nombres
+- ConfiguracionGlobal: Reglas (ej: horas_antelacion_cancelar)
+```
+
+**Endpoints:**
+- `GET /api/v1/appointments/citas/` - Listar citas
+- `POST /api/v1/appointments/citas/` - Crear cita
+- `GET /api/v1/appointments/notas/` - Notas médicas
+- `GET /api/v1/appointments/historico/` - Auditoría de cambios
+- `GET /api/v1/appointments/configuracion/` - Config global
+
+**Estado:** ✅ Funcional - Estados y validaciones implementadas, soft-delete activo
+
+---
+
+### 6. **notification-ms** (Puerto 8005) 🔄 PARCIAL
+**BD:** `notification_db` → Notificacion
+
+**Modelos:**
+```python
+- Notificacion: usuario_id, asunto, mensaje, leida, tipo (EMAIL/PUSH/SISTEMA)
+  - Índices optimizados: usuario_id + leida
+```
+
+**Endpoints (Diseñados):**
+- `GET /api/v1/notifications/buzon/` - Buzón del usuario
+- `POST /api/v1/notifications/buzon/` - Enviar notificación
+- `PATCH /api/v1/notifications/<id>/` - Marcar como leída
+
+**Estado:** 🔄 Backend estructurado pero **FALTA:**
+- ❌ Integración con SendGrid/SMTP (para email)
+- ❌ Integración con twilio/WhatsApp API
+- ❌ Lógica de disparadores automáticos (signals)
+- ❌ UI frontend para buzón
+
+---
+
+### 7. **ia-ms** (Puerto 8006) ✅ COMPLETO
+**BD:** `ia_db` (SQLite) → AIConfiguration, ChatSession, ChatMessage
+
+**Modelos:**
+```python
+- AIConfiguration: Singleton - API Key, prompt del sistema, temperatura, estado
+- ChatSession: Usuario_id, fecha_inicio, resumen
+- ChatMessage: Contenido, rol (user/assistant), tokens_count
+```
+
+**Endpoints:**
+- `POST /api/v1/ia/chat/` - Enviar mensaje al chatbot
+- `GET /api/v1/ia/history/<usuario_id>/` - Historial de usuario
+
+**Estado:** ✅ Backend operativo
+- ✅ Conexión a GitHub Models (gratuito)
+- ✅ Admin panel para inyectar prompts
+- 🔄 Frontend: **FALTA widget flotante** para integración
+
+---
+
+### 8. **portal-ms** (Puerto 8007) 🔄 PARCIAL
+**BD:** `portal_db` → Banner, VideoGaleria, ConvocatoriaHV, PQRS
+
+**Modelos (✅ Listos):**
+```python
+- Banner: imagen_desktop, imagen_movil, link_accion, orden, activo
+- VideoGaleria: url_externa (YouTube/Vimeo) o archivo_video, portada
+- ConvocatoriaHV: CV para empleo
+- PQRS: Peticiones, quejas, reclamos
+```
+
+**Endpoints (Diseñados):**
+- `GET /api/v1/portal/banners/` - Slider de inicio
+- `GET /api/v1/portal/videos/` - Galería de videos
+- `POST /api/v1/portal/pqrs/` - Formulario PQRS
+- `POST /api/v1/portal/hv/` - Solicitud "Trabaje con nosotros"
+
+**Estado:** 🔄 Modelos completos pero **FALTA:**
+- ❌ Serializers para todos los modelos
+- ❌ ViewSets/Generics views
+- ❌ URLs.py vinculadas
+- ❌ Admin customizado
+
+---
+
+## 🖥️ Frontend (React + Vite) ✅ AVANZADO
+
+**Stack:** React 19.2, Vite 5.x, TailwindCSS 3.4.17, React Router 7.x
+
+### Estructura de Carpetas
+```
+frontend/src/
+├── pages/
+│   ├── auth/
+│   │   ├── Login.jsx ✅
+│   │   └── Register.jsx ✅
+│   ├── portal/
+│   │   ├── Home.jsx ✅ (HeroSlider, ServicesGrid, About)
+│   │   ├── PQRS.jsx ✅
+│   │   └── TrabajeConNosotros.jsx ✅
+│   ├── system/
+│   │   ├── Dashboard.jsx ✅
+│   │   ├── MisCitas.jsx ✅
+│   │   ├── NuevaCita.jsx ✅ (Formulario con selección de profesional)
+│   │   └── Perfil.jsx ✅
+│   └── admin/
+│       ├── AdminUsuarios.jsx ✅
+│       ├── AdminProfesionales.jsx ✅
+│       ├── AdminCitas.jsx ✅
+│       ├── AdminParametricas.jsx ✅
+│       ├── ConfiguracionSistema.jsx ✅
+│       ├── ValidarUsuarios.jsx ✅
+│       └── agenda/
+│           ├── GestionAgenda.jsx ✅
+│           ├── GrillaSemanal.jsx ✅
+│           ├── ListaProfesionales.jsx ✅
+│           └── HistorialAgendas.jsx ✅
+├── components/
+│   ├── auth/
+│   │   ├── AuthLayout (fondo animado, modal de términos)
+│   │   └── Alertas (SweetAlert2)
+│   ├── portal/
+│   │   ├── Navbar.jsx ✅ (Responsive)
+│   │   ├── Footer.jsx ✅
+│   │   ├── HeroSlider.jsx ✅ (Consumiendo banners del backend)
+│   │   └── ServicesGrid.jsx ✅
+│   └── system/
+│       └── (Componentes específicos de usuario/admin)
+├── services/
+│   ├── authService.js ✅ - Login, Register, Refresh token
+│   ├── citasService.js ✅ - CRUD citas
+│   ├── staffService.js ✅ - Profesionales, especialidades
+│   ├── patientService.js ✅ - Gestión de pacientes
+│   ├── portalService.js ✅ - Banners, PQRS
+│   ├── agendaService.js ✅ - Disponibilidad
+│   └── configService.js ✅ - Configuración global
+├── context/
+│   └── AuthContext.jsx ✅ (SessionContext con JWT decode, localStorage)
+├── api/
+│   └── axiosConfig.js ✅ (Interceptores, base URL)
+└── assets/
+```
+
+### Funcionalidades Implementadas ✅
+- ✅ **Autenticación:** Login/Register con términos y condiciones (modal React Portal)
+- ✅ **Navbar responsive:** Menú colapsable, logo, enlaces dinámicos
+- ✅ **Home público:** Slider de banners, grid de servicios, contadores animados
+- ✅ **Portal de pacientes:** Dashboard, Mis Citas, Nueva Cita, Perfil
+- ✅ **Panel admin:** Usuarios, Profesionales, Citas, Parametrización, Validación
+- ✅ **Agenda admin:** Gestión visual, grilla semanal, historial
+- ✅ **Formularios:** PQRS, Empleo (Trabaje con nosotros)
+- ✅ **Estilos:** TailwindCSS completo, animaciones Framer Motion
+- ✅ **Alertas:** SweetAlert2 reemplazando window.alert
+
+### Funcionalidades PENDIENTES 🔄
+- ❌ **Widget de IA:** Componente flotante para chatbot
+- ❌ **Buzón de notificaciones:** Página de notificaciones
+- ❌ **Integración Portal-MS:** Falta consumir endpoints (modelos listos)
+- ❌ **Reportes/Exportación:** CSV/PDF para citas e historial
+- ❌ **Confirmación de citas:** Envío de email/SMS de confirmación
+- ❌ **Manejo offline:** Service Workers para caché
+
+---
+
+## 📝 Estado de Integración Frontend-Backend
+
+| Feature | Auth-MS | Patients-MS | Professionals-MS | Appointments-MS | Schedule-MS | Portal-MS | Notification-MS | IA-MS |
+|:---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| Modelos | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| API Endpoints | ✅ | ✅ | ✅ | ✅ | ✅ | 🔄 | 🔄 | ✅ |
+| Frontend Service | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ |
+| Frontend UI | ✅ | ✅ | ✅ | ✅ | ✅ | 🔄 | ❌ | ❌ |
+| Admin Panel | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
+
+---
+
+## 🚀 Tareas Pendientes (To-Do List)
+
+### CRÍTICAS (Bloqueantes)
+- [ ] **Portal-MS API:** Completar Serializers + Views + URLs
+  - [ ] BannerSerializer, VideoGaleriaSerializer
+  - [ ] PQRSSerializer, ConvocatoriaHVSerializer
+  - [ ] ViewSets (BannerViewSet, VideoViewSet, etc.)
+  - [ ] Conectar en urls.py
+  
+- [ ] **Notification-MS Integración:** 
+  - [ ] Signals automáticos en appointments-ms (crear notificación cuando cita cambia estado)
+  - [ ] SendGrid/SMTP para emails
+  - [ ] Twilio para WhatsApp
+  - [ ] Frontend: Página de buzón
+
+### ALTAS (Próximos)
+- [ ] **IA Widget:** Componente flotante React
+  - [ ] Enviar mensajes al endpoint `/chat/`
+  - [ ] Mostrar respuesta
+  - [ ] Historial en modal
+
+- [ ] **Reportes:** 
+  - [ ] CSV/PDF de citas por rango de fechas
+  - [ ] Historial de auditoría
+
+### MEDIAS (Nice to Have)
+- [ ] **Confirmación automática:** Email/SMS cuando se reserva cita
+- [ ] **Recordatorios:** Notificación 24h antes de cita
+- [ ] **Calendario visual:** Integrar react-calendar en admin
+- [ ] **Multidioma:** i18n (Español/Inglés)
+
+---
+
+## 🔗 Rutas API Completas (a través del Gateway)
+
+```
+# Autenticación
+POST   /api/v1/auth/register/
+POST   /api/v1/auth/login/
+POST   /api/v1/auth/login/refresh/
+GET    /api/v1/auth/me/
+GET    /api/v1/auth/menu/
+
+# Pacientes
+GET    /api/v1/patients/listado/
+POST   /api/v1/patients/listado/
+GET    /api/v1/patients/listado/{id}/
+GET    /api/v1/patients/tipos/
+
+# Profesionales
+GET    /api/v1/professionals/especialidades/
+GET    /api/v1/professionals/lugares/
+GET    /api/v1/professionals/profesionales/
+GET    /api/v1/professionals/servicios/
+
+# Agenda
+GET    /api/v1/schedule/disponibilidad/
+POST   /api/v1/schedule/disponibilidad/
+GET    /api/v1/schedule/bloqueos/
+POST   /api/v1/schedule/bloqueos/
+
+# Citas
+GET    /api/v1/appointments/citas/
+POST   /api/v1/appointments/citas/
+GET    /api/v1/appointments/notas/
+GET    /api/v1/appointments/historico/
+GET    /api/v1/appointments/configuracion/
+
+# IA (Funcional)
+POST   /api/v1/ia/chat/
+GET    /api/v1/ia/history/{usuario_id}/
+
+# Portal (Pendientes)
+GET    /api/v1/portal/banners/
+GET    /api/v1/portal/videos/
+POST   /api/v1/portal/pqrs/
+POST   /api/v1/portal/hv/
+
+# Notificaciones (Parcial)
+GET    /api/v1/notifications/buzon/
+POST   /api/v1/notifications/buzon/
+```
+
+---
+
+## 📋 Checklist de Verificación
+
+### ✅ Completado
+- [x] Arquitectura de microservicios (8 servicios)
+- [x] Base de datos centralizada (PostgreSQL)
+- [x] Autenticación JWT
+- [x] Gateway Nginx operativo
+- [x] Modelos de negocio completos
+- [x] API endpoints funcionales (auth, patients, professionals, schedule, appointments, ia)
+- [x] Frontend React con Vite
+- [x] UI responsiva con TailwindCSS
+- [x] Contexto de autenticación persistente
+- [x] Integración Axios con interceptores
+
+### 🔄 En Progreso
+- [ ] Portal-MS: API completa
+- [ ] Notification-MS: Integración email/WhatsApp
+- [ ] IA-MS: Widget fronten
   - Estado: Implementado banners, videos, PQRS, hoja de vida.
 
 ---
