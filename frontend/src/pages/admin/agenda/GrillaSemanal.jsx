@@ -1,5 +1,8 @@
 import React from 'react';
-import { FaPlus, FaClock, FaLock, FaHistory } from 'react-icons/fa';
+import { 
+    FaPlus, FaLock, FaHistory, 
+    FaUser // Solo dejamos iconos esenciales
+} from 'react-icons/fa';
 
 const GrillaSemanal = ({ 
     selectedProfs = [], 
@@ -14,10 +17,9 @@ const GrillaSemanal = ({
     setFechaReferencia 
 }) => {
     
-    // Rango de horas a mostrar (06:00 a 20:00)
     const HORAS = Array.from({ length: 15 }, (_, i) => i + 6); 
 
-    // --- HELPERS DE FECHAS ---
+    // --- HELPERS ---
     const getDiasColumna = () => {
         const dias = [];
         const current = new Date(fechaReferencia);
@@ -41,13 +43,13 @@ const GrillaSemanal = ({
 
     const getServiceInfo = (id) => {
         const s = servicios.find(srv => srv.id === id);
+        // Ya no calculamos "tipo" (virtual/presencial), solo devolvemos datos básicos
         return s 
             ? { nombre: s.nombre, duracion: s.duracion_minutos } 
             : { nombre: 'General', duracion: duracionDefecto };
     };
 
-    // --- RENDERIZADORES ---
-
+    // --- RENDERIZADO DE CELDA ---
     const renderCeldaTiempo = (fechaColumna, hora) => {
         const jsDay = fechaColumna.getDay(); 
         const appDayIndex = jsDay === 0 ? 6 : jsDay - 1; 
@@ -55,7 +57,6 @@ const GrillaSemanal = ({
 
         let allSlots = [];
 
-        // Recorremos TODOS los profesionales seleccionados para llenar la celda
         selectedProfs.forEach(prof => {
             const agendaProf = agendasCombinadas[prof.id];
             if (!agendaProf || !agendaProf.horarios) return;
@@ -81,11 +82,16 @@ const GrillaSemanal = ({
                     const slotStart = new Date(fechaColumna);
                     slotStart.setHours(hora, minActual, 0, 0);
 
+                    // Lógica de Bloqueo
                     const isBloqueado = agendaProf.bloqueos?.some(b => {
                         const bStart = new Date(b.fecha_inicio);
                         const bEnd = new Date(b.fecha_fin);
                         return slotStart >= bStart && slotStart < bEnd;
                     });
+
+                    // Datos Dashboard (Placeholder para conectar con backend de citas)
+                    const citasAgendadas = 0; 
+                    const capacidad = 1; 
 
                     allSlots.push({
                         profId: prof.id,
@@ -93,6 +99,9 @@ const GrillaSemanal = ({
                         profColor: prof.colorInfo,
                         inicio: inicioSlotStr,
                         duracion: infoServicio.duracion,
+                        servicioNombre: infoServicio.nombre,
+                        citas: citasAgendadas,
+                        capacidad: capacidad,
                         isPasado: slotStart < ahora,
                         isBloqueado,
                         turno
@@ -102,60 +111,86 @@ const GrillaSemanal = ({
             });
         });
 
-        // CASO A: Celda Totalmente Vacía -> Botón Grande
+        // CASO A: Celda Vacía -> Botón Crear
         if (allSlots.length === 0) {
             return (
                 <div 
-                    className="h-full w-full flex items-center justify-center text-transparent hover:text-gray-400 hover:bg-gray-50 cursor-pointer border-t border-dashed border-gray-100 transition-all z-10 group"
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        onCrearTurno(appDayIndex, hora);
-                    }}
-                    title="Clic para agregar disponibilidad"
+                    className="h-full w-full flex items-center justify-center text-transparent hover:text-gray-300 hover:bg-gray-50 cursor-pointer border-t border-dashed border-gray-100 transition-all z-10 group"
+                    onClick={(e) => { e.stopPropagation(); onCrearTurno(appDayIndex, hora); }}
+                    title="Crear nuevo turno"
                 >
-                    <FaPlus size={12} className="transform group-hover:scale-110 transition-transform"/>
+                    <FaPlus size={10} className="transform group-hover:scale-110 transition-transform"/>
                 </div>
             );
         }
 
-        // CASO B: Celda con Datos -> Renderizar slots + Botón Pequeño de Agregar
+        // CASO B: Celda con Datos
         allSlots.sort((a,b) => a.inicio.localeCompare(b.inicio));
 
         return (
             <div className="flex flex-col gap-[2px] w-full p-[1px] relative h-full">
-                {/* Lista de Slots Existentes */}
                 {allSlots.map((slot, idx) => {
-                    let style = `${slot.profColor?.clase || 'bg-gray-100'} opacity-90 hover:opacity-100 hover:shadow-sm`;
+                    // Estilos Base
+                    let bgClass = slot.profColor?.clase.split(' ')[0] || 'bg-gray-100'; 
+                    let borderClass = slot.profColor?.clase.split(' ')[2] || 'border-gray-300';
+                    let textClass = slot.profColor?.clase.split(' ')[1] || 'text-gray-700';
                     
-                    if (slot.isPasado) style = "bg-gray-100 border-gray-200 text-gray-400 opacity-60 cursor-not-allowed";
-                    else if (slot.isBloqueado) style = "bg-red-50 border-red-200 text-red-700 pattern-diagonal-lines";
+                    let containerStyle = `flex-1 rounded-r-sm text-[10px] px-1.5 py-0.5 flex flex-col justify-center cursor-pointer transition overflow-hidden min-h-[34px] shadow-sm hover:shadow-md border-l-[4px] ${bgClass} ${borderClass} ${textClass} opacity-95 hover:opacity-100`;
+                    let iconoEstado = null;
+
+                    // Estados Especiales (Sobrescriben estilos)
+                    if (slot.isPasado) {
+                        containerStyle = "flex-1 rounded-r-sm text-[10px] px-1.5 py-0.5 flex flex-col justify-center cursor-pointer transition overflow-hidden min-h-[34px] shadow-sm bg-gray-100 border-l-[4px] border-gray-400 text-gray-400 opacity-60 grayscale";
+                        iconoEstado = <FaHistory size={8} title="Tiempo pasado"/>;
+                    } else if (slot.isBloqueado) {
+                        containerStyle = "flex-1 rounded-r-sm text-[10px] px-1.5 py-0.5 flex flex-col justify-center cursor-pointer transition overflow-hidden min-h-[34px] shadow-sm bg-red-50 border-l-[4px] border-red-500 text-red-700 pattern-diagonal-lines";
+                        iconoEstado = <FaLock size={8} title="Espacio Bloqueado"/>;
+                    }
+
+                    // Tooltip Rico (Sin iconos de modalidad, solo texto informativo)
+                    const tooltipText = slot.isBloqueado 
+                        ? `🔒 BLOQUEADO\n----------------\nHora: ${slot.inicio}\nProfesional: ${slot.profNombre}`
+                        : `✅ DISPONIBLE\n----------------\nHora: ${slot.inicio} (${slot.duracion} min)\nServicio: ${slot.servicioNombre}\nProfesional: ${slot.profNombre}\nOcupación: ${slot.citas}/${slot.capacidad}`;
 
                     return (
                         <div 
                             key={`${slot.profId}-${idx}`}
-                            className={`flex-1 rounded border text-[10px] px-1 flex items-center justify-between cursor-pointer transition overflow-hidden min-h-[20px] ${style}`}
+                            className={containerStyle}
                             onClick={(e) => { 
                                 e.stopPropagation(); 
                                 onGestionarTurno(slot.turno, fechaColumna.toISOString().split('T')[0]); 
                             }}
-                            title={`${slot.profNombre} - ${slot.inicio}`}
+                            title={tooltipText} // Aquí está el Tooltip Rico
                         >
-                            <div className="flex items-center gap-1 overflow-hidden">
-                                {selectedProfs.length > 1 && !slot.isPasado && !slot.isBloqueado && (
-                                    <div className="w-1.5 h-1.5 rounded-full bg-current opacity-60 shrink-0" title={slot.profNombre}></div>
-                                )}
-                                <span className="font-mono font-bold truncate">{slot.inicio}</span>
+                            {/* Fila Superior: Hora y Estado */}
+                            <div className="flex items-center justify-between w-full leading-tight">
+                                <span className="font-mono font-bold text-[11px]">{slot.inicio}</span>
+                                {iconoEstado}
                             </div>
-                            {slot.isBloqueado ? <FaLock size={8}/> : (slot.isPasado ? <FaHistory size={8}/> : null)}
+
+                            {/* Fila Inferior: Info Dashboard (Si no está bloqueado) */}
+                            {!slot.isBloqueado && !slot.isPasado && (
+                                <div className="flex items-center justify-between mt-[1px]">
+                                    {/* Nombre Profesional o Servicio (Truncado) */}
+                                    <span className="truncate opacity-90 text-[9px] font-semibold max-w-[60px]">
+                                        {selectedProfs.length > 1 ? slot.profNombre.split(' ')[0] : slot.servicioNombre.slice(0,10)}
+                                    </span>
+                                    
+                                    {/* Indicador Ocupación (0/1) */}
+                                    <div className={`flex items-center gap-0.5 px-1 rounded-full text-[8px] font-bold ${slot.citas >= slot.capacidad ? 'bg-red-100 text-red-700' : 'bg-white/60 text-current'}`}>
+                                        <FaUser size={6}/> {slot.citas}/{slot.capacidad}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     );
                 })}
 
-                {/* --- NUEVO: Botón Mini "+" para agregar OTRO en la misma franja --- */}
+                {/* Botón "+ Mini" para solapamientos */}
                 <div 
                     onClick={(e) => { e.stopPropagation(); onCrearTurno(appDayIndex, hora); }}
-                    className="mt-1 flex items-center justify-center p-0.5 border border-dashed border-gray-300 rounded text-gray-400 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50 cursor-pointer transition"
-                    title="Agregar otro profesional en esta hora"
+                    className="mt-1 flex items-center justify-center p-0.5 border border-dashed border-gray-300 rounded text-gray-400 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50 cursor-pointer transition opacity-0 group-hover:opacity-100"
+                    title="Agregar turno simultáneo"
                 >
                     <FaPlus size={8} />
                 </div>
@@ -169,24 +204,22 @@ const GrillaSemanal = ({
         const month = fechaReferencia.getMonth();
         const firstDay = new Date(year, month, 1);
         const lastDay = new Date(year, month + 1, 0);
-        
         let startDayIndex = firstDay.getDay() - 1;
         if (startDayIndex === -1) startDayIndex = 6; 
         const daysInMonth = lastDay.getDate();
-
         const celdas = [];
         for (let i = 0; i < startDayIndex; i++) celdas.push(<div key={`empty-${i}`} className="bg-gray-50/30 min-h-[100px]"></div>);
         
         for (let d = 1; d <= daysInMonth; d++) {
             const fechaDia = new Date(year, month, d);
+            const esHoy = new Date().toDateString() === fechaDia.toDateString();
             const jsDay = fechaDia.getDay();
             const appDayIndex = jsDay === 0 ? 6 : jsDay - 1;
-            
+
             const indicadores = [];
             selectedProfs.forEach(prof => {
                 const agenda = agendasCombinadas[prof.id];
                 if (!agenda) return;
-
                 const tieneHorario = agenda.horarios?.some(h => h.dia_semana === appDayIndex && h.activo);
                 const tieneBloqueo = agenda.bloqueos?.some(b => {
                     const bStart = new Date(b.fecha_inicio);
@@ -203,50 +236,21 @@ const GrillaSemanal = ({
                 }
             });
 
-            const esHoy = new Date().toDateString() === fechaDia.toDateString();
-
             celdas.push(
-                <div 
-                    key={d} 
-                    onClick={() => { setFechaReferencia(fechaDia); setCalendarView('day'); }}
-                    className={`min-h-[100px] border border-gray-100 p-2 transition cursor-pointer flex flex-col relative hover:bg-blue-50 ${esHoy ? 'bg-blue-50 ring-2 ring-inset ring-blue-400' : 'bg-white'}`}
-                >
+                <div key={d} onClick={() => { setFechaReferencia(fechaDia); setCalendarView('day'); }} className={`min-h-[100px] border border-gray-100 p-2 transition cursor-pointer flex flex-col relative hover:bg-blue-50 ${esHoy ? 'bg-blue-50 ring-2 ring-inset ring-blue-400' : 'bg-white'}`}>
                     <span className={`text-sm font-bold mb-1 ${esHoy ? 'text-blue-700' : 'text-gray-700'}`}>{d}</span>
                     <div className="flex flex-wrap gap-1 content-start mt-1">
                         {indicadores.map((ind, idx) => (
-                            <div 
-                                key={idx} 
-                                className={`w-2 h-2 rounded-full ${ind.tipo === 'bloqueo' ? 'bg-red-500' : `bg-${ind.color}-500`}`}
-                                title={`${ind.nombre} (${ind.tipo})`}
-                            ></div>
+                            <div key={idx} className={`w-2 h-2 rounded-full ${ind.tipo === 'bloqueo' ? 'bg-red-500' : `bg-${ind.color}-500`}`} title={`${ind.nombre} (${ind.tipo})`}></div>
                         ))}
                     </div>
                 </div>
             );
         }
-
-        return (
-            <div className="h-full overflow-y-auto p-4 bg-white w-full">
-                <div className="grid grid-cols-7 gap-px mb-1 bg-gray-200 border border-gray-200 rounded-t overflow-hidden">
-                    {['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'].map(d => <div key={d} className="bg-gray-50 text-center py-2 text-xs font-bold text-gray-500 uppercase">{d}</div>)}
-                </div>
-                <div className="grid grid-cols-7 gap-px bg-gray-200 border border-gray-200 border-t-0 rounded-b overflow-hidden">
-                    {celdas}
-                </div>
-            </div>
-        );
+        return <div className="h-full overflow-y-auto p-4 bg-white w-full"><div className="grid grid-cols-7 gap-px mb-1 bg-gray-200 border border-gray-200 rounded-t">{['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'].map(d => <div key={d} className="bg-gray-50 text-center py-2 text-xs font-bold text-gray-500 uppercase">{d}</div>)}</div><div className="grid grid-cols-7 gap-px bg-gray-200 border border-gray-200 rounded-b">{celdas}</div></div>;
     };
 
-    // --- RENDER PRINCIPAL ---
-    if (!selectedProfs || selectedProfs.length === 0) {
-        return (
-            <div className="h-full flex flex-col items-center justify-center text-gray-400 bg-gray-50">
-                <FaClock size={40} className="mb-4 opacity-20"/>
-                <p>Seleccione al menos un profesional</p>
-            </div>
-        );
-    }
-
+    if (!selectedProfs || selectedProfs.length === 0) return <div className="h-full flex flex-col items-center justify-center text-gray-400 bg-gray-50"><FaUser size={40} className="mb-4 opacity-20"/><p>Seleccione profesionales</p></div>;
     if (calendarView === 'month') return renderVistaMensual();
 
     const diasColumna = getDiasColumna();
@@ -269,13 +273,13 @@ const GrillaSemanal = ({
                 </div>
                 <div className="flex-1 bg-white"> 
                     {HORAS.map(hora => (
-                        <div key={hora} className="flex border-b min-h-[80px]"> 
+                        <div key={hora} className="flex border-b min-h-[70px] group"> 
                             <div className="w-16 flex-shrink-0 text-center text-gray-400 text-xs font-mono border-r bg-gray-50 flex items-center justify-center relative">
-                                <span className="-mt-16 block bg-white px-1 z-10 rounded">{hora}:00</span>
-                                <div className="absolute w-full h-[1px] bg-gray-200 top-0 right-0"></div> 
+                                <span className="-mt-14 block bg-white px-1 z-10 rounded text-[10px]">{hora}:00</span>
+                                <div className="absolute w-full h-[1px] bg-gray-100 top-0 right-0"></div> 
                             </div>
                             {diasColumna.map((fecha, i) => (
-                                <div key={i} className="flex-1 border-r p-[2px] relative hover:bg-gray-50 transition-colors">
+                                <div key={i} className="flex-1 border-r p-[1px] relative hover:bg-gray-50 transition-colors">
                                     {renderCeldaTiempo(fecha, hora)}
                                 </div>
                             ))}

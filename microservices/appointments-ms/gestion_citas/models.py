@@ -108,6 +108,15 @@ class ConfiguracionGlobal(models.Model):
         verbose_name="Mensaje default al cancelar"
     )
 
+    max_citas_dia_paciente = models.IntegerField(
+        default=1,
+        verbose_name="Máximo de citas por día por paciente"
+    )
+    permitir_mismo_servicio_dia = models.BooleanField(
+        default=False,
+        verbose_name="¿Permitir repetir servicio el mismo día?"
+    )
+
     def save(self, *args, **kwargs):
         # Garantizar que siempre sea el ID 1 (Singleton)
         self.pk = 1

@@ -135,7 +135,7 @@ docker-compose restart frontend
 
 # Iniciar la base de datos , imagenes y servicios.
 # Opcional: Solo si necesitas entrar al admin de Banners (localhost:8007/admin)
-docker-compose exec portal-ms python manage.py createsuperuser
+docker-compose exec appointments-ms python manage.py createsuperuser
 docker-compose exec portal-ms python manage.py makemigrations
 docker-compose exec portal-ms python manage.py migrate
 
@@ -213,7 +213,7 @@ class Servicio(models.Model):
             )
         super().delete(*args, **kwargs)
 
-4. Se debe saber como se esta relacionando el TIPO de acceso con el tipo usuario para garantizar que le estan saliendo a los tipo usuario las agedas que son. (OJO REVISAR Y REPLANTEAR LA LOGICA)
+4. Se debe saber como se esta relacionando el TIPO de acceso con el tipo usuario para garantizar que le estan saliendo a los tipo usuario las agedas que son.
 5. En la gestion de la agenda hay que habilitar el campo para que el administrador pueda decir los minutos que tendra  General / Mixto esto ya lo teniamos antes y se perdio.
 6. Cuando se gestiona el Bloqueo y se le da clic al boton 'Gestionar Bloqueo (Día)' solo sale un mensaje Gestión de Bloqueo para la fecha pero no pide el motivo ni lo bloquea ni cambia de color el cuadrito en la grilla ni nada. 
 7. Al borrar de la parte inferior de la grilla un medico y volverlo a buscar queda con el mismo color del medico que quedo en el filtro ejemplo quedan dos profesionales con el mismo color en la grilla.
