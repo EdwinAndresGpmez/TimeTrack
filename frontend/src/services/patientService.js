@@ -1,18 +1,22 @@
 import api from '../api/axiosConfig';
 
 export const patientService = {
-    // 1. Crear Perfil de Paciente
+    // 1. NUEVO: Obtener TODOS los pacientes (Para AdminUsuarios)
+    getAll: async () => {
+        const response = await api.get('/pacientes/listado/');
+        return response.data;
+    },
+
+    // 2. Crear Perfil de Paciente
     create: async (patientData) => {
         const response = await api.post('/pacientes/listado/', patientData);
         return response.data;
     },
 
-    // 2. Obtener Mi Perfil (para el usuario logueado)
+    // 3. Obtener Mi Perfil (Lógica existente)
     getMyProfile: async (userId) => {
         try {
-            // Filtramos por user_id
             const response = await api.get(`/pacientes/listado/?user_id=${userId}`);
-            // Si devuelve una lista, tomamos el primero
             if (Array.isArray(response.data) && response.data.length > 0) {
                 return response.data[0];
             }
@@ -23,42 +27,46 @@ export const patientService = {
         }
     },
 
-    // 3. Actualizar Perfil
+    // 4. Actualizar Perfil (Unificado)
     update: async (id, data) => {
-        const response = await api.put(`/pacientes/listado/${id}/`, data);
+        const response = await api.patch(`/pacientes/listado/${id}/`, data);
         return response.data;
     },
 
-    // 4. Obtener Tipos de Paciente (EPS, Prepagada, etc.)
-    getTipos: async () => {
+    // 5. Obtener Tipos de Paciente (EPS, Particular, etc.)
+    getTiposPaciente: async () => {
         const response = await api.get('/pacientes/tipos/');
         return response.data;
     },
 
-    // 5. Vincular Usuario Existente (Self-Healing)
+    // 6. Buscar perfil por ID de Usuario (Para AdminUsuarios)
+    getProfileByUserId: async (userId) => {
+        try {
+            const response = await api.get(`/pacientes/listado/?user_id=${userId}`);
+            if (response.data && response.data.length > 0) {
+                return response.data[0];
+            }
+            return null;
+        } catch (error) {
+            console.error("Error buscando perfil de paciente:", error);
+            return null;
+        }
+    },
+
+    // 7. Vincular Usuario Existente (Sync)
     vincularExistente: async (data) => {
         const response = await api.post('/pacientes/internal/sync-user/', data);
         return response.data;
     },
 
-    // --- FUNCIONES ADMINISTRATIVAS (NUEVAS) ---
-
-    // 6. Crear/Actualizar Solicitud de Validación
-    // Se usa tanto para que el usuario pida validación, como para que el admin la marque "procesada"
+    // --- FUNCIONES ADMINISTRATIVAS ---
     crearSolicitudValidacion: async (data) => {
         const response = await api.post('/pacientes/solicitudes/', data);
         return response.data;
     },
 
-    // 7. Obtener Solicitudes Pendientes (Admin)
-    // Esta es la que faltaba y causaba el error
     getSolicitudesPendientes: async () => {
         const response = await api.get('/pacientes/solicitudes/?procesado=false');
-        return response.data;
-    },
-
-    updateSolicitud: async (id, data) => {
-        const response = await api.put(`/pacientes/solicitudes/${id}/`, data);
         return response.data;
     }
 };

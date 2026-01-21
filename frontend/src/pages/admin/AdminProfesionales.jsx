@@ -3,7 +3,7 @@ import { staffService } from '../../services/staffService';
 import Swal from 'sweetalert2';
 import { 
     FaUserMd, FaPlus, FaEdit, FaSearch, FaMapMarkerAlt, 
-    FaStethoscope, FaToggleOn, FaToggleOff, FaIdCard, FaPhone, FaNotesMedical 
+    FaStethoscope, FaToggleOn, FaToggleOff, FaIdCard, FaNotesMedical 
 } from 'react-icons/fa';
 
 const AdminProfesionales = () => {
@@ -13,10 +13,10 @@ const AdminProfesionales = () => {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
 
-    // Catálogos para los Selects
+    // Catálogos
     const [especialidades, setEspecialidades] = useState([]);
     const [lugares, setLugares] = useState([]);
-    const [servicios, setServicios] = useState([]); // <--- NUEVO
+    const [servicios, setServicios] = useState([]); 
 
     // Modal y Formulario
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -30,7 +30,7 @@ const AdminProfesionales = () => {
         telefono_profesional: '',
         especialidades: [],      
         lugares_atencion: [],    
-        servicios_habilitados: [], // <--- NUEVO: Relación con Servicios
+        servicios_habilitados: [],
         activo: true
     });
 
@@ -61,7 +61,7 @@ const AdminProfesionales = () => {
                 staffService.getProfesionales(),
                 staffService.getEspecialidades(),
                 staffService.getLugares(),
-                staffService.getServicios() // <--- Cargamos servicios
+                staffService.getServicios()
             ]);
             setProfesionales(dataProf);
             setFilteredProfesionales(dataProf);
@@ -82,15 +82,16 @@ const AdminProfesionales = () => {
         if (profesional) {
             setIsEditing(true);
             setCurrentId(profesional.id);
+            // Aseguramos que las listas sean arrays para evitar errores en map/includes
             setFormData({
                 nombre: profesional.nombre,
                 numero_documento: profesional.numero_documento,
                 registro_medico: profesional.registro_medico,
                 email_profesional: profesional.email_profesional,
                 telefono_profesional: profesional.telefono_profesional,
-                especialidades: profesional.especialidades,
-                lugares_atencion: profesional.lugares_atencion,
-                servicios_habilitados: profesional.servicios_habilitados || [], // <--- Cargar existentes
+                especialidades: profesional.especialidades || [],
+                lugares_atencion: profesional.lugares_atencion || [],
+                servicios_habilitados: profesional.servicios_habilitados || [],
                 activo: profesional.activo
             });
         } else {
@@ -111,15 +112,21 @@ const AdminProfesionales = () => {
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
-    const handleMultiSelect = (e) => {
-        const { name, options } = e.target;
-        const selectedValues = [];
-        for (let i = 0; i < options.length; i++) {
-            if (options[i].selected) {
-                selectedValues.push(parseInt(options[i].value));
+    // --- NUEVA LÓGICA DE CHECKBOXES (Reemplaza al select multiple) ---
+    const handleCheckboxChange = (e, listName) => {
+        const value = parseInt(e.target.value);
+        const isChecked = e.target.checked;
+        
+        setFormData(prev => {
+            const currentList = prev[listName] || [];
+            if (isChecked) {
+                // Agregar si no existe
+                return { ...prev, [listName]: [...currentList, value] };
+            } else {
+                // Filtrar para remover
+                return { ...prev, [listName]: currentList.filter(id => id !== value) };
             }
-        }
-        setFormData(prev => ({ ...prev, [name]: selectedValues }));
+        });
     };
 
     const handleSubmit = async (e) => {
@@ -156,7 +163,7 @@ const AdminProfesionales = () => {
         }
     };
 
-    // Helper visual
+    // Helper visual para la tabla
     const getNombresByIds = (ids, catalogo) => {
         if (!ids || ids.length === 0) return <span className="text-gray-400 italic text-xs">Sin asignar</span>;
         return ids.map(id => {
@@ -168,6 +175,33 @@ const AdminProfesionales = () => {
             ) : null;
         });
     };
+
+    // Componente interno reutilizable para listas de checkboxes
+    const RenderCheckboxList = ({ items, listName, selectedIds, label, icon }) => (
+        <div className="mb-4">
+            <label className="block text-gray-700 font-bold mb-2 text-sm flex items-center gap-2">
+                {icon} {label}
+            </label>
+            <div className="border rounded-lg p-3 max-h-48 overflow-y-auto bg-gray-50 grid grid-cols-1 sm:grid-cols-2 gap-2 shadow-inner">
+                {items.map(item => (
+                    <div key={item.id} className="flex items-center space-x-2 bg-white p-2 rounded border border-gray-200 hover:bg-blue-50 transition cursor-pointer">
+                        <input
+                            type="checkbox"
+                            id={`${listName}-${item.id}`}
+                            value={item.id}
+                            checked={selectedIds.includes(item.id)}
+                            onChange={(e) => handleCheckboxChange(e, listName)}
+                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer"
+                        />
+                        <label htmlFor={`${listName}-${item.id}`} className="text-xs text-gray-700 cursor-pointer flex-1 select-none font-medium">
+                            {item.nombre} {item.ciudad ? `(${item.ciudad})` : ''}
+                        </label>
+                    </div>
+                ))}
+                {items.length === 0 && <div className="text-xs text-gray-400 italic col-span-2 text-center p-2">No hay opciones disponibles</div>}
+            </div>
+        </div>
+    );
 
     return (
         <div className="max-w-7xl mx-auto p-4">
@@ -205,7 +239,7 @@ const AdminProfesionales = () => {
                             <tr className="bg-gray-50 text-left text-xs font-bold text-gray-500 uppercase tracking-wider border-b">
                                 <th className="px-5 py-3">Profesional</th>
                                 <th className="px-5 py-3">Especialidades</th>
-                                <th className="px-5 py-3">Servicios Habilitados</th> {/* Nueva Columna */}
+                                <th className="px-5 py-3">Servicios Habilitados</th>
                                 <th className="px-5 py-3">Sedes</th>
                                 <th className="px-5 py-3 text-center">Estado</th>
                                 <th className="px-5 py-3 text-right">Acciones</th>
@@ -233,7 +267,6 @@ const AdminProfesionales = () => {
                                             </div>
                                         </td>
 
-                                        {/* COLUMNA DE SERVICIOS */}
                                         <td className="px-5 py-4 max-w-xs">
                                             <div className="flex flex-wrap">
                                                 {getNombresByIds(prof.servicios_habilitados, servicios)}
@@ -273,7 +306,7 @@ const AdminProfesionales = () => {
             {/* --- MODAL DE CREACIÓN / EDICIÓN --- */}
             {isModalOpen && (
                 <div className="fixed inset-0 z-50 overflow-y-auto bg-gray-900 bg-opacity-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl overflow-hidden transform transition-all">
+                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl overflow-hidden transform transition-all">
                         
                         {/* Header Modal */}
                         <div className="bg-blue-600 px-6 py-4 flex justify-between items-center">
@@ -322,73 +355,45 @@ const AdminProfesionales = () => {
                                         value={formData.telefono_profesional} onChange={handleChange} />
                                 </div>
 
-                                {/* Asignaciones */}
+                                {/* Asignaciones con CHECKBOXES */}
                                 <div className="md:col-span-2 mt-4">
                                     <h4 className="text-sm font-bold text-gray-500 uppercase border-b pb-1 mb-3">Asignaciones Clínicas</h4>
                                     <p className="text-xs text-gray-400 mb-2 bg-blue-50 p-2 rounded">
-                                        * Mantén presionado <b>Ctrl</b> (Windows) o <b>Cmd</b> (Mac) para seleccionar múltiples opciones.
+                                        Selecciona las opciones correspondientes marcando las casillas.
                                     </p>
                                 </div>
 
-                                <div>
-                                    <label className="block text-gray-700 font-bold mb-1 text-sm flex items-center gap-2">
-                                        <FaStethoscope className="text-blue-500"/> Especialidades
-                                    </label>
-                                    <select 
-                                        name="especialidades" 
-                                        multiple 
-                                        className="w-full border rounded p-2 h-40 focus:ring-2 focus:ring-blue-500 bg-gray-50 text-sm"
-                                        value={formData.especialidades} 
-                                        onChange={handleMultiSelect}
-                                    >
-                                        {especialidades.map(esp => (
-                                            <option key={esp.id} value={esp.id}>{esp.nombre}</option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                {/* NUEVO CAMPO: SERVICIOS HABILITADOS */}
-                                <div>
-                                    <label className="block text-gray-700 font-bold mb-1 text-sm flex items-center gap-2">
-                                        <FaNotesMedical className="text-green-500"/> Servicios Habilitados
-                                    </label>
-                                    <select 
-                                        name="servicios_habilitados" 
-                                        multiple 
-                                        className="w-full border rounded p-2 h-40 focus:ring-2 focus:ring-blue-500 bg-gray-50 text-sm"
-                                        value={formData.servicios_habilitados} 
-                                        onChange={handleMultiSelect}
-                                    >
-                                        {servicios.map(srv => (
-                                            <option key={srv.id} value={srv.id}>{srv.nombre} ({srv.duracion_minutos} min)</option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                <div className="md:col-span-2">
-                                    <label className="block text-gray-700 font-bold mb-1 text-sm flex items-center gap-2">
-                                        <FaMapMarkerAlt className="text-red-500"/> Sedes de Atención
-                                    </label>
-                                    <select 
-                                        name="lugares_atencion" 
-                                        multiple 
-                                        className="w-full border rounded p-2 h-24 focus:ring-2 focus:ring-blue-500 bg-gray-50 text-sm"
-                                        value={formData.lugares_atencion} 
-                                        onChange={handleMultiSelect}
-                                    >
-                                        {lugares.map(lugar => (
-                                            <option key={lugar.id} value={lugar.id}>{lugar.nombre} - {lugar.ciudad}</option>
-                                        ))}
-                                    </select>
+                                <div className="md:col-span-2 grid grid-cols-1 lg:grid-cols-3 gap-4">
+                                    <RenderCheckboxList 
+                                        items={especialidades} 
+                                        listName="especialidades" 
+                                        selectedIds={formData.especialidades} 
+                                        label="Especialidades" 
+                                        icon={<FaStethoscope className="text-blue-500"/>}
+                                    />
+                                    <RenderCheckboxList 
+                                        items={servicios} 
+                                        listName="servicios_habilitados" 
+                                        selectedIds={formData.servicios_habilitados} 
+                                        label="Servicios Habilitados" 
+                                        icon={<FaNotesMedical className="text-green-500"/>}
+                                    />
+                                    <RenderCheckboxList 
+                                        items={lugares} 
+                                        listName="lugares_atencion" 
+                                        selectedIds={formData.lugares_atencion} 
+                                        label="Sedes de Atención" 
+                                        icon={<FaMapMarkerAlt className="text-red-500"/>}
+                                    />
                                 </div>
 
                             </div>
 
                             <div className="mt-8 flex justify-end gap-3 pt-4 border-t border-gray-100">
-                                <button type="button" onClick={() => setIsModalOpen(false)} className="px-6 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 font-bold">
+                                <button type="button" onClick={() => setIsModalOpen(false)} className="px-6 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 font-bold transition">
                                     Cancelar
                                 </button>
-                                <button type="submit" className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-bold shadow-lg">
+                                <button type="submit" className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-bold shadow-lg transition transform hover:scale-105">
                                     {isEditing ? 'Guardar Cambios' : 'Registrar Profesional'}
                                 </button>
                             </div>

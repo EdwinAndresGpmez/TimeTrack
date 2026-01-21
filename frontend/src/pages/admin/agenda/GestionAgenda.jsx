@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { staffService } from '../../../services/staffService';
 import { agendaService } from '../../../services/agendaService';
 import Swal from 'sweetalert2';
-import { FaCalendarAlt, FaChevronLeft, FaChevronRight, FaTimes, FaUsers, FaSearch, FaPlusCircle } from 'react-icons/fa';
+import { FaCalendarAlt, FaChevronLeft, FaChevronRight, FaTimes, FaUsers, FaSearch, FaPlusCircle, FaCogs } from 'react-icons/fa';
 
 import ListaProfesionales from './ListaProfesionales';
 import GrillaSemanal from './GrillaSemanal';
@@ -33,7 +33,10 @@ const GestionAgenda = () => {
     const [agendasCombinadas, setAgendasCombinadas] = useState({});
     
     const [loadingAgenda, setLoadingAgenda] = useState(false);
+    
+    // PUNTO 5: Estado editable para la duración por defecto
     const [duracionDefecto, setDuracionDefecto] = useState(20);
+    
     const [viewMode, setViewMode] = useState('config'); // 'config' | 'historial'
     
     // --- ESTADOS CALENDARIO ---
@@ -75,6 +78,13 @@ const GestionAgenda = () => {
         }
     }, [selectedProfs, sedeSeleccionada, viewMode]);
 
+    // --- PUNTO 7: COLOR CONSISTENTE ---
+    const getColorForId = (id) => {
+        // Usamos el ID para obtener siempre el mismo índice de color (Hash simple)
+        const index = id % PALETA_COLORES.length;
+        return PALETA_COLORES[index];
+    };
+
     // --- LÓGICA MULTI-AGENDA ---
     const toggleProfesional = (prof) => {
         const isSelected = selectedProfs.some(p => p.id === prof.id);
@@ -83,9 +93,8 @@ const GestionAgenda = () => {
             // Deseleccionar (Quitar de la lista)
             setSelectedProfs(prev => prev.filter(p => p.id !== prof.id));
         } else {
-            // Seleccionar (Asignar color cíclico)
-            const colorIndex = selectedProfs.length % PALETA_COLORES.length;
-            const nuevoProf = { ...prof, colorInfo: PALETA_COLORES[colorIndex] };
+            // Seleccionar (Asignar color consistente basado en ID)
+            const nuevoProf = { ...prof, colorInfo: getColorForId(prof.id) };
             setSelectedProfs(prev => [...prev, nuevoProf]);
         }
         // Limpiar buscador footer si se usó
@@ -215,23 +224,55 @@ const GestionAgenda = () => {
         }
     };
 
-    // 2. Gestionar Turno Existente (Clic en slot)
+    // --- PUNTO 6: LOGICA REAL DE BLOQUEO ---
     const handleGestionarTurno = async (turno, fechaPreseleccionada) => {
+        // En este punto ya sabemos qué turno es y a qué médico pertenece (viene en el objeto turno)
+        
         const { value: accion } = await Swal.fire({
             title: 'Gestionar Horario',
-            text: `Horario de ${turno.hora_inicio} a ${turno.hora_fin}`,
+            text: `Horario base: ${turno.hora_inicio} - ${turno.hora_fin}`,
             showDenyButton: true,
             showCancelButton: true,
-            confirmButtonText: 'Gestionar Bloqueos (Día)',
+            confirmButtonText: 'Gestionar Bloqueo (Día)',
             denyButtonText: 'Eliminar Horario Base',
-            confirmButtonColor: '#3085d6',
-            denyButtonColor: '#d33'
+            confirmButtonColor: '#f59e0b', // Naranja para bloquear
+            denyButtonColor: '#ef4444' // Rojo para eliminar
         });
 
         if (accion === true) {
-             Swal.fire('Gestión de Bloqueos', `Gestionar para fecha: ${fechaPreseleccionada}`, 'info');
+            // CONFIRMADO: Bloquear el día
+            const { value: motivo } = await Swal.fire({
+                title: 'Crear Bloqueo de Agenda',
+                text: `Se bloqueará la agenda del profesional para el día ${fechaPreseleccionada}.`,
+                input: 'text',
+                inputPlaceholder: 'Motivo (ej: Permiso, Vacaciones)',
+                showCancelButton: true,
+                confirmButtonText: 'Bloquear Agenda',
+                inputValidator: (value) => !value && 'Debes escribir un motivo'
+            });
 
-        } else if (accion === false) { // Deny -> Eliminar
+            if (motivo) {
+                try {
+                    // Construir fechas inicio/fin para todo el día
+                    const fechaInicio = `${fechaPreseleccionada}T00:00:00`;
+                    const fechaFin = `${fechaPreseleccionada}T23:59:59`;
+                    
+                    await agendaService.createBloqueo({
+                        profesional_id: turno.profesional_id,
+                        fecha_inicio: fechaInicio,
+                        fecha_fin: fechaFin,
+                        motivo: motivo
+                    });
+                    
+                    Swal.fire('Bloqueado', 'La agenda ha sido cerrada para este día.', 'success');
+                    cargarMultiplesAgendas(); // RECARGAR PARA VER EL CAMBIO
+                } catch (e) {
+                    Swal.fire('Error', 'No se pudo crear el bloqueo.', 'error');
+                }
+            }
+
+        } else if (accion === false) { 
+            // DENEGADO: Eliminar disponibilidad base
              try {
                  await agendaService.deleteDisponibilidad(turno.id);
                  Swal.fire('Eliminado', 'Horario base eliminado', 'success');
@@ -241,7 +282,6 @@ const GestionAgenda = () => {
     };
 
     // --- LÓGICA FILTRO FOOTER ---
-    // Filtramos profesionales que NO estén ya seleccionados y que coincidan con la búsqueda
     const resultadosFooter = footerSearch.length > 0 
         ? profesionales.filter(p => 
             !selectedProfs.find(sel => sel.id === p.id) && 
@@ -316,6 +356,20 @@ const GestionAgenda = () => {
 
                         {/* Controles de Calendario */}
                         <div className="flex items-center gap-2 md:gap-4">
+                            
+                            {/* PUNTO 5: CONTROL DE DURACIÓN VISIBLE */}
+                            <div className="hidden lg:flex items-center gap-2 bg-gray-50 p-1 px-3 rounded-lg border border-gray-200">
+                                <FaCogs className="text-gray-400"/>
+                                <span className="text-xs font-bold text-gray-500">Intervalo:</span>
+                                <input 
+                                    type="number" 
+                                    value={duracionDefecto} 
+                                    onChange={(e) => setDuracionDefecto(parseInt(e.target.value) || 20)}
+                                    className="w-12 text-center text-sm font-bold bg-white border rounded focus:ring-1 focus:ring-blue-500 outline-none"
+                                />
+                                <span className="text-xs text-gray-500">min</span>
+                            </div>
+
                             <div className="flex items-center bg-gray-100 rounded-lg p-1">
                                 <button onClick={() => navegarCalendario(-1)} className="p-1.5 hover:bg-white rounded shadow-sm text-gray-600"><FaChevronLeft/></button>
                                 <button onClick={irAHoy} className="mx-1 px-3 py-1 text-sm font-bold text-gray-600 hover:bg-white rounded">Hoy</button>
@@ -398,7 +452,6 @@ const GestionAgenda = () => {
                                     setShowFooterResults(true);
                                 }}
                                 onFocus={() => setShowFooterResults(true)}
-                                // onBlur se maneja con cuidado para permitir clic en resultados
                             />
 
                             {/* DROPDOWN DE RESULTADOS (Flotante hacia ARRIBA) */}
@@ -424,7 +477,7 @@ const GestionAgenda = () => {
                                 </div>
                             )}
                             
-                            {/* Overlay para cerrar al hacer clic fuera (opcional, o usar onBlur con timeout) */}
+                            {/* Overlay para cerrar al hacer clic fuera */}
                             {showFooterResults && (
                                 <div 
                                     className="fixed inset-0 z-40 bg-transparent" 

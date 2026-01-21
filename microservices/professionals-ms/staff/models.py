@@ -71,15 +71,9 @@ class Servicio(models.Model):
     
     profesionales = models.ManyToManyField(Profesional, related_name='servicios_habilitados', blank=True)
     
+    tipos_paciente_ids = models.JSONField(default=list, blank=True) 
+    
     activo = models.BooleanField(default=True)
-
-    TIPO_ACCESO = [
-        ('TODOS', 'Para todos los pacientes'),
-        ('PARTICULAR', 'Solo Particulares'),
-        ('EPS', 'Solo EPS/Convenios'),
-    ]
-
-    acceso_permitido = models.CharField(max_length=20, choices=TIPO_ACCESO, default='TODOS')
 
     class Meta:
         verbose_name = "Servicio"
@@ -88,10 +82,9 @@ class Servicio(models.Model):
     def __str__(self):
         return self.nombre
 
-    # --- PROTECCIÓN DE BORRADO ---
     def delete(self, *args, **kwargs):
         if self.profesionales.exists():
              raise ValidationError(
-                {"detail": f"No se puede borrar el servicio '{self.nombre}' porque hay profesionales habilitados para realizarlo. Desactívelo."}
+                {"detail": f"No se puede borrar '{self.nombre}' porque tiene profesionales. Desactívelo."}
             )
         super().delete(*args, **kwargs)

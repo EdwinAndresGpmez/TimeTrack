@@ -134,16 +134,16 @@ docker-compose restart frontend
 
 
 # Iniciar la base de datos , imagenes y servicios.
-
-docker-compose exec portal-ms python manage.py makemigrations
-docker-compose exec portal-ms python manage.py migrate
 # Opcional: Solo si necesitas entrar al admin de Banners (localhost:8007/admin)
 docker-compose exec portal-ms python manage.py createsuperuser
+docker-compose exec portal-ms python manage.py makemigrations
+docker-compose exec portal-ms python manage.py migrate
+
 
 docker-compose exec patients-ms python manage.py makemigrations
 docker-compose exec patients-ms python manage.py migrate
 
-docker-compose exec patients-ms python manage.py createsuperuser
+
 
 docker-compose exec professionals-ms python manage.py makemigrations
 docker-compose exec professionals-ms python manage.py migrate
@@ -156,7 +156,7 @@ docker-compose exec schedule-ms python manage.py migrate
 docker-compose exec appointments-ms python manage.py makemigrations
 docker-compose exec appointments-ms python manage.py migrate
 
-docker-compose exec patients-ms python manage.py createsuperuser
+
 
 docker-compose exec notification-ms python manage.py makemigrations
 docker-compose exec notification-ms python manage.py migrate
@@ -167,4 +167,61 @@ docker-compose exec ia-ms python manage.py migrate
 docker-compose exec auth-ms python manage.py makemigrations
 docker-compose exec auth-ms python manage.py migrate
 
-docker-compose exec auth-ms python manage.py createsuperuser
+## Cambios o ajustes a realizar:
+
+1. En Gestion del profesional poder quitar uno o mas servicios sin necesidad de volver a marcar los otros que ya existen
+2. En Gestion Usuario agregar para el perfil administrador el Tipo de usuario (ejemplo particular, fomag otros convenios)
+3. En mis agendas solo debera salir los servicios que corresponde al Tipo paciente ejemplo a los pacientes tipo particular no deberia salirle otros servicios diferentes que no esten categorizados solo para particular. 
+class TipoPaciente(models.Model):
+    """Categorización (Ej: EPS, Particular, Prepagada)"""
+    nombre = models.CharField(max_length=100, unique=True) # legacy: nombre_tipo
+    activo = models.BooleanField(default=True) # legacy: estado_tipo
+
+    def __str__(self):
+        return self.nombre
+
+class Servicio(models.Model):
+    nombre = models.CharField(max_length=255)
+    descripcion = models.TextField(blank=True)
+    duracion_minutos = models.IntegerField() 
+    precio_base = models.DecimalField(max_digits=10, decimal_places=2)
+    
+    profesionales = models.ManyToManyField(Profesional, related_name='servicios_habilitados', blank=True)
+    
+    activo = models.BooleanField(default=True)
+
+    TIPO_ACCESO = [
+        ('TODOS', 'Para todos los pacientes'),
+        ('PARTICULAR', 'Solo Particulares'),
+        ('EPS', 'Solo EPS/Convenios'),
+    ]
+
+    acceso_permitido = models.CharField(max_length=20, choices=TIPO_ACCESO, default='TODOS')
+
+    class Meta:
+        verbose_name = "Servicio"
+        verbose_name_plural = "Servicios"
+
+    def __str__(self):
+        return self.nombre
+
+    # --- PROTECCIÓN DE BORRADO ---
+    def delete(self, *args, **kwargs):
+        if self.profesionales.exists():
+             raise ValidationError(
+                {"detail": f"No se puede borrar el servicio '{self.nombre}' porque hay profesionales habilitados para realizarlo. Desactívelo."}
+            )
+        super().delete(*args, **kwargs)
+
+4. Se debe saber como se esta relacionando el TIPO de acceso con el tipo usuario para garantizar que le estan saliendo a los tipo usuario las agedas que son. (OJO REVISAR Y REPLANTEAR LA LOGICA)
+5. En la gestion de la agenda hay que habilitar el campo para que el administrador pueda decir los minutos que tendra  General / Mixto esto ya lo teniamos antes y se perdio.
+6. Cuando se gestiona el Bloqueo y se le da clic al boton 'Gestionar Bloqueo (Día)' solo sale un mensaje Gestión de Bloqueo para la fecha pero no pide el motivo ni lo bloquea ni cambia de color el cuadrito en la grilla ni nada. 
+7. Al borrar de la parte inferior de la grilla un medico y volverlo a buscar queda con el mismo color del medico que quedo en el filtro ejemplo quedan dos profesionales con el mismo color en la grilla.
+8. Revisar administrar citas para que funcione correctamente los cambios de estado.
+
+Te paso todos los codigo relacionados con estas solicitudes para que avancemos uno a uno
+
+OJO REVISAR ADMINSTRAR CITAS.
+
+ahora continuemos con el codigo completo de GestionAgenda con el ajuste sobre esta version y esperas que lo copie para continuar con el otro 
+ahora continuemos con el codigo completo de AdminCitas con el ajuste sobre esta version 

@@ -53,11 +53,21 @@ const AdminCitas = () => {
 
         if (isConfirmed) {
             try {
+                // LLAMADA AL NUEVO MÉTODO DEL SERVICIO (Punto 8)
                 await citasService.updateEstado(cita.id, nuevoEstado);
-                Swal.fire('Actualizado', 'Estado modificado correctamente.', 'success');
-                cargarCitas();
+                
+                Swal.fire({
+                    title: 'Actualizado',
+                    text: 'Estado modificado correctamente.',
+                    icon: 'success',
+                    timer: 1500,
+                    showConfirmButton: false
+                });
+                
+                cargarCitas(); // Recargar para mover la cita de pestaña si aplica
             } catch (error) {
-                Swal.fire('Error', 'No se pudo actualizar.', 'error');
+                console.error(error);
+                Swal.fire('Error', 'No se pudo actualizar. Intente nuevamente.', 'error');
             }
         }
     };

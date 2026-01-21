@@ -33,15 +33,17 @@ class ProfesionalSerializer(serializers.ModelSerializer):
             'servicios_habilitados', 
             'activo'
         ]
+
+
 class ServicioSerializer(serializers.ModelSerializer):
-    # Mostramos cuántos médicos hacen este servicio
     total_profesionales = serializers.SerializerMethodField()
 
     class Meta:
         model = Servicio
         fields = [
             'id', 'nombre', 'descripcion', 'duracion_minutos', 
-            'precio_base', 'activo', 'profesionales', 'total_profesionales'
+            'precio_base', 'activo', 'profesionales', 'total_profesionales',
+            'tipos_paciente_ids' 
         ]
 
     def get_total_profesionales(self, obj):
