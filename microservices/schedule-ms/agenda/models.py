@@ -4,31 +4,35 @@ import datetime
 
 class Disponibilidad(models.Model):
     """
-    Horario Base Recurrente.
-    Ej: El médico X atiende los Lunes de 8:00 a 12:00 en la Sede Norte.
+    Horario Base Recurrente con Vigencia.
     """
     DIAS = [
         (0, 'Lunes'), (1, 'Martes'), (2, 'Miércoles'), 
         (3, 'Jueves'), (4, 'Viernes'), (5, 'Sábado'), (6, 'Domingo')
     ]
 
-    # Referencias a Professionals-MS (Puerto 8002)
     profesional_id = models.BigIntegerField(db_index=True) 
     lugar_id = models.BigIntegerField()
-    
-    # Si es null, aplica para cualquier servicio. Si tiene ID, es exclusivo para ese servicio.
     servicio_id = models.BigIntegerField(null=True, blank=True)
     
     dia_semana = models.IntegerField(choices=DIAS)
     hora_inicio = models.TimeField()
     hora_fin = models.TimeField()
     
+    # --- FECHA ESPECÍFICA (Prioridad Alta) ---
+    # Si tiene valor, este registro solo aplica para ese día exacto.
+    fecha = models.DateField(null=True, blank=True, db_index=True)
+    
+    # --- VIGENCIA RECURRENTE (Nuevo) ---
+    # Si fecha es NULL, esto define hasta cuándo se repite.
+    # NULL = Infinito.
+    fecha_fin_vigencia = models.DateField(null=True, blank=True, verbose_name="Vigente hasta")
+    
     activo = models.BooleanField(default=True)
 
     class Meta:
         verbose_name = "Disponibilidad"
         verbose_name_plural = "Disponibilidades"
-        # Constraint: Un médico no puede tener dos horarios solapados el mismo día
         ordering = ['dia_semana', 'hora_inicio']
 
     def clean(self):
@@ -39,14 +43,10 @@ class Disponibilidad(models.Model):
         return f"Prof {self.profesional_id} - {self.get_dia_semana_display()} ({self.hora_inicio}-{self.hora_fin})"
 
 class BloqueoAgenda(models.Model):
-    """
-    Excepciones al horario (Vacaciones, Permisos, Festivos).
-    El sistema debe consultar esto antes de permitir agendar.
-    """
     profesional_id = models.BigIntegerField(db_index=True)
     fecha_inicio = models.DateTimeField()
     fecha_fin = models.DateTimeField()
-    motivo = models.CharField(max_length=255) # Ej: "Vacaciones", "Cita Médica Personal"
+    motivo = models.CharField(max_length=255)
 
     class Meta:
         verbose_name = "Bloqueo de Agenda"

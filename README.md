@@ -135,7 +135,7 @@ docker-compose restart frontend
 
 # Iniciar la base de datos , imagenes y servicios.
 # Opcional: Solo si necesitas entrar al admin de Banners (localhost:8007/admin)
-docker-compose exec appointments-ms python manage.py createsuperuser
+docker-compose exec schedule-ms python manage.py createsuperuser
 docker-compose exec portal-ms python manage.py makemigrations
 docker-compose exec portal-ms python manage.py migrate
 

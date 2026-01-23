@@ -1,5 +1,5 @@
 # Mapeo y Estado del Proyecto TimeTrack
-**Actualizado:** 20 de Enero, 2026
+**Actualizado:** 22 de Enero, 2026
 
 > Arquitectura de Microservicios con Django (Backend), React + Vite (Frontend), Nginx (Gateway), PostgreSQL (DB Centralizada) y Redis
 
@@ -19,8 +19,8 @@
 | **appointments-ms** | 8004 | ✅ Completo | Reserva y gestión de citas |
 | **notification-ms** | 8005 | 🔄 Parcial | Backend listo, integración email/SMS pendiente |
 | **ia-ms** | 8006 | ✅ Completo | Chatbot IA, sesiones y configuración |
-| **portal-ms** | 8007 | 🔄 Parcial | Modelos listos, API endpoints pendientes |
-| **frontend** | 5173 | ✅ Avanzado | React + Vite + TailwindCSS |
+| **portal-ms** | 8007 | 🔄 Parcial | Modelos, serializers y endpoints banners/videos listos, PQRS/HV en progreso |
+| **frontend** | 5173 | ✅ Avanzado | React + Vite + TailwindCSS, portal público y paneles funcionales |
 
 ---
 
@@ -177,30 +177,34 @@
 
 ---
 
+
 ### 8. **portal-ms** (Puerto 8007) 🔄 PARCIAL
 **BD:** `portal_db` → Banner, VideoGaleria, ConvocatoriaHV, PQRS
 
 **Modelos (✅ Listos):**
 ```python
-- Banner: imagen_desktop, imagen_movil, link_accion, orden, activo
-- VideoGaleria: url_externa (YouTube/Vimeo) o archivo_video, portada
-- ConvocatoriaHV: CV para empleo
-- PQRS: Peticiones, quejas, reclamos
+- Banner: imagen_desktop, imagen_movil, link_accion, orden, activo, created_at
+- VideoGaleria: url_externa (YouTube/Vimeo) o archivo_video, portada, activo
+- ConvocatoriaHV: CV para empleo (en progreso)
+- PQRS: Peticiones, quejas, reclamos (en progreso)
 ```
 
-**Endpoints (Diseñados):**
-- `GET /api/v1/portal/banners/` - Slider de inicio
-- `GET /api/v1/portal/videos/` - Galería de videos
-- `POST /api/v1/portal/pqrs/` - Formulario PQRS
-- `POST /api/v1/portal/hv/` - Solicitud "Trabaje con nosotros"
+**Serializers:**
+- BannerSerializer, VideoGaleriaSerializer implementados
 
-**Estado:** 🔄 Modelos completos pero **FALTA:**
-- ❌ Serializers para todos los modelos
-- ❌ ViewSets/Generics views
-- ❌ URLs.py vinculadas
-- ❌ Admin customizado
+**Views:**
+- BannerListView, VideoListView (ListAPIView, públicos, ordenados)
+
+**Endpoints:**
+- `GET /api/v1/portal/banners/` - Slider de inicio (funcional)
+- `GET /api/v1/portal/videos/` - Galería de videos (funcional)
+- `POST /api/v1/portal/pqrs/` - Formulario PQRS (pendiente)
+- `POST /api/v1/portal/hv/` - Solicitud "Trabaje con nosotros" (pendiente)
+
+**Estado:** 🔄 Modelos, serializers y endpoints banners/videos funcionales. PQRS y HV en desarrollo. Admin y endpoints faltantes en progreso.
 
 ---
+
 
 ## 🖥️ Frontend (React + Vite) ✅ AVANZADO
 
@@ -214,7 +218,7 @@ frontend/src/
 │   │   ├── Login.jsx ✅
 │   │   └── Register.jsx ✅
 │   ├── portal/
-│   │   ├── Home.jsx ✅ (HeroSlider, ServicesGrid, About)
+│   │   ├── Home.jsx ✅ (HeroSlider, ServicesGrid, AboutSection)
 │   │   ├── PQRS.jsx ✅
 │   │   └── TrabajeConNosotros.jsx ✅
 │   ├── system/
@@ -242,7 +246,8 @@ frontend/src/
 │   │   ├── Navbar.jsx ✅ (Responsive)
 │   │   ├── Footer.jsx ✅
 │   │   ├── HeroSlider.jsx ✅ (Consumiendo banners del backend)
-│   │   └── ServicesGrid.jsx ✅
+│   │   ├── ServicesGrid.jsx ✅
+│   │   └── AboutSection.jsx ✅
 │   └── system/
 │       └── (Componentes específicos de usuario/admin)
 ├── services/
@@ -250,7 +255,7 @@ frontend/src/
 │   ├── citasService.js ✅ - CRUD citas
 │   ├── staffService.js ✅ - Profesionales, especialidades
 │   ├── patientService.js ✅ - Gestión de pacientes
-│   ├── portalService.js ✅ - Banners, PQRS
+│   ├── portalService.js ✅ - Banners, PQRS, videos
 │   ├── agendaService.js ✅ - Disponibilidad
 │   └── configService.js ✅ - Configuración global
 ├── context/
@@ -263,7 +268,7 @@ frontend/src/
 ### Funcionalidades Implementadas ✅
 - ✅ **Autenticación:** Login/Register con términos y condiciones (modal React Portal)
 - ✅ **Navbar responsive:** Menú colapsable, logo, enlaces dinámicos
-- ✅ **Home público:** Slider de banners, grid de servicios, contadores animados
+- ✅ **Home público:** Slider de banners (consumiendo backend), grid de servicios, sección About, contadores animados
 - ✅ **Portal de pacientes:** Dashboard, Mis Citas, Nueva Cita, Perfil
 - ✅ **Panel admin:** Usuarios, Profesionales, Citas, Parametrización, Validación
 - ✅ **Agenda admin:** Gestión visual, grilla semanal, historial
@@ -274,7 +279,7 @@ frontend/src/
 ### Funcionalidades PENDIENTES 🔄
 - ❌ **Widget de IA:** Componente flotante para chatbot
 - ❌ **Buzón de notificaciones:** Página de notificaciones
-- ❌ **Integración Portal-MS:** Falta consumir endpoints (modelos listos)
+- ❌ **Integración Portal-MS:** Consumo de videos y PQRS/HV desde backend
 - ❌ **Reportes/Exportación:** CSV/PDF para citas e historial
 - ❌ **Confirmación de citas:** Envío de email/SMS de confirmación
 - ❌ **Manejo offline:** Service Workers para caché
@@ -286,27 +291,30 @@ frontend/src/
 | Feature | Auth-MS | Patients-MS | Professionals-MS | Appointments-MS | Schedule-MS | Portal-MS | Notification-MS | IA-MS |
 |:---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
 | Modelos | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| API Endpoints | ✅ | ✅ | ✅ | ✅ | ✅ | 🔄 | 🔄 | ✅ |
+| API Endpoints | ✅ | ✅ | ✅ | ✅ | ✅ | 🔄 (banners/videos) | 🔄 | ✅ |
 | Frontend Service | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ |
-| Frontend UI | ✅ | ✅ | ✅ | ✅ | ✅ | 🔄 | ❌ | ❌ |
+| Frontend UI | ✅ | ✅ | ✅ | ✅ | ✅ | 🔄 (portal público) | ❌ | ❌ |
 | Admin Panel | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
 
 ---
 
 ## 🚀 Tareas Pendientes (To-Do List)
 
+
 ### CRÍTICAS (Bloqueantes)
-- [ ] **Portal-MS API:** Completar Serializers + Views + URLs
-  - [ ] BannerSerializer, VideoGaleriaSerializer
+- [ ] **Portal-MS API:** Completar endpoints PQRS y HV, admin customizado
+  - [x] BannerSerializer, VideoGaleriaSerializer
   - [ ] PQRSSerializer, ConvocatoriaHVSerializer
-  - [ ] ViewSets (BannerViewSet, VideoViewSet, etc.)
-  - [ ] Conectar en urls.py
-  
+  - [x] BannerListView, VideoListView
+  - [ ] PQRSView, HVView
+  - [ ] Conectar en urls.py todos los endpoints
+
 - [ ] **Notification-MS Integración:** 
   - [ ] Signals automáticos en appointments-ms (crear notificación cuando cita cambia estado)
   - [ ] SendGrid/SMTP para emails
   - [ ] Twilio para WhatsApp
   - [ ] Frontend: Página de buzón
+
 
 ### ALTAS (Próximos)
 - [ ] **IA Widget:** Componente flotante React
@@ -317,6 +325,7 @@ frontend/src/
 - [ ] **Reportes:** 
   - [ ] CSV/PDF de citas por rango de fechas
   - [ ] Historial de auditoría
+
 
 ### MEDIAS (Nice to Have)
 - [ ] **Confirmación automática:** Email/SMS cuando se reserva cita
@@ -392,11 +401,12 @@ POST   /api/v1/notifications/buzon/
 - [x] Contexto de autenticación persistente
 - [x] Integración Axios con interceptores
 
+
 ### 🔄 En Progreso
-- [ ] Portal-MS: API completa
+- [ ] Portal-MS: Endpoints PQRS/HV y admin customizado
 - [ ] Notification-MS: Integración email/WhatsApp
-- [ ] IA-MS: Widget fronten
-  - Estado: Implementado banners, videos, PQRS, hoja de vida.
+- [ ] IA-MS: Widget frontend
+  - Estado: Banners y videos funcionales, PQRS y hoja de vida en desarrollo.
 
 ---
 
@@ -713,3 +723,72 @@ Ejemplo: Swal.fire({...}).
 Animaciones (Leves):
 
 Estamos usando las transiciones nativas de Tailwind (transition duration-300 hover:scale-105) para los efectos de los botones y el sidebar.
+
+Este documento identifica los modelos de cada microservicio y su uso real en backend y frontend, proponiendo mejoras donde se detecta subutilización.
+
+---
+
+## 1. auth-ms (users/models.py)
+**Modelos:**
+- CrearCuenta: Usado en autenticación y registro.
+- Auditoria: Usado en admin para registrar acciones, pero no expuesto en frontend ni reportes.
+  - **Sugerencia:** Crear un panel de auditoría en frontend/admin para visualizar acciones críticas, cambios de roles, bloqueos y accesos. Permitir filtros por usuario, fecha y módulo.
+
+---
+
+## 2. patients-ms (patients/models.py)
+**Modelos:**
+- TipoPaciente: Usado en backend y frontend (listado, selección en formularios).
+- Paciente: Usado en backend y frontend (gestión de pacientes).
+- SolicitudValidacion: Usado en backend (admin, API, serializers, views) y en frontend (servicio patientService.js: crearSolicitudValidacion, getSolicitudesPendientes). 
+  - **Sugerencia:** Mejorar el flujo de validación en el frontend, permitiendo a los administradores aprobar/rechazar solicitudes y notificar al usuario.
+
+---
+
+## 3. professionals-ms (staff/models.py)
+**Modelos:**
+- Especialidad: Usado en backend y frontend (staffService.js, selección en formularios, filtros, paneles admin).
+- Lugar: Usado en backend y frontend (staffService.js, agenda, selección de sede, filtros, paneles admin).
+- Profesional: Usado en backend y frontend (listados, selección, agenda, paneles admin).
+  - **Sugerencia:** Implementar gestión avanzada (desactivación, advertencias de dependencias) y reportes de uso de especialidades y sedes.
+
+---
+
+## 4. schedule-ms (agenda/models.py)
+**Modelos:**
+- Disponibilidad: Usado en backend y frontend (agendaService.js, gestión de horarios, paneles admin y usuario).
+- BloqueoAgenda: Usado en backend y frontend (agendaService.js, GestiónAgenda.jsx, GrillaSemanal.jsx, NuevaCita.jsx). Permite bloquear horarios y se visualiza en la UI.
+  - **Sugerencia:** Mejorar la visualización de bloqueos y agregar reportes de bloqueos históricos.
+
+---
+
+## 5. appointments-ms (gestion_citas/models.py)
+**Modelos:**
+- Cita: Usado en backend y frontend (citasService.js, gestión de citas, paneles admin y usuario).
+- NotaMedica: Usado en backend (admin, API, serializers, views, inline en admin) pero no expuesto en frontend.
+  - **Sugerencia:** Permitir a los médicos diligenciar y consultar notas médicas desde el portal, y a los pacientes ver un resumen de su evolución clínica.
+
+---
+
+## 6. notification-ms (comunicaciones/models.py)
+**Modelos:**
+- Notificacion: Usado en backend (admin, API, serializers, views, endpoint /buzon/), pero no consumido ni mostrado en frontend.
+  - **Sugerencia:** Implementar un buzón de notificaciones en el frontend, con filtros por leídas/no leídas y acciones de marcado.
+
+---
+
+## 7. ia-ms (agent/models.py)
+**Modelos:**
+- AIConfiguration: Usado en backend, no expuesto en frontend.
+- ChatSession y ChatMessage: Usados en backend (servicios, views, serializers) pero no hay widget de chat ni historial visible en frontend.
+  - **Sugerencia:** Crear un widget flotante de chat en frontend que consuma estos modelos, mostrando el historial y permitiendo interacción en tiempo real. Permitir a administradores ajustar parámetros de IA desde el panel admin.
+
+---
+
+## 8. portal-ms (content/models.py y forms/models.py)
+**Modelos:**
+- Banner y VideoGaleria: Usados en backend y frontend (portalService.js, Home.jsx, HeroSlider.jsx, etc.).
+- ConvocatoriaHV y PQRS: Usados en backend (API, serializers, views, endpoints /pqrs/ y /hv/) y en frontend (portalService.js, PQRS.jsx, TrabajeConNosotros.jsx).
+  - **Sugerencia:** Mejorar la gestión administrativa de PQRS y postulaciones (ConvocatoriaHV) en el frontend, permitiendo seguimiento, respuesta y cierre, así como notificaciones al usuario.
+
+---

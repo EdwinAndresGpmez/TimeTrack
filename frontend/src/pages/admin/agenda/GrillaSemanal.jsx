@@ -1,8 +1,5 @@
-import React from 'react';
-import { 
-    FaPlus, FaLock, FaHistory, 
-    FaUser // Solo dejamos iconos esenciales
-} from 'react-icons/fa';
+import React, { useEffect } from 'react';
+import { FaPlus, FaLock, FaHistory, FaUser } from 'react-icons/fa';
 
 const GrillaSemanal = ({ 
     selectedProfs = [], 
@@ -12,29 +9,44 @@ const GrillaSemanal = ({
     onCrearTurno, 
     onGestionarTurno,
     calendarView, 
-    fechaReferencia, 
-    setCalendarView, 
-    setFechaReferencia 
+    fechaReferencia,
+    setCalendarView // Necesario para el ajuste responsivo automático
 }) => {
     
-    const HORAS = Array.from({ length: 15 }, (_, i) => i + 6); 
+    // --- ESTRATEGIA RESPONSIVA (Hook de Efecto) ---
+    // Si la pantalla es pequeña (móvil), forzamos la vista "Día" automáticamente.
+    useEffect(() => {
+        const handleResize = () => {
+            if (window.innerWidth < 768 && calendarView === 'week') {
+                if(setCalendarView) setCalendarView('day');
+            }
+        };
+        // Ejecutar al montar
+        handleResize();
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, [calendarView, setCalendarView]);
 
-    // --- HELPERS ---
+    const HORAS = Array.from({ length: 15 }, (_, i) => i + 6); // 6:00 a 20:00
+
     const getDiasColumna = () => {
         const dias = [];
         const current = new Date(fechaReferencia);
+        current.setHours(0, 0, 0, 0);
 
         if (calendarView === 'day') {
             dias.push(new Date(current));
         } 
         else if (calendarView === 'week') {
             const diaSemana = current.getDay(); 
+            // Ajuste Lunes(1) como inicio.
             const diff = current.getDate() - diaSemana + (diaSemana === 0 ? -6 : 1);
             const lunes = new Date(current);
             lunes.setDate(diff);
             for (let i = 0; i < 7; i++) {
                 const d = new Date(lunes);
                 d.setDate(lunes.getDate() + i);
+                d.setHours(0, 0, 0, 0);
                 dias.push(d);
             }
         }
@@ -43,17 +55,19 @@ const GrillaSemanal = ({
 
     const getServiceInfo = (id) => {
         const s = servicios.find(srv => srv.id === id);
-        // Ya no calculamos "tipo" (virtual/presencial), solo devolvemos datos básicos
-        return s 
-            ? { nombre: s.nombre, duracion: s.duracion_minutos } 
-            : { nombre: 'General', duracion: duracionDefecto };
+        return s ? { nombre: s.nombre, duracion: s.duracion_minutos } : { nombre: 'General', duracion: duracionDefecto };
     };
 
-    // --- RENDERIZADO DE CELDA ---
     const renderCeldaTiempo = (fechaColumna, hora) => {
         const jsDay = fechaColumna.getDay(); 
         const appDayIndex = jsDay === 0 ? 6 : jsDay - 1; 
         const ahora = new Date();
+        
+        // Generamos strings YYYY-MM-DD para comparaciones de fecha exactas
+        const y = fechaColumna.getFullYear();
+        const m = String(fechaColumna.getMonth() + 1).padStart(2, '0');
+        const d = String(fechaColumna.getDate()).padStart(2, '0');
+        const fechaColumnaStr = `${y}-${m}-${d}`;
 
         let allSlots = [];
 
@@ -61,14 +75,39 @@ const GrillaSemanal = ({
             const agendaProf = agendasCombinadas[prof.id];
             if (!agendaProf || !agendaProf.horarios) return;
 
-            const turnos = agendaProf.horarios.filter(h => 
-                h.dia_semana === appDayIndex && 
-                parseInt(h.hora_inicio.split(':')[0]) <= hora && 
-                parseInt(h.hora_fin.split(':')[0]) > hora
-            );
+            // 1. FILTRADO DE HORARIOS VÁLIDOS (Vigencia + Día + Hora)
+            const turnos = agendaProf.horarios.filter(h => {
+                if (parseInt(h.profesional_id) !== parseInt(prof.id)) {
+                return false;
+            }
+                // A. Coincidencia de Día de Semana
+                if (h.dia_semana !== appDayIndex) return false;
+
+                // B. Coincidencia de Hora (el turno debe "tocar" esta hora)
+                const hInicio = parseInt(h.hora_inicio.split(':')[0]);
+                const hFin = parseInt(h.hora_fin.split(':')[0]);
+                if (!(hInicio <= hora && hFin > hora)) return false;
+
+                // C. COINCIDENCIA DE FECHA ESPECÍFICA (Override)
+                if (h.fecha && h.fecha !== fechaColumnaStr) {
+                    return false; 
+                }
+
+                // D. VALIDACIÓN DE VIGENCIA (CRÍTICO PARA "ELIMINAR SERIE")
+                // Si el turno tiene fecha fin de vigencia, y la columna es POSTERIOR a esa fecha, no mostrar.
+                if (h.fecha_fin_vigencia) {
+                    if (fechaColumnaStr > h.fecha_fin_vigencia) {
+                        return false; // Ya caducó esta serie
+                    }
+                }
+                
+                return true;
+            });
 
             turnos.forEach(turno => {
                 const infoServicio = getServiceInfo(turno.servicio_id);
+                const duracionReal = infoServicio.duracion > 0 ? infoServicio.duracion : duracionDefecto;
+                
                 const horaInicioTurno = parseInt(turno.hora_inicio.split(':')[0]);
                 const minInicioTurno = parseInt(turno.hora_inicio.split(':')[1]);
                 let minActual = (hora === horaInicioTurno) ? minInicioTurno : 0;
@@ -76,47 +115,68 @@ const GrillaSemanal = ({
                 while (minActual < 60) {
                     const horaFinTurno = parseInt(turno.hora_fin.split(':')[0]);
                     const minFinTurno = parseInt(turno.hora_fin.split(':')[1]);
+                    
                     if (hora > horaFinTurno || (hora === horaFinTurno && minActual >= minFinTurno)) break;
 
                     const inicioSlotStr = `${hora.toString().padStart(2,'0')}:${minActual.toString().padStart(2,'0')}`;
+                    
+                    // Calcular fecha/hora exacta del slot
                     const slotStart = new Date(fechaColumna);
                     slotStart.setHours(hora, minActual, 0, 0);
 
-                    // Lógica de Bloqueo
-                    const isBloqueado = agendaProf.bloqueos?.some(b => {
+                    // --- 2. DETECCIÓN DE BLOQUEOS ("SOLO POR HOY") ---
+                    const bloqueoEncontrado = agendaProf.bloqueos?.find(b => {
                         const bStart = new Date(b.fecha_inicio);
                         const bEnd = new Date(b.fecha_fin);
                         return slotStart >= bStart && slotStart < bEnd;
                     });
 
-                    // Datos Dashboard (Placeholder para conectar con backend de citas)
-                    const citasAgendadas = 0; 
-                    const capacidad = 1; 
+                    const isBloqueado = !!bloqueoEncontrado;
+                    const isPasado = slotStart < ahora;
 
+                    // --- 3. PUSH AL ARRAY ---
+                    // Agregamos el slot incluso si está bloqueado, para pintarlo de rojo.
                     allSlots.push({
                         profId: prof.id,
                         profNombre: prof.nombre,
                         profColor: prof.colorInfo,
                         inicio: inicioSlotStr,
-                        duracion: infoServicio.duracion,
+                        duracion: duracionReal,
                         servicioNombre: infoServicio.nombre,
-                        citas: citasAgendadas,
-                        capacidad: capacidad,
-                        isPasado: slotStart < ahora,
-                        isBloqueado,
-                        turno
+                        isPasado, 
+                        isBloqueado, // Flag para pintar rojo
+                        motivoBloqueo: bloqueoEncontrado?.motivo, 
+                        turno // Datos originales para gestión
                     });
-                    minActual += infoServicio.duracion;
+                    
+                    minActual += duracionReal;
                 }
             });
         });
 
-        // CASO A: Celda Vacía -> Botón Crear
+        // --- 4. RENDERIZADO DE HUECOS VACÍOS (VALIDACIÓN DE PASADO) ---
         if (allSlots.length === 0) {
+            // Calculamos el final de esta hora para saber si ya pasó completamente
+            const finDeEstaHora = new Date(fechaColumna);
+            finDeEstaHora.setHours(hora + 1, 0, 0, 0);
+
+            // Si "ahora" es mayor que el fin de la hora, es pasado -> BLOQUEAR CREACIÓN
+            if (ahora >= finDeEstaHora) {
+                return (
+                    <div 
+                        className="h-full w-full flex items-center justify-center bg-gray-50 border-t border-dashed border-gray-100 opacity-40 cursor-not-allowed transition-colors"
+                        title="Hora pasada - No se puede agendar"
+                    >
+                        {/* Espacio vacío gris, sin evento onClick */}
+                    </div>
+                );
+            }
+
+            // Si es futuro -> BOTÓN +
             return (
                 <div 
                     className="h-full w-full flex items-center justify-center text-transparent hover:text-gray-300 hover:bg-gray-50 cursor-pointer border-t border-dashed border-gray-100 transition-all z-10 group"
-                    onClick={(e) => { e.stopPropagation(); onCrearTurno(appDayIndex, hora); }}
+                    onClick={(e) => { e.stopPropagation(); onCrearTurno(fechaColumna, hora); }}
                     title="Crear nuevo turno"
                 >
                     <FaPlus size={10} className="transform group-hover:scale-110 transition-transform"/>
@@ -124,33 +184,34 @@ const GrillaSemanal = ({
             );
         }
 
-        // CASO B: Celda con Datos
         allSlots.sort((a,b) => a.inicio.localeCompare(b.inicio));
 
         return (
             <div className="flex flex-col gap-[2px] w-full p-[1px] relative h-full">
                 {allSlots.map((slot, idx) => {
-                    // Estilos Base
-                    let bgClass = slot.profColor?.clase.split(' ')[0] || 'bg-gray-100'; 
-                    let borderClass = slot.profColor?.clase.split(' ')[2] || 'border-gray-300';
-                    let textClass = slot.profColor?.clase.split(' ')[1] || 'text-gray-700';
-                    
-                    let containerStyle = `flex-1 rounded-r-sm text-[10px] px-1.5 py-0.5 flex flex-col justify-center cursor-pointer transition overflow-hidden min-h-[34px] shadow-sm hover:shadow-md border-l-[4px] ${bgClass} ${borderClass} ${textClass} opacity-95 hover:opacity-100`;
+                    // --- LÓGICA DE ESTILOS ---
+                    let containerStyle = "";
                     let iconoEstado = null;
+                    let tooltipText = "";
 
-                    // Estados Especiales (Sobrescriben estilos)
-                    if (slot.isPasado) {
+                    if (slot.isBloqueado) {
+                        // BLOQUEADO: Rojo
+                        containerStyle = "flex-1 rounded-r-sm text-[10px] px-1.5 py-0.5 flex flex-col justify-center cursor-pointer transition overflow-hidden min-h-[34px] shadow-sm bg-red-50 border-l-[4px] border-red-500 text-red-700 opacity-90 hover:opacity-100";
+                        iconoEstado = <FaLock size={9} title="Espacio Bloqueado"/>;
+                        tooltipText = `🔒 BLOQUEADO\nMotivo: ${slot.motivoBloqueo || 'Sin motivo'}\nClic para desbloquear`;
+                    } else if (slot.isPasado) {
+                        // PASADO: Gris
                         containerStyle = "flex-1 rounded-r-sm text-[10px] px-1.5 py-0.5 flex flex-col justify-center cursor-pointer transition overflow-hidden min-h-[34px] shadow-sm bg-gray-100 border-l-[4px] border-gray-400 text-gray-400 opacity-60 grayscale";
-                        iconoEstado = <FaHistory size={8} title="Tiempo pasado"/>;
-                    } else if (slot.isBloqueado) {
-                        containerStyle = "flex-1 rounded-r-sm text-[10px] px-1.5 py-0.5 flex flex-col justify-center cursor-pointer transition overflow-hidden min-h-[34px] shadow-sm bg-red-50 border-l-[4px] border-red-500 text-red-700 pattern-diagonal-lines";
-                        iconoEstado = <FaLock size={8} title="Espacio Bloqueado"/>;
+                        iconoEstado = <FaHistory size={9} title="Tiempo pasado"/>;
+                        tooltipText = "Tiempo pasado";
+                    } else {
+                        // DISPONIBLE: Color del médico
+                        let bgClass = slot.profColor?.clase.split(' ')[0] || 'bg-gray-100'; 
+                        let borderClass = slot.profColor?.clase.split(' ')[2] || 'border-gray-300';
+                        let textClass = slot.profColor?.clase.split(' ')[1] || 'text-gray-700';
+                        containerStyle = `flex-1 rounded-r-sm text-[10px] px-1.5 py-0.5 flex flex-col justify-center cursor-pointer transition overflow-hidden min-h-[34px] shadow-sm hover:shadow-md border-l-[4px] ${bgClass} ${borderClass} ${textClass} opacity-95 hover:opacity-100`;
+                        tooltipText = `✅ DISPONIBLE\n${slot.servicioNombre}`;
                     }
-
-                    // Tooltip Rico (Sin iconos de modalidad, solo texto informativo)
-                    const tooltipText = slot.isBloqueado 
-                        ? `🔒 BLOQUEADO\n----------------\nHora: ${slot.inicio}\nProfesional: ${slot.profNombre}`
-                        : `✅ DISPONIBLE\n----------------\nHora: ${slot.inicio} (${slot.duracion} min)\nServicio: ${slot.servicioNombre}\nProfesional: ${slot.profNombre}\nOcupación: ${slot.citas}/${slot.capacidad}`;
 
                     return (
                         <div 
@@ -158,126 +219,93 @@ const GrillaSemanal = ({
                             className={containerStyle}
                             onClick={(e) => { 
                                 e.stopPropagation(); 
-                                onGestionarTurno(slot.turno, fechaColumna.toISOString().split('T')[0]); 
+                                // Permitimos click incluso en pasado para ver detalles, 
+                                // pero la gestión ya la maneja el componente padre.
+                                onGestionarTurno(slot.turno, fechaColumnaStr); 
                             }}
-                            title={tooltipText} // Aquí está el Tooltip Rico
+                            title={tooltipText}
                         >
-                            {/* Fila Superior: Hora y Estado */}
                             <div className="flex items-center justify-between w-full leading-tight">
                                 <span className="font-mono font-bold text-[11px]">{slot.inicio}</span>
                                 {iconoEstado}
                             </div>
-
-                            {/* Fila Inferior: Info Dashboard (Si no está bloqueado) */}
+                            
                             {!slot.isBloqueado && !slot.isPasado && (
-                                <div className="flex items-center justify-between mt-[1px]">
-                                    {/* Nombre Profesional o Servicio (Truncado) */}
-                                    <span className="truncate opacity-90 text-[9px] font-semibold max-w-[60px]">
-                                        {selectedProfs.length > 1 ? slot.profNombre.split(' ')[0] : slot.servicioNombre.slice(0,10)}
+                                <div className="mt-[1px]">
+                                    <span className="truncate opacity-90 text-[9px] font-semibold block w-full whitespace-nowrap overflow-hidden text-ellipsis">
+                                        {selectedProfs.length > 1 ? slot.profNombre.split(' ')[0] : slot.servicioNombre.slice(0,12)}
                                     </span>
-                                    
-                                    {/* Indicador Ocupación (0/1) */}
-                                    <div className={`flex items-center gap-0.5 px-1 rounded-full text-[8px] font-bold ${slot.citas >= slot.capacidad ? 'bg-red-100 text-red-700' : 'bg-white/60 text-current'}`}>
-                                        <FaUser size={6}/> {slot.citas}/{slot.capacidad}
-                                    </div>
                                 </div>
+                            )}
+                            
+                            {slot.isBloqueado && (
+                                <span className="text-[9px] font-bold italic opacity-80 mt-[-2px]">Bloqueado</span>
                             )}
                         </div>
                     );
                 })}
-
-                {/* Botón "+ Mini" para solapamientos */}
-                <div 
-                    onClick={(e) => { e.stopPropagation(); onCrearTurno(appDayIndex, hora); }}
-                    className="mt-1 flex items-center justify-center p-0.5 border border-dashed border-gray-300 rounded text-gray-400 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50 cursor-pointer transition opacity-0 group-hover:opacity-100"
-                    title="Agregar turno simultáneo"
-                >
-                    <FaPlus size={8} />
-                </div>
+                
+                {/* Botón flotante pequeño para agregar turno simultáneo (SOLO SI ES FUTURO) */}
+                {(() => {
+                    const finDeEstaHora = new Date(fechaColumna);
+                    finDeEstaHora.setHours(hora + 1, 0, 0, 0);
+                    const ahora = new Date();
+                    
+                    if (ahora < finDeEstaHora) {
+                        return (
+                            <div 
+                                onClick={(e) => { e.stopPropagation(); onCrearTurno(fechaColumna, hora); }}
+                                className="mt-1 flex items-center justify-center p-0.5 border border-dashed border-gray-300 rounded text-gray-400 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50 cursor-pointer transition opacity-0 group-hover:opacity-100"
+                                title="Agregar turno simultáneo"
+                            >
+                                <FaPlus size={8} />
+                            </div>
+                        );
+                    }
+                    return null;
+                })()}
             </div>
         );
     };
 
-    // --- VISTA MENSUAL ---
-    const renderVistaMensual = () => {
-        const year = fechaReferencia.getFullYear();
-        const month = fechaReferencia.getMonth();
-        const firstDay = new Date(year, month, 1);
-        const lastDay = new Date(year, month + 1, 0);
-        let startDayIndex = firstDay.getDay() - 1;
-        if (startDayIndex === -1) startDayIndex = 6; 
-        const daysInMonth = lastDay.getDate();
-        const celdas = [];
-        for (let i = 0; i < startDayIndex; i++) celdas.push(<div key={`empty-${i}`} className="bg-gray-50/30 min-h-[100px]"></div>);
-        
-        for (let d = 1; d <= daysInMonth; d++) {
-            const fechaDia = new Date(year, month, d);
-            const esHoy = new Date().toDateString() === fechaDia.toDateString();
-            const jsDay = fechaDia.getDay();
-            const appDayIndex = jsDay === 0 ? 6 : jsDay - 1;
-
-            const indicadores = [];
-            selectedProfs.forEach(prof => {
-                const agenda = agendasCombinadas[prof.id];
-                if (!agenda) return;
-                const tieneHorario = agenda.horarios?.some(h => h.dia_semana === appDayIndex && h.activo);
-                const tieneBloqueo = agenda.bloqueos?.some(b => {
-                    const bStart = new Date(b.fecha_inicio);
-                    const bEnd = new Date(b.fecha_fin);
-                    return fechaDia >= new Date(bStart.setHours(0,0,0,0)) && fechaDia <= new Date(bEnd.setHours(23,59,59,999));
-                });
-
-                if (tieneHorario || tieneBloqueo) {
-                    indicadores.push({ 
-                        color: prof.colorInfo?.nombre || 'gray', 
-                        tipo: tieneBloqueo ? 'bloqueo' : 'horario',
-                        nombre: prof.nombre
-                    });
-                }
-            });
-
-            celdas.push(
-                <div key={d} onClick={() => { setFechaReferencia(fechaDia); setCalendarView('day'); }} className={`min-h-[100px] border border-gray-100 p-2 transition cursor-pointer flex flex-col relative hover:bg-blue-50 ${esHoy ? 'bg-blue-50 ring-2 ring-inset ring-blue-400' : 'bg-white'}`}>
-                    <span className={`text-sm font-bold mb-1 ${esHoy ? 'text-blue-700' : 'text-gray-700'}`}>{d}</span>
-                    <div className="flex flex-wrap gap-1 content-start mt-1">
-                        {indicadores.map((ind, idx) => (
-                            <div key={idx} className={`w-2 h-2 rounded-full ${ind.tipo === 'bloqueo' ? 'bg-red-500' : `bg-${ind.color}-500`}`} title={`${ind.nombre} (${ind.tipo})`}></div>
-                        ))}
-                    </div>
-                </div>
-            );
-        }
-        return <div className="h-full overflow-y-auto p-4 bg-white w-full"><div className="grid grid-cols-7 gap-px mb-1 bg-gray-200 border border-gray-200 rounded-t">{['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'].map(d => <div key={d} className="bg-gray-50 text-center py-2 text-xs font-bold text-gray-500 uppercase">{d}</div>)}</div><div className="grid grid-cols-7 gap-px bg-gray-200 border border-gray-200 rounded-b">{celdas}</div></div>;
-    };
-
-    if (!selectedProfs || selectedProfs.length === 0) return <div className="h-full flex flex-col items-center justify-center text-gray-400 bg-gray-50"><FaUser size={40} className="mb-4 opacity-20"/><p>Seleccione profesionales</p></div>;
-    if (calendarView === 'month') return renderVistaMensual();
-
+    if (!selectedProfs || selectedProfs.length === 0) return (
+        <div className="h-full flex flex-col items-center justify-center text-gray-400 bg-gray-50">
+            <FaUser size={40} className="mb-4 opacity-20"/>
+            <p>Seleccione profesionales</p>
+        </div>
+    );
+    
     const diasColumna = getDiasColumna();
     
     return (
         <div className="h-full overflow-auto bg-white relative scrollbar-thin w-full">
-            <div className={`${calendarView === 'week' ? 'min-w-[1000px]' : 'w-full'} h-full flex flex-col`}>
+            <div className={`${calendarView === 'week' ? 'min-w-[700px] md:min-w-full' : 'w-full'} h-full flex flex-col`}>
+                
+                {/* HEADERS */}
                 <div className="flex border-b bg-gray-50 sticky top-0 z-20 shadow-sm">
-                    <div className="w-16 flex-shrink-0 p-2 text-center text-gray-500 text-xs border-r bg-white flex items-center justify-center font-bold">HORA</div>
+                    <div className="w-14 flex-shrink-0 p-2 text-center text-gray-500 text-[10px] border-r bg-white flex items-center justify-center font-bold">HORA</div>
                     {diasColumna.map((fecha, i) => {
                         const esHoy = new Date().toDateString() === fecha.toDateString();
-                        const diasSemanaStr = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+                        const diasSemanaStr = ['DOM','LUN','MAR','MIÉ','JUE','VIE','SÁB']; 
                         return (
                             <div key={i} className={`flex-1 py-2 text-center border-r flex flex-col justify-center ${esHoy ? 'bg-blue-50 border-b-2 border-blue-500' : ''}`}>
-                                <span className={`text-[10px] md:text-xs font-bold uppercase ${esHoy ? 'text-blue-700' : 'text-gray-500'}`}>{diasSemanaStr[fecha.getDay()]}</span>
-                                <span className={`text-base md:text-lg font-light leading-none mt-1 ${esHoy ? 'text-blue-900' : 'text-gray-800'}`}>{fecha.getDate()}</span>
+                                <span className={`text-[10px] font-bold uppercase ${esHoy ? 'text-blue-700' : 'text-gray-500'}`}>{diasSemanaStr[fecha.getDay()]}</span>
+                                <span className={`text-sm md:text-lg font-light leading-none mt-0.5 ${esHoy ? 'text-blue-900' : 'text-gray-800'}`}>{fecha.getDate()}</span>
                             </div>
                         );
                     })}
                 </div>
+
+                {/* BODY */}
                 <div className="flex-1 bg-white"> 
                     {HORAS.map(hora => (
-                        <div key={hora} className="flex border-b min-h-[70px] group"> 
-                            <div className="w-16 flex-shrink-0 text-center text-gray-400 text-xs font-mono border-r bg-gray-50 flex items-center justify-center relative">
-                                <span className="-mt-14 block bg-white px-1 z-10 rounded text-[10px]">{hora}:00</span>
+                        <div key={hora} className="flex border-b min-h-[60px] md:min-h-[70px] group"> 
+                            {/* Columna Hora */}
+                            <div className="w-14 flex-shrink-0 text-center text-gray-400 text-[10px] font-mono border-r bg-gray-50 flex items-center justify-center relative">
+                                <span className="-mt-14 block bg-white px-1 z-10 rounded shadow-sm border border-gray-100">{hora}:00</span>
                                 <div className="absolute w-full h-[1px] bg-gray-100 top-0 right-0"></div> 
                             </div>
+                            {/* Celdas */}
                             {diasColumna.map((fecha, i) => (
                                 <div key={i} className="flex-1 border-r p-[1px] relative hover:bg-gray-50 transition-colors">
                                     {renderCeldaTiempo(fecha, hora)}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { citasService } from '../../../services/citasService';
-import { FaFileDownload, FaSearch, FaCalendarAlt, FaFilter, FaInfoCircle, FaUserMd } from 'react-icons/fa';
+import { FaFileDownload, FaSearch, FaCalendarAlt, FaFilter, FaInfoCircle, FaUserMd, FaHistory } from 'react-icons/fa';
 import Swal from 'sweetalert2';
 
 const HistorialPanel = ({ profesionalSeleccionado }) => {
