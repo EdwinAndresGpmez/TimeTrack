@@ -2,6 +2,7 @@ import React, { useEffect, useState, useContext } from 'react';
 import { patientService } from '../../services/patientService';
 import { AuthContext } from '../../context/AuthContext';
 import Swal from 'sweetalert2';
+import { FaPlus, FaEdit, FaToggleOn, FaToggleOff, FaUserTie, FaSearch, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 
 const ITEMS_PER_PAGE = 10;
 
@@ -113,11 +114,13 @@ const GestionPacientes = () => {
             input: 'number',
             inputLabel: `Asignar user_id a ${p.nombre}`,
             inputValue: p.user_id || '',
-            showCancelButton: true
+            showCancelButton: true,
+            confirmButtonText: 'Guardar',
+            confirmButtonColor: '#14b8a6'
         });
-        if (userId !== undefined) {
+        if (userId !== undefined && userId !== '') {
             try {
-                await patientService.update(p.id, { user_id: userId });
+                await patientService.update(p.id, { user_id: parseInt(userId) });
                 Swal.fire('Listo', 'user_id asignado.', 'success');
                 cargarDatos();
             } catch (error) {
@@ -142,7 +145,7 @@ const GestionPacientes = () => {
                 return obj;
             });
 
-            const confirm = await Swal.fire({ title: 'Importar CSV', html: `Se importarán ${items.length} filas. Continuar?`, showCancelButton: true, confirmButtonText: 'Importar' });
+            const confirm = await Swal.fire({ title: 'Importar CSV', html: `Se importarán ${items.length} filas. ¿Continuar?`, showCancelButton: true, confirmButtonText: 'Importar', confirmButtonColor: '#14b8a6' });
             if (!confirm.isConfirmed) return;
 
             const results = { ok: 0, failed: 0 };
@@ -172,97 +175,161 @@ const GestionPacientes = () => {
     const pages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
     const visible = filtered.slice((page-1)*ITEMS_PER_PAGE, page*ITEMS_PER_PAGE);
 
-    if (!isAdmin()) return (<div className="p-6">No autorizado</div>);
+    if (!isAdmin()) return (<div className="p-6 text-center font-bold text-gray-600">No autorizado</div>);
 
     return (
-        <div className="max-w-6xl mx-auto p-4">
-            <div className="flex items-center justify-between mb-4">
-                <h2 className="text-2xl font-bold">Gestión de Pacientes</h2>
-                <div className="flex items-center gap-2">
-                    <input placeholder="Buscar nombre, doc o email" value={query} onChange={e => { setQuery(e.target.value); setPage(1); }} className="px-3 py-2 border rounded" />
-                    <button onClick={openCreate} className="bg-green-600 text-white px-4 py-2 rounded">Crear paciente</button>
+        <div className="max-w-7xl mx-auto p-4">
+            
+            {/* Header */}
+            <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+                <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-2">
+                    <FaUserTie className="text-teal-600"/> Gestión de Pacientes
+                </h1>
+                <div className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+                    Total: <b>{filtered.length}</b>
                 </div>
             </div>
 
-            <div className="bg-white shadow rounded overflow-hidden">
-                <table className="min-w-full">
-                    <thead className="bg-gray-50">
-                        <tr>
-                            <th className="p-3 text-left">Nombre</th>
-                            <th className="p-3 text-left">Documento</th>
-                            <th className="p-3 text-left">Contacto</th>
-                            <th className="p-3 text-left">Tipo</th>
-                            <th className="p-3 text-left">Activo</th>
-                            <th className="p-3"></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {loading ? (
-                            <tr><td colSpan="6" className="p-6">Cargando...</td></tr>
-                        ) : visible.length === 0 ? (
-                            <tr><td colSpan="6" className="p-6">No hay pacientes.</td></tr>
-                        ) : visible.map(p => (
-                            <tr key={p.id} className="border-t hover:bg-gray-50">
-                                <td className="p-3">{p.nombre} {p.apellido}</td>
-                                <td className="p-3">{p.tipo_documento} {p.numero_documento}</td>
-                                <td className="p-3">{p.email_contacto || p.telefono || '-'}</td>
-                                <td className="p-3">{p.tipo_usuario_nombre || '-'}</td>
-                                <td className="p-3">{p.activo ? 'Sí' : 'No'}</td>
-                                <td className="p-3 text-right">
-                                    <button onClick={() => openEdit(p)} className="text-blue-600 mr-2">Editar</button>
-                                    <button onClick={() => handleToggleActivo(p)} className="text-yellow-600 mr-2">{p.activo ? 'Desactivar' : 'Activar'}</button>
-                                    <button onClick={() => handleAssignUser(p)} className="text-green-600 mr-2">Asignar user_id</button>
-                                </td>
+            {/* Filtros */}
+            <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100 mb-6 flex flex-col md:flex-row gap-4 items-center">
+                <div className="relative w-full md:flex-1">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><FaSearch className="text-gray-400" /></div>
+                    <input type="text" placeholder="Buscar por nombre, documento o email..." className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500 outline-none transition-all"
+                        value={query} onChange={e => { setQuery(e.target.value); setPage(1); }} />
+                </div>
+                <button onClick={openCreate} className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 shadow-md transition-all whitespace-nowrap">
+                    <FaPlus /> Crear Paciente
+                </button>
+            </div>
+
+            {/* Tabla */}
+            <div className="bg-white shadow-lg rounded-xl overflow-hidden border border-gray-200">
+                <div className="overflow-x-auto">
+                    <table className="min-w-full leading-normal">
+                        <thead>
+                            <tr className="bg-gray-50 text-left text-xs font-bold text-gray-500 uppercase tracking-wider border-b border-gray-200">
+                                <th className="px-6 py-4">Información del Paciente</th>
+                                <th className="px-6 py-4">Documento</th>
+                                <th className="px-6 py-4">Contacto</th>
+                                <th className="px-6 py-4">Tipo de Paciente</th>
+                                <th className="px-6 py-4 text-center">Estado</th>
+                                <th className="px-6 py-4 text-center">Acciones</th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-
-            <div className="flex items-center justify-between mt-4">
-                <div>
-                    <label className="mr-2">Importar CSV:</label>
-                    <input type="file" accept=".csv" onChange={e => handleBulkImport(e.target.files[0])} />
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                            {loading ? (
+                                <tr><td colSpan="6" className="px-6 py-10 text-center text-gray-400 animate-pulse">Cargando pacientes...</td></tr>
+                            ) : visible.length === 0 ? (
+                                <tr><td colSpan="6" className="px-6 py-10 text-center text-gray-500 italic">No hay pacientes registrados.</td></tr>
+                            ) : visible.map(p => (
+                                <tr key={p.id} className="hover:bg-teal-50 transition duration-150">
+                                    <td className="px-6 py-4">
+                                        <div className="flex flex-col gap-0.5">
+                                            <span className="text-sm font-bold text-gray-900">{p.nombre} {p.apellido}</span>
+                                            {p.user_id && <span className="text-xs text-gray-500">User ID: {p.user_id}</span>}
+                                            {!p.user_id && <span className="text-xs text-orange-600 font-medium">Sin usuario vinculado</span>}
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <span className="font-mono bg-gray-100 px-2 py-1 rounded text-xs text-gray-700">{p.tipo_documento} {p.numero_documento}</span>
+                                    </td>
+                                    <td className="px-6 py-4 text-sm text-gray-600">
+                                        {p.email_contacto ? <div>{p.email_contacto}</div> : null}
+                                        {p.telefono ? <div className="text-xs text-gray-500">{p.telefono}</div> : null}
+                                        {!p.email_contacto && !p.telefono && <span className="text-gray-400">-</span>}
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <span className={`px-3 py-1 rounded-full text-xs font-bold border ${
+                                            p.tipo_usuario_nombre ? 'bg-teal-50 text-teal-700 border-teal-200' : 'bg-gray-50 text-gray-500 border-gray-200'
+                                        }`}>
+                                            {p.tipo_usuario_nombre || 'Sin clasificar'}
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-4 text-center">
+                                        <button onClick={() => handleToggleActivo(p)} className={`text-lg transition-colors ${p.activo ? 'text-green-600 hover:text-green-700' : 'text-red-600 hover:text-red-700'}`} title={p.activo ? 'Desactivar' : 'Activar'}>
+                                            {p.activo ? <FaToggleOn /> : <FaToggleOff />}
+                                        </button>
+                                    </td>
+                                    <td className="px-6 py-4 text-center">
+                                        <div className="flex justify-center gap-2">
+                                            <button onClick={() => openEdit(p)} className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors" title="Editar">
+                                                <FaEdit size={16} />
+                                            </button>
+                                            <button onClick={() => handleAssignUser(p)} className="p-2 text-gray-500 hover:text-teal-600 hover:bg-teal-50 rounded-full transition-colors" title="Asignar/cambiar user_id">
+                                                <FaUserTie size={16} />
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
                 </div>
-                <div className="flex items-center gap-2">
-                    <button disabled={page<=1} onClick={() => setPage(p => Math.max(1, p-1))} className="px-3 py-1 border rounded">Anterior</button>
-                    <div>Página {page} / {pages}</div>
-                    <button disabled={page>=pages} onClick={() => setPage(p => Math.min(pages, p+1))} className="px-3 py-1 border rounded">Siguiente</button>
-                </div>
-            </div>
 
-            {modalOpen && (
-                <div className="fixed inset-0 bg-black bg-opacity-30 flex items-start justify-center p-6 z-50">
-                    <div className="bg-white rounded shadow-lg w-full max-w-2xl p-6">
-                        <h3 className="text-xl font-bold mb-4">{editing ? 'Editar paciente' : 'Crear paciente'}</h3>
-                        <div className="grid grid-cols-2 gap-3">
-                            <input name="nombre" value={form.nombre} onChange={handleChange} placeholder="Nombre" className="p-2 border rounded" />
-                            <input name="apellido" value={form.apellido} onChange={handleChange} placeholder="Apellido" className="p-2 border rounded" />
-                            <select name="tipo_documento" value={form.tipo_documento} onChange={handleChange} className="p-2 border rounded">
-                                <option value="CC">CC</option>
-                                <option value="TI">TI</option>
-                                <option value="CE">CE</option>
-                                <option value="NIT">NIT</option>
-                            </select>
-                            <input name="numero_documento" value={form.numero_documento} onChange={handleChange} placeholder="Número documento" className="p-2 border rounded" />
-                            <input type="date" name="fecha_nacimiento" value={form.fecha_nacimiento} onChange={handleChange} className="p-2 border rounded" />
-                            <select name="genero" value={form.genero} onChange={handleChange} className="p-2 border rounded">
-                                <option value="M">M</option>
-                                <option value="F">F</option>
-                                <option value="O">Otro</option>
-                            </select>
-                            <input name="email_contacto" value={form.email_contacto} onChange={handleChange} placeholder="Email" className="p-2 border rounded" />
-                            <input name="telefono" value={form.telefono} onChange={handleChange} placeholder="Teléfono" className="p-2 border rounded" />
-                            <select name="tipo_usuario" value={form.tipo_usuario} onChange={handleChange} className="p-2 border rounded col-span-2">
-                                <option value="">-- Seleccione tipo --</option>
-                                {tipos.map(t => (<option key={t.id} value={t.id}>{t.nombre}</option>))}
-                            </select>
-                            <input name="direccion" value={form.direccion} onChange={handleChange} placeholder="Dirección" className="p-2 border rounded col-span-2" />
+                {/* Paginación */}
+                {visible.length > 0 && (
+                    <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-between items-center">
+                        <div>
+                            <label className="text-sm font-medium text-gray-600 mr-3">Importar CSV:</label>
+                            <input type="file" accept=".csv" onChange={e => handleBulkImport(e.target.files[0])} className="text-sm" />
                         </div>
+                        <div className="flex items-center gap-2">
+                            <button disabled={page<=1} onClick={() => setPage(p => Math.max(1, p-1))} className="px-3 py-1 bg-white border border-gray-300 text-gray-600 rounded hover:bg-gray-50 disabled:opacity-50 transition-colors text-sm"><FaChevronLeft /></button>
+                            <span className="text-sm font-medium text-gray-700">Página {page} / {pages}</span>
+                            <button disabled={page>=pages} onClick={() => setPage(p => Math.min(pages, p+1))} className="px-3 py-1 bg-white border border-gray-300 text-gray-600 rounded hover:bg-gray-50 disabled:opacity-50 transition-colors text-sm"><FaChevronRight /></button>
+                        </div>
+                    </div>
+                )}
+            </div>
 
-                        <div className="mt-4 flex justify-end gap-2">
-                            <button onClick={() => setModalOpen(false)} className="px-4 py-2 border rounded">Cancelar</button>
-                            <button onClick={handleSave} className="px-4 py-2 bg-blue-600 text-white rounded">Guardar</button>
+            {/* Modal */}
+            {modalOpen && (
+                <div className="fixed inset-0 z-50 overflow-y-auto backdrop-blur-sm">
+                    <div className="flex items-center justify-center min-h-screen px-4">
+                        <div className="fixed inset-0 bg-gray-900 bg-opacity-50" onClick={() => setModalOpen(false)}></div>
+                        <div className="bg-white rounded-xl overflow-hidden shadow-2xl transform transition-all sm:max-w-lg w-full z-10">
+                            <div className="bg-white px-6 py-6">
+                                <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2 border-b pb-4">
+                                    <div className="p-2 bg-teal-100 rounded-lg text-teal-600"><FaUserTie /></div>
+                                    {editing ? 'Editar Paciente' : 'Crear Paciente'}
+                                </h3>
+                                <div className="space-y-4">
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div><label className="text-xs font-bold text-gray-500 uppercase">Nombre *</label><input name="nombre" value={form.nombre} onChange={handleChange} placeholder="Nombre" className="w-full border-gray-300 border rounded-lg p-2.5 focus:ring-2 focus:ring-teal-500 outline-none transition-all" /></div>
+                                        <div><label className="text-xs font-bold text-gray-500 uppercase">Apellido</label><input name="apellido" value={form.apellido} onChange={handleChange} placeholder="Apellido" className="w-full border-gray-300 border rounded-lg p-2.5 focus:ring-2 focus:ring-teal-500 outline-none transition-all" /></div>
+                                    </div>
+                                    <div className="grid grid-cols-3 gap-3">
+                                        <div className="col-span-1"><label className="text-xs font-bold text-gray-500 uppercase">Tipo Doc *</label><select name="tipo_documento" value={form.tipo_documento} onChange={handleChange} className="w-full border-gray-300 border rounded-lg p-2.5 focus:ring-2 focus:ring-teal-500 outline-none">
+                                            <option value="CC">CC</option>
+                                            <option value="TI">TI</option>
+                                            <option value="CE">CE</option>
+                                            <option value="NIT">NIT</option>
+                                        </select></div>
+                                        <div className="col-span-2"><label className="text-xs font-bold text-gray-500 uppercase">Número Documento *</label><input name="numero_documento" value={form.numero_documento} onChange={handleChange} placeholder="Número documento" className="w-full border-gray-300 border rounded-lg p-2.5 focus:ring-2 focus:ring-teal-500 outline-none" /></div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div><label className="text-xs font-bold text-gray-500 uppercase">Fecha Nacimiento *</label><input type="date" name="fecha_nacimiento" value={form.fecha_nacimiento} onChange={handleChange} className="w-full border-gray-300 border rounded-lg p-2.5 focus:ring-2 focus:ring-teal-500 outline-none" /></div>
+                                        <div><label className="text-xs font-bold text-gray-500 uppercase">Género *</label><select name="genero" value={form.genero} onChange={handleChange} className="w-full border-gray-300 border rounded-lg p-2.5 focus:ring-2 focus:ring-teal-500 outline-none">
+                                            <option value="M">Masculino</option>
+                                            <option value="F">Femenino</option>
+                                            <option value="O">Otro</option>
+                                        </select></div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div><label className="text-xs font-bold text-gray-500 uppercase">Email</label><input name="email_contacto" value={form.email_contacto} onChange={handleChange} placeholder="Email" className="w-full border-gray-300 border rounded-lg p-2.5 focus:ring-2 focus:ring-teal-500 outline-none" /></div>
+                                        <div><label className="text-xs font-bold text-gray-500 uppercase">Teléfono</label><input name="telefono" value={form.telefono} onChange={handleChange} placeholder="Teléfono" className="w-full border-gray-300 border rounded-lg p-2.5 focus:ring-2 focus:ring-teal-500 outline-none" /></div>
+                                    </div>
+                                    <div><label className="text-xs font-bold text-gray-500 uppercase">Tipo de Paciente</label><select name="tipo_usuario" value={form.tipo_usuario} onChange={handleChange} className="w-full border-gray-300 border rounded-lg p-2.5 focus:ring-2 focus:ring-teal-500 outline-none">
+                                        <option value="">-- Seleccione tipo --</option>
+                                        {tipos.map(t => (<option key={t.id} value={t.id}>{t.nombre}</option>))}
+                                    </select></div>
+                                    <div><label className="text-xs font-bold text-gray-500 uppercase">Dirección</label><input name="direccion" value={form.direccion} onChange={handleChange} placeholder="Dirección" className="w-full border-gray-300 border rounded-lg p-2.5 focus:ring-2 focus:ring-teal-500 outline-none" /></div>
+                                </div>
+                            </div>
+                            <div className="bg-gray-50 px-6 py-4 flex flex-row-reverse gap-3 border-t">
+                                <button onClick={handleSave} className="bg-teal-600 text-white px-5 py-2 rounded-lg font-medium hover:bg-teal-700 shadow-md transition-all">Guardar Cambios</button>
+                                <button onClick={() => setModalOpen(false)} className="bg-white border border-gray-300 text-gray-700 px-5 py-2 rounded-lg font-medium hover:bg-gray-50 transition-all">Cancelar</button>
+                            </div>
                         </div>
                     </div>
                 </div>
