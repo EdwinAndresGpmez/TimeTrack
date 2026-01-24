@@ -6,6 +6,8 @@ import {
     FaEdit, FaKey, FaUserShield, FaSearch, FaChevronLeft, FaChevronRight, 
     FaFilter, FaStethoscope, FaEnvelope, FaPhone, FaIdCard, FaPen 
 } from 'react-icons/fa';
+import { Link } from 'react-router-dom';
+import { FaUsers } from 'react-icons/fa';
 
 const AdminUsuarios = () => {
     // --- ESTADOS DE DATOS ---
@@ -271,6 +273,11 @@ const AdminUsuarios = () => {
                 <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-2">
                     <FaUserShield className="text-blue-600"/> Gestión de Usuarios
                 </h1>
+                <div className="flex items-center gap-2">
+                    <Link to="/dashboard/admin/pacientes" className="inline-flex items-center gap-2 bg-gray-100 text-gray-700 px-3 py-2 rounded">
+                        <FaUsers /> Gestión de Pacientes
+                    </Link>
+                </div>
                 <div className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
                     Total: <b>{filteredUsers.length}</b>
                 </div>

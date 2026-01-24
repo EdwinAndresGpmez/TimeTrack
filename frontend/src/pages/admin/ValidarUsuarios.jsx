@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { patientService } from '../../services/patientService';
 import Swal from 'sweetalert2';
-import { FaUserPlus } from 'react-icons/fa';
+import { FaUserPlus, FaUsers } from 'react-icons/fa';
+import { Link } from 'react-router-dom';
 
 const ValidarUsuarios = () => {
     const [solicitudes, setSolicitudes] = useState([]);
@@ -19,7 +20,7 @@ const ValidarUsuarios = () => {
 
             // 2. Cargas los tipos de paciente (EPS, Convenios, etc.) dinámicamente
             // Esto evita tener opciones "quemadas" en el código
-            const dataTipos = await patientService.getTipos();
+            const dataTipos = await patientService.getTiposPaciente();
             setTiposPaciente(dataTipos);
         } catch (error) {
             console.error("Error cargando datos admin:", error);
@@ -76,10 +77,7 @@ const ValidarUsuarios = () => {
                     activo: true
                 });
 
-                // 2. Borrar solicitud
-                // Asegúrate de que este método exista en tu service o usa delete
-                // await patientService.deleteSolicitud(solicitud.id); 
-                // O si usas marcar procesada:
+                // 2. Marcar solicitud como procesada usando el método genérico `update`
                  await patientService.updateSolicitud(solicitud.id, { ...solicitud, procesado: true }); // Ajusta según tu backend
 
                 Swal.fire('Validado', 'El paciente ha sido creado y vinculado.', 'success');
@@ -102,7 +100,12 @@ const ValidarUsuarios = () => {
 
     return (
         <div className="max-w-6xl mx-auto">
-            <h1 className="text-3xl font-bold mb-8 text-gray-800">Centro de Validación</h1>
+            <div className="flex items-center justify-between mb-8">
+                <h1 className="text-3xl font-bold text-gray-800">Centro de Validación</h1>
+                <Link to="/dashboard/admin/pacientes" className="inline-flex items-center gap-2 bg-gray-100 text-gray-700 px-3 py-2 rounded">
+                    <FaUsers/> Gestión de Pacientes
+                </Link>
+            </div>
             
             <div className="bg-white shadow-lg rounded-xl overflow-hidden border border-gray-100">
                 <table className="min-w-full leading-normal">

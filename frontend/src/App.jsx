@@ -20,6 +20,7 @@ import ConfiguracionSistema from './pages/admin/ConfiguracionSistema';
 import Perfil from './pages/system/Perfil';
 import ValidarUsuarios from './pages/admin/ValidarUsuarios';
 import AdminUsuarios from './pages/admin/AdminUsuarios';
+import GestionPacientes from './pages/admin/GestionPacientes';
 import AdminProfesionales from './pages/admin/AdminProfesionales';
 import AdminParametricas from './pages/admin/AdminParametricas';
 import GestionAgenda from './pages/admin/agenda/GestionAgenda'; 
@@ -60,9 +61,10 @@ function App() {
                  
                  {/* --- ZONA ADMIN --- */}
                  {/* Agrupamos todas las de admin aquí */}
-                 <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
+                 <Route element={<ProtectedRoute allowedRoles={['admin','Administrador']} />}>
                      <Route path="/dashboard/configuracion" element={<ConfiguracionSistema />} />
                      <Route path="/dashboard/admin/validar-usuarios" element={<ValidarUsuarios />} />
+                     <Route path="/dashboard/admin/pacientes" element={<GestionPacientes />} />
                      <Route path="/dashboard/admin/usuarios" element={<AdminUsuarios />} />
                      <Route path="/dashboard/admin/parametricas" element={<AdminParametricas />} />
                      <Route path="/dashboard/admin/profesionales" element={<AdminProfesionales />} />

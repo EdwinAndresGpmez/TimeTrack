@@ -69,4 +69,15 @@ export const patientService = {
         const response = await api.get('/pacientes/solicitudes/?procesado=false');
         return response.data;
     }
+    ,
+    // Actualizar una solicitud (marcar procesada, corregir campos, etc.)
+    updateSolicitud: async (id, data) => {
+        const response = await api.patch(`/pacientes/solicitudes/${id}/`, data);
+        return response.data;
+    },
+    // Borrar una solicitud si lo deseas
+    deleteSolicitud: async (id) => {
+        const response = await api.delete(`/pacientes/solicitudes/${id}/`);
+        return response.data;
+    }
 };

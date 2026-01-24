@@ -16,7 +16,7 @@ class PacienteSerializer(serializers.ModelSerializer):
             'id', 'nombre', 'apellido', 'tipo_documento', 'numero_documento',
             'fecha_nacimiento', 'genero', 'direccion', 'telefono', 
             'email_contacto', 'tipo_usuario', 'tipo_usuario_nombre', 
-            'activo', 'created_at'
+            'user_id', 'activo', 'created_at', 'updated_at'
         ]
 
 class SolicitudValidacionSerializer(serializers.ModelSerializer):

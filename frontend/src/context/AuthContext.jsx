@@ -16,10 +16,12 @@ export const AuthProvider = ({ children }) => {
             // Llamamos al endpoint que ajustamos en la vista MisPermisosView
             // Nota: Asegúrate de tener esta función en authService (ver abajo)
             const data = await authService.getMisPermisos();
+            console.log('MisPermisos response:', data);
             
             // Aquí aplicamos la lógica que pediste:
-            setPermisos(data.codenames); // Para pintar el menú
-            setRoles(data.roles);        // Para proteger rutas
+            setPermisos(Array.isArray(data.codenames) ? data.codenames : []); // Para pintar el menú
+            // Guardamos roles como arreglo de strings (si vienen) para evitar undefined
+            setRoles(Array.isArray(data.roles) ? data.roles : []);        // Para proteger rutas
             
             // Opcional: Si quieres guardar si es staff/superuser en el user
             if (user) {

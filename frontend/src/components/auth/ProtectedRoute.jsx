@@ -20,8 +20,9 @@ const ProtectedRoute = ({ allowedRoles = [] }) => {
     if (user.is_staff || user.is_superuser) return <Outlet />;
 
     // 4. Verificación de Roles usando la lista fresca del Contexto
-    // roles es un array ['admin', 'paciente']
-    const hasPermission = allowedRoles.some(role => roles.includes(role));
+    // Hacemos la comparación case-insensitive para evitar problemas de mayúsculas/minúsculas
+    const rolesNormalized = Array.isArray(roles) ? roles.map(r => (r || '').toString().toLowerCase()) : [];
+    const hasPermission = allowedRoles.some(role => rolesNormalized.includes((role || '').toString().toLowerCase()));
 
     if (!hasPermission) {
         Swal.fire({
