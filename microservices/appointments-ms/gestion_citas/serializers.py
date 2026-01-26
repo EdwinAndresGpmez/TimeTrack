@@ -6,11 +6,16 @@ class NotaMedicaSerializer(serializers.ModelSerializer):
         model = NotaMedica
         fields = '__all__'
 
+# serializers.py
 class CitaSerializer(serializers.ModelSerializer):
-    # Opcional: Incluir la nota médica anidada si se quiere ver todo junto
     nota_medica = NotaMedicaSerializer(read_only=True, required=False)
+    
+    # Mapeo de nombres y documentos para lectura
     paciente_nombre = serializers.CharField(source='paciente_nombre_readonly', read_only=True) 
+    paciente_doc = serializers.CharField(source='paciente_documento_readonly', read_only=True) # <-- Agregar este
     profesional_nombre = serializers.CharField(source='profesional_nombre_readonly', read_only=True)
+    servicio_nombre = serializers.CharField(source='servicio_nombre_readonly', read_only=True) # <-- Agregar este
+    lugar_nombre = serializers.CharField(source='lugar_nombre_readonly', read_only=True) # <-- Agregar este
 
     class Meta:
         model = Cita
