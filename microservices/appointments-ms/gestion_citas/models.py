@@ -7,7 +7,7 @@ class Cita(models.Model):
         ('CANCELADA', 'Cancelada'),   
         ('REALIZADA', 'Realizada'),   
         ('NO_ASISTIO', 'No Asistió'),
-        ('EN_SALA', 'En Sala de Espera'), # <--- NUEVO ESTADO: Paciente llegó y está listo
+        ('EN_SALA', 'En Sala de Espera'),
     ]
 
     # ... (Referencias Externas iguales) ...

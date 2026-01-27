@@ -1,3 +1,5 @@
+import requests  
+import logging
 from django.utils import timezone
 from datetime import datetime, timedelta
 from rest_framework import viewsets, permissions, status, filters
@@ -15,6 +17,14 @@ from .serializers import (
     HistoricoCitaSerializer, 
     ConfiguracionGlobalSerializer
 )
+
+# URLs de Microservicios (Asegúrate que coincidan con tu docker-compose)
+PATIENTS_MS_URL = "http://patients-ms:8001/api/v1/pacientes/internal/bulk-info/"
+STAFF_MS_URL = "http://professionals-ms:8002/api/v1/staff/internal/bulk-info/"
+SERVICES_MS_URL = "http://professionals-ms:8002/api/v1/staff/servicios/internal/bulk-info/"
+LUGARES_MS_URL = "http://professionals-ms:8002/api/v1/staff/lugares/internal/bulk-info/"
+
+logger = logging.getLogger(__name__)
 
 class ConfiguracionViewSet(viewsets.ModelViewSet):
     """
@@ -61,7 +71,6 @@ class CitaViewSet(viewsets.ModelViewSet):
         config, _ = ConfiguracionGlobal.objects.get_or_create(pk=1)
 
         # 2. Consultar historial del paciente para ese día
-        # Exclimos citas canceladas o no asistidas, solo cuentan las activas (Pendiente, Aceptada, Confirmada)
         citas_existentes_dia = Cita.objects.filter(
             paciente_id=paciente_id,
             fecha=fecha_solicitada
@@ -80,18 +89,16 @@ class CitaViewSet(viewsets.ModelViewSet):
 
         # --- REGLA 2: REPETIR MISMO SERVICIO ---
         if not config.permitir_mismo_servicio_dia:
-            # Verificamos si entre las citas de hoy, ya existe el servicio que intenta pedir
             ya_tiene_servicio = citas_existentes_dia.filter(servicio_id=servicio_id).exists()
             
             if ya_tiene_servicio:
                 return Response(
                     {
-                        "detalle": "Ya tienes una cita agendada para este mismo servicio en esta fecha. La política actual no permite repetir el mismo servicio el mismo día."
+                        "detalle": "Ya tienes una cita agendada para este mismo servicio en esta fecha."
                     },
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-        # Si pasa las validaciones, crea la cita normalmente
         return super().create(request, *args, **kwargs)
 
 
@@ -130,6 +137,100 @@ class CitaViewSet(viewsets.ModelViewSet):
                 )
 
         return super().update(request, *args, **kwargs)
+    
+    # --- LISTADO CON ENRIQUECIMIENTO DE DATOS ---
+    def list(self, request, *args, **kwargs):
+        # 1. Obtener datos normales de la BD local
+        response = super().list(request, *args, **kwargs)
+        
+        # Detectar si es paginado o lista simple
+        if isinstance(response.data, dict) and 'results' in response.data:
+            data = response.data['results']
+            paginated = True
+        else:
+            data = response.data
+            paginated = False
+        
+        # 2. Enriquecer los datos (Llamar al método único _enrich_data)
+        data_enriquecida = self._enrich_data(data)
+        
+        # 3. Devolver respuesta modificada
+        if paginated:
+            response.data['results'] = data_enriquecida
+        else:
+            response.data = data_enriquecida
+            
+        return response
+
+    # --- MÉTODO PRIVADO DE ENRIQUECIMIENTO (UNIFICADO) ---
+    def _enrich_data(self, citas):
+        if not citas: return citas
+
+        # A. Recolectar IDs únicos
+        ids = {
+            'paciente': set(),
+            'profesional': set(),
+            'servicio': set(),
+            'lugar': set()
+        }
+        
+        for c in citas:
+            if c.get('paciente_id'): ids['paciente'].add(str(c['paciente_id']))
+            if c.get('profesional_id'): ids['profesional'].add(str(c['profesional_id']))
+            if c.get('servicio_id'): ids['servicio'].add(str(c['servicio_id']))
+            if c.get('lugar_id'): ids['lugar'].add(str(c['lugar_id']))
+
+        # B. Función Helper para consultar microservicios
+        def fetch_bulk(url, id_set):
+            if not id_set: return {}
+            try:
+                # Timeout de 2s para no bloquear la respuesta si un MS está lento
+                resp = requests.get(f"{url}?ids={','.join(id_set)}", timeout=2)
+                return resp.json() if resp.status_code == 200 else {}
+            except Exception as e:
+                logger.error(f"Error bulk {url}: {e}")
+                return {}
+
+        # C. Obtener Diccionarios de Datos
+        info_pacientes = fetch_bulk(PATIENTS_MS_URL, ids['paciente'])
+        info_profesionales = fetch_bulk(STAFF_MS_URL, ids['profesional'])
+        info_servicios = fetch_bulk(SERVICES_MS_URL, ids['servicio'])
+        info_lugares = fetch_bulk(LUGARES_MS_URL, ids['lugar'])
+
+        # D. Inyectar Nombres en la Lista de Citas
+        for c in citas:
+            # Paciente
+            p_id = str(c.get('paciente_id'))
+            if p_id in info_pacientes:
+                c['paciente_nombre'] = info_pacientes[p_id].get('nombre_completo', 'Desconocido')
+                # CORRECCIÓN: Usar 'numero_documento' que es lo que manda patients-ms
+                c['paciente_doc'] = info_pacientes[p_id].get('numero_documento', 'N/A')
+            else:
+                c['paciente_nombre'] = 'No encontrado'
+                c['paciente_doc'] = 'N/A'
+
+            # Profesional
+            prof_id = str(c.get('profesional_id'))
+            if prof_id in info_profesionales:
+                c['profesional_nombre'] = info_profesionales[prof_id].get('nombre', 'Desconocido')
+            else:
+                c['profesional_nombre'] = 'No asignado'
+
+            # Servicio
+            srv_id = str(c.get('servicio_id'))
+            if srv_id in info_servicios:
+                c['servicio_nombre'] = info_servicios[srv_id].get('nombre', 'Servicio')
+            else:
+                c['servicio_nombre'] = 'No especificado'
+
+            # Lugar (Sede)
+            lug_id = str(c.get('lugar_id'))
+            if lug_id in info_lugares:
+                c['lugar_nombre'] = info_lugares[lug_id].get('nombre', 'Sede')
+            else:
+                c['lugar_nombre'] = 'Sede Principal'
+
+        return citas
 
 class NotaMedicaViewSet(viewsets.ModelViewSet):
     queryset = NotaMedica.objects.all()

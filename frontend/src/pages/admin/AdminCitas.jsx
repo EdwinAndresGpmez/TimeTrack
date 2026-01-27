@@ -3,23 +3,27 @@ import { citasService } from '../../services/citasService';
 import Swal from 'sweetalert2';
 import { 
     FaCalendarCheck, FaCheckCircle, FaTimesCircle, FaClock, 
-    FaFilter, FaSearch, FaBan, FaUserClock
+    FaFilter, FaSearch, FaBan, FaUserClock, FaHourglassHalf
 } from 'react-icons/fa';
 
 const AdminCitas = () => {
+    // Estado inicial
     const [activeTab, setActiveTab] = useState('PENDIENTE');
     const [citas, setCitas] = useState([]);
     const [loading, setLoading] = useState(true);
     const [filtroFecha, setFiltroFecha] = useState('');
     const [busqueda, setBusqueda] = useState('');
 
-    // Configuración de Pestañas
+    // --- CONFIGURACIÓN DE PESTAÑAS (ESTADOS) ---
+    // El 'id' coincide con los estados de tu Base de Datos (Django)
     const tabs = [
         { id: 'PENDIENTE', label: 'Por Revisar', icon: <FaClock/>, color: 'text-yellow-600 border-yellow-600' },
         { id: 'ACEPTADA', label: 'Aceptadas', icon: <FaCheckCircle/>, color: 'text-green-600 border-green-600' },
+        // NUEVO ESTADO: EN_SALA
+        { id: 'EN_SALA', label: 'En Sala', icon: <FaHourglassHalf/>, color: 'text-indigo-600 border-indigo-600' },
         { id: 'REALIZADA', label: 'Realizadas', icon: <FaCalendarCheck/>, color: 'text-blue-600 border-blue-600' },
         { id: 'CANCELADA', label: 'Canceladas', icon: <FaBan/>, color: 'text-red-600 border-red-600' },
-        { id: 'INASISTENCIA', label: 'Inasistencias', icon: <FaUserClock/>, color: 'text-gray-600 border-gray-600' },
+        { id: 'NO_ASISTIO', label: 'No Asistió', icon: <FaUserClock/>, color: 'text-gray-600 border-gray-600' },
     ];
 
     useEffect(() => {
@@ -29,23 +33,37 @@ const AdminCitas = () => {
     const cargarCitas = async () => {
         setLoading(true);
         try {
-            const data = await citasService.getAll({ 
-                estado: activeTab,
-                fecha: filtroFecha 
-            });
-            setCitas(data);
+            // Preparamos filtros para el backend
+            const params = { estado: activeTab };
+            if (filtroFecha) params.fecha = filtroFecha;
+
+            // Llamada al servicio
+            const data = await citasService.getAll(params);
+            
+            // Manejo de respuesta (array directo o paginación DRF)
+            const lista = Array.isArray(data) ? data : (data.results || []);
+            setCitas(lista);
+
         } catch (error) {
             console.error("Error cargando citas:", error);
-            Swal.fire('Error', 'No se pudieron obtener las citas.', 'error');
+            // Ignoramos error 400 si es por filtros vacíos, mostramos otros errores
+            if (!error.response || error.response.status !== 400) {
+                Swal.fire('Error', 'No se pudieron obtener las citas.', 'error');
+            }
         } finally {
             setLoading(false);
         }
     };
 
     const cambiarEstado = async (cita, nuevoEstado) => {
+        // Mensaje personalizado según la acción
+        let accionTexto = `¿Cambiar estado a ${nuevoEstado}?`;
+        if (nuevoEstado === 'EN_SALA') accionTexto = "¿El paciente ya llegó a la sala de espera?";
+        if (nuevoEstado === 'REALIZADA') accionTexto = "¿Confirmar que la cita fue realizada?";
+        
         const { isConfirmed } = await Swal.fire({
-            title: `¿Cambiar a ${nuevoEstado}?`,
-            text: `Paciente: ${cita.paciente_nombre || 'N/A'}`,
+            title: accionTexto,
+            text: `Paciente: ${cita.paciente_nombre || 'Desconocido'}`,
             icon: 'question',
             showCancelButton: true,
             confirmButtonText: 'Sí, confirmar',
@@ -59,13 +77,13 @@ const AdminCitas = () => {
                 
                 Swal.fire({
                     title: 'Actualizado',
-                    text: 'Estado modificado correctamente.',
+                    text: 'El estado de la cita ha sido modificado.',
                     icon: 'success',
                     timer: 1500,
                     showConfirmButton: false
                 });
                 
-                cargarCitas(); 
+                cargarCitas(); // Refrescamos la lista
             } catch (error) {
                 console.error(error);
                 Swal.fire('Error', 'No se pudo actualizar el estado.', 'error');
@@ -73,7 +91,7 @@ const AdminCitas = () => {
         }
     };
 
-    // Filtro local por texto (Documento, Nombre Paciente o Nombre Profesional)
+    // Filtro local por texto (Buscador)
     const citasFiltradas = citas.filter(c => 
         (c.paciente_nombre?.toLowerCase() || '').includes(busqueda.toLowerCase()) ||
         (c.profesional_nombre?.toLowerCase() || '').includes(busqueda.toLowerCase()) ||
@@ -84,7 +102,7 @@ const AdminCitas = () => {
         <div className="max-w-7xl mx-auto p-4">
             <h1 className="text-3xl font-bold text-gray-800 mb-6 tracking-tight">Administración de Citas</h1>
 
-            {/* BARRA DE HERRAMIENTAS */}
+            {/* BARRA DE HERRAMIENTAS (Filtros y Buscador) */}
             <div className="bg-white p-4 rounded-xl shadow-sm mb-6 flex flex-wrap gap-4 items-center justify-between border border-gray-100">
                 <div className="flex gap-4 items-center">
                     <div className="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
@@ -119,7 +137,7 @@ const AdminCitas = () => {
                 </div>
             </div>
 
-            {/* TABS */}
+            {/* TABS (Pestañas de Estados) */}
             <div className="flex overflow-x-auto bg-gray-50 rounded-t-xl border-t border-x border-gray-200">
                 {tabs.map(tab => (
                     <button
@@ -137,7 +155,7 @@ const AdminCitas = () => {
                 ))}
             </div>
 
-            {/* TABLA DE CITAS */}
+            {/* TABLA DE RESULTADOS */}
             <div className="bg-white shadow-2xl rounded-b-xl overflow-hidden border border-gray-200 min-h-[450px]">
                 {loading ? (
                     <div className="p-24 text-center text-gray-400 flex flex-col items-center">
@@ -147,7 +165,7 @@ const AdminCitas = () => {
                 ) : citasFiltradas.length === 0 ? (
                     <div className="p-24 text-center">
                         <div className="text-gray-300 mb-4 flex justify-center"><FaCalendarCheck size={48}/></div>
-                        <p className="text-gray-400 italic font-medium">No se encontraron citas con los criterios seleccionados.</p>
+                        <p className="text-gray-400 italic font-medium">No se encontraron citas en este estado.</p>
                     </div>
                 ) : (
                     <div className="overflow-x-auto">
@@ -160,72 +178,90 @@ const AdminCitas = () => {
                                     <th className="px-6 py-4 text-left">Servicio</th>
                                     <th className="px-6 py-4 text-left">Día / Hora</th>
                                     <th className="px-6 py-4 text-left">Sede</th>
-                                    <th className="px-6 py-4 text-center w-40">Gestión</th>
+                                    <th className="px-6 py-4 text-center w-48">Gestión</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100">
                                 {citasFiltradas.map(cita => (
                                     <tr key={cita.id} className="hover:bg-blue-50/50 transition-colors group">
-                                        {/* 1. DOCUMENTO */}
+                                        {/* 1. Documento */}
                                         <td className="px-6 py-4">
                                             <span className="font-mono font-bold text-gray-600 bg-gray-100 px-2 py-1 rounded text-xs border border-gray-200">
-                                                {cita.paciente_doc || 'N/A'}
+                                                {cita.paciente_doc || '---'}
                                             </span>
                                         </td>
 
-                                        {/* 2. PACIENTE */}
+                                        {/* 2. Paciente */}
                                         <td className="px-6 py-4">
-                                            <div className="font-black text-gray-900 uppercase text-xs">{cita.paciente_nombre || 'Sin Nombre'}</div>
+                                            <div className="font-black text-gray-900 uppercase text-xs">
+                                                {cita.paciente_nombre || 'Desconocido'}
+                                            </div>
                                         </td>
 
-                                        {/* 3. PROFESIONAL */}
+                                        {/* 3. Profesional */}
                                         <td className="px-6 py-4 text-gray-600 font-semibold">
                                             {cita.profesional_nombre || 'No asignado'}
                                         </td>
 
-                                        {/* 4. SERVICIO */}
+                                        {/* 4. Servicio */}
                                         <td className="px-6 py-4">
                                             <span className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-[10px] font-black border border-blue-100 uppercase tracking-tighter shadow-sm">
                                                 {cita.servicio_nombre || 'Consulta'}
                                             </span>
                                         </td>
 
-                                        {/* 5. FECHA Y HORA */}
+                                        {/* 5. Fecha/Hora */}
                                         <td className="px-6 py-4">
                                             <div className="font-bold text-gray-800 flex items-center gap-1">
                                                 <FaClock className="text-gray-300 text-[10px]"/>
                                                 {cita.fecha}
                                             </div>
                                             <div className="text-[11px] font-black text-blue-600 mt-0.5">
-                                                {cita.hora_inicio?.slice(0,5)} - {cita.hora_fin?.slice(0,5)}
+                                                {(cita.hora_inicio || '').slice(0,5)} - {(cita.hora_fin || '').slice(0,5)}
                                             </div>
                                         </td>
 
-                                        {/* 6. SEDE */}
+                                        {/* 6. Sede */}
                                         <td className="px-6 py-4">
                                             <span className="text-gray-500 text-[11px] font-bold italic">
                                                 {cita.lugar_nombre || 'Sede Principal'}
                                             </span>
                                         </td>
                                         
-                                        {/* 7. ACCIONES */}
+                                        {/* 7. ACCIONES (LÓGICA DE ESTADOS) */}
                                         <td className="px-6 py-4 text-center">
                                             <div className="flex justify-center gap-2 opacity-90 group-hover:opacity-100 transition-opacity">
+                                                
+                                                {/* PENDIENTE: Aceptar o Rechazar */}
                                                 {activeTab === 'PENDIENTE' && (
                                                     <>
                                                         <button onClick={() => cambiarEstado(cita, 'ACEPTADA')} className="btn-icon bg-green-50 text-green-600 hover:bg-green-600 hover:text-white border border-green-200 shadow-sm" title="Aceptar Cita"><FaCheckCircle/></button>
                                                         <button onClick={() => cambiarEstado(cita, 'RECHAZADA')} className="btn-icon bg-red-50 text-red-600 hover:bg-red-600 hover:text-white border border-red-200 shadow-sm" title="Rechazar Cita"><FaTimesCircle/></button>
                                                     </>
                                                 )}
+
+                                                {/* ACEPTADA: Pasar a Sala (Llegó), Inasistencia o Cancelar */}
                                                 {activeTab === 'ACEPTADA' && (
                                                     <>
-                                                        <button onClick={() => cambiarEstado(cita, 'REALIZADA')} className="btn-icon bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white border border-blue-200 shadow-sm" title="Marcar como Realizada"><FaCalendarCheck/></button>
-                                                        <button onClick={() => cambiarEstado(cita, 'INASISTENCIA')} className="btn-icon bg-gray-50 text-gray-500 hover:bg-gray-600 hover:text-white border border-gray-300 shadow-sm" title="Marcar Inasistencia"><FaUserClock/></button>
+                                                        <button onClick={() => cambiarEstado(cita, 'EN_SALA')} className="btn-icon bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white border border-indigo-200 shadow-sm" title="Paciente Llegó (Sala de Espera)"><FaHourglassHalf/></button>
+                                                        <button onClick={() => cambiarEstado(cita, 'NO_ASISTIO')} className="btn-icon bg-gray-50 text-gray-500 hover:bg-gray-600 hover:text-white border border-gray-300 shadow-sm" title="Marcar Inasistencia"><FaUserClock/></button>
                                                         <button onClick={() => cambiarEstado(cita, 'CANCELADA')} className="btn-icon bg-orange-50 text-orange-600 hover:bg-orange-600 hover:text-white border border-orange-200 shadow-sm" title="Cancelar Cita"><FaBan/></button>
                                                     </>
                                                 )}
-                                                {['REALIZADA', 'CANCELADA', 'RECHAZADA', 'INASISTENCIA'].includes(activeTab) && (
-                                                    <span className="text-[10px] font-black text-gray-300 uppercase italic tracking-widest">Finalizada</span>
+
+                                                {/* EN SALA: Atender (Realizar) o Cancelar */}
+                                                {activeTab === 'EN_SALA' && (
+                                                    <>
+                                                        <button onClick={() => cambiarEstado(cita, 'REALIZADA')} className="btn-icon bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white border border-blue-200 shadow-sm" title="Atender / Finalizar Cita"><FaCalendarCheck/></button>
+                                                        <button onClick={() => cambiarEstado(cita, 'CANCELADA')} className="btn-icon bg-orange-50 text-orange-600 hover:bg-orange-600 hover:text-white border border-orange-200 shadow-sm" title="Cancelar Cita"><FaBan/></button>
+                                                    </>
+                                                )}
+
+                                                {/* ESTADOS FINALES */}
+                                                {['REALIZADA', 'CANCELADA', 'RECHAZADA', 'NO_ASISTIO'].includes(activeTab) && (
+                                                    <span className="text-[10px] font-black text-gray-300 uppercase italic tracking-widest">
+                                                        Finalizada
+                                                    </span>
                                                 )}
                                             </div>
                                         </td>

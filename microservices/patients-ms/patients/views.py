@@ -81,3 +81,25 @@ class SyncPacienteUserView(APIView):
         except Paciente.DoesNotExist:
             # D. Si no existe, avisamos al Frontend para que proceda a CREARLO
             return Response({'status': 'not_found'}, status=status.HTTP_404_NOT_FOUND)
+        
+                  
+class BulkPacienteView(APIView):
+    """
+    Internal endpoint to return patient names by ID list.
+    """
+    def get(self, request):
+        ids_param = request.query_params.get('ids', '')
+        if not ids_param:
+            return Response({})
+            
+        ids = ids_param.split(',')
+        pacientes = Paciente.objects.filter(id__in=ids)
+        
+        data = {}
+        for p in pacientes:
+            data[str(p.id)] = {
+                "nombre_completo": f"{p.nombre} {p.apellido}",
+                "numero_documento": p.numero_documento,
+                "tipo_doc": p.tipo_documento
+            }
+        return Response(data)

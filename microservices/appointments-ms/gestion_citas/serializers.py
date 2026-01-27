@@ -6,20 +6,37 @@ class NotaMedicaSerializer(serializers.ModelSerializer):
         model = NotaMedica
         fields = '__all__'
 
-# serializers.py
 class CitaSerializer(serializers.ModelSerializer):
     nota_medica = NotaMedicaSerializer(read_only=True, required=False)
     
-    # Mapeo de nombres y documentos para lectura
-    paciente_nombre = serializers.CharField(source='paciente_nombre_readonly', read_only=True) 
-    paciente_doc = serializers.CharField(source='paciente_documento_readonly', read_only=True) # <-- Agregar este
-    profesional_nombre = serializers.CharField(source='profesional_nombre_readonly', read_only=True)
-    servicio_nombre = serializers.CharField(source='servicio_nombre_readonly', read_only=True) # <-- Agregar este
-    lugar_nombre = serializers.CharField(source='lugar_nombre_readonly', read_only=True) # <-- Agregar este
+    # --- AJUSTE CLAVE ---
+    # Usamos SerializerMethodField para crear estos campos en el JSON de respuesta.
+    # Inicialmente devuelven None, pero el ViewSet 'inyectará' los datos reales
+    # traídos de los otros microservicios (Patients-MS y Professionals-MS).
+    paciente_nombre = serializers.SerializerMethodField()
+    paciente_doc = serializers.SerializerMethodField()
+    profesional_nombre = serializers.SerializerMethodField()
+    servicio_nombre = serializers.SerializerMethodField()
+    lugar_nombre = serializers.SerializerMethodField()
 
     class Meta:
         model = Cita
         fields = '__all__'
+
+    def get_paciente_nombre(self, obj):
+        return getattr(obj, 'paciente_nombre', None)
+
+    def get_paciente_doc(self, obj):
+        return getattr(obj, 'paciente_doc', None)
+
+    def get_profesional_nombre(self, obj):
+        return getattr(obj, 'profesional_nombre', None)
+
+    def get_servicio_nombre(self, obj):
+        return getattr(obj, 'servicio_nombre', None)
+
+    def get_lugar_nombre(self, obj):
+        return getattr(obj, 'lugar_nombre', None)
 
 class HistoricoCitaSerializer(serializers.ModelSerializer):
     class Meta:

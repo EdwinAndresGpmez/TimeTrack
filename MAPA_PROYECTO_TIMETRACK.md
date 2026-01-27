@@ -416,7 +416,7 @@ POST   /api/v1/notifications/buzon/
 1. **Cancelación de citas:** Solo se permite cancelar si faltan más de X horas (parametrizable).
 2. **Validación de solapamiento de disponibilidad:** Un profesional no puede tener dos horarios solapados el mismo día.
 3. **Bloqueos de agenda:** No se pueden agendar citas en periodos bloqueados (vacaciones, permisos, etc.).
-4. **Gestión de estados de cita:** No se borra, solo se cambia el estado (ej. CANCELADA).
+4. **Gestión de estados de cita:** No se borra, solo se cambia el estado (ej. ELIMINAR).
 5. **Consentimiento de datos:** El usuario debe aceptar tratamiento de datos para registrarse.
 6. **Contraseña segura:** Mínimo 6 caracteres y validación de coincidencia.
 7. **Gestión de PQRS:** Tipos y estados definidos, con seguimiento.
