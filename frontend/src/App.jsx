@@ -2,34 +2,27 @@ import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 
-// Públicas
+// Importaciones de Páginas
 import Home from './pages/portal/Home';
-import PQRS from './pages/portal/PQRS';
-import TrabajeConNosotros from './pages/portal/TrabajeConNosotros';
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
-
-// Privadas y Seguridad
 import PrivateRoute from './components/auth/PrivateRoute';
 import ProtectedRoute from './components/auth/ProtectedRoute';
-import Dashboard from './pages/system/Dashboard';
 import DashboardLayout from './components/system/DashboardLayout';
+import Dashboard from './pages/system/Dashboard';
 import MisCitas from './pages/system/MisCitas';
 import NuevaCita from './pages/system/NuevaCita';
-import ConfiguracionSistema from './pages/admin/ConfiguracionSistema';
 import Perfil from './pages/system/Perfil';
+import AgendarCitaAdmin from './pages/admin/AgendarCitaAdmin';
+import AdminCitas from './pages/admin/AdminCitas';
+import ConfiguracionSistema from './pages/admin/ConfiguracionSistema';
 import ValidarUsuarios from './pages/admin/ValidarUsuarios';
 import AdminUsuarios from './pages/admin/AdminUsuarios';
 import GestionPacientes from './pages/admin/GestionPacientes';
 import AdminProfesionales from './pages/admin/AdminProfesionales';
 import AdminParametricas from './pages/admin/AdminParametricas';
-import GestionAgenda from './pages/admin/agenda/GestionAgenda'; 
-import AdminCitas from './pages/admin/AdminCitas';
-import RecepcionConsultorio from './pages/system/RecepcionConsultorio'; // <--- IMPORTADO AQUÍ
-
-// Placeholders
-const Servicios = () => <div className="p-20 text-center text-2xl font-bold text-blue-900">Servicios</div>;
-const ForgotPassword = () => <div className="p-20 text-center text-2xl font-bold text-blue-900">Recuperar Contraseña</div>;
+import GestionAgenda from './pages/admin/agenda/GestionAgenda';
+import RecepcionConsultorio from './pages/system/RecepcionConsultorio';
 
 function App() {
   return (
@@ -38,45 +31,94 @@ function App() {
         <Routes>
           {/* --- RUTAS PÚBLICAS --- */}
           <Route path="/" element={<Home />} />
-          <Route path="/pqrs" element={<PQRS />} />
-          <Route path="/trabaja-con-nosotros" element={<TrabajeConNosotros />} />
-          <Route path="/servicios" element={<Servicios />} />
-          
-          {/* Auth */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
           
-          {/* --- RUTAS PROTEGIDAS (SISTEMA) --- */}
+          {/* --- RUTAS PRIVADAS BASE --- */}
           <Route element={<PrivateRoute />}>
              
              {/* Layout Común (Sidebar + Header) */}
              <Route element={<DashboardLayout />}>
                  
-                 {/* Rutas Generales */}
+                 {/* Rutas Generales (Solo requieren login) */}
                  <Route path="/dashboard" element={<Dashboard />} />
-                 <Route path="/dashboard/citas" element={<MisCitas />} /> 
-                 <Route path="/dashboard/citas/nueva" element={<NuevaCita />} />
                  <Route path="/dashboard/perfil" element={<Perfil />} />
                  
-                 {/* --- ZONA ADMIN --- */}
-                 {/* Agrupamos todas las de admin aquí */}
-                 <Route element={<ProtectedRoute allowedRoles={['admin','Administrador']} />}>
-                     <Route path="/dashboard/configuracion" element={<ConfiguracionSistema />} />
-                     <Route path="/dashboard/admin/validar-usuarios" element={<ValidarUsuarios />} />
-                     <Route path="/dashboard/admin/pacientes" element={<GestionPacientes />} />
-                     <Route path="/dashboard/admin/usuarios" element={<AdminUsuarios />} />
-                     <Route path="/dashboard/admin/parametricas" element={<AdminParametricas />} />
-                     <Route path="/dashboard/admin/profesionales" element={<AdminProfesionales />} />
-                     <Route path="/dashboard/admin/citas" element={<AdminCitas />} />
-                     
-                     {/* RUTAS DE GESTIÓN CLÍNICA Y AGENDA */}
-                     <Route path="/dashboard/admin/agenda" element={<GestionAgenda />} />
-                     <Route path="/dashboard/admin/recepcion" element={<RecepcionConsultorio />} /> {/* <--- NUEVA RUTA */}
-                 </Route>
-             
-             </Route>
+                 {/* Módulos de Paciente / Agendamiento Personal */}
+                 <Route path="/dashboard/citas" element={
+                    <ProtectedRoute requiredPermission="modulo_agendamiento">
+                        <MisCitas />
+                    </ProtectedRoute>
+                 } />
+                 <Route path="/dashboard/citas/nueva" element={
+                    <ProtectedRoute requiredPermission="modulo_agendamiento">
+                        <NuevaCita />
+                    </ProtectedRoute>
+                 } />
 
+                 {/* --- ZONA ADMINISTRATIVA DINÁMICA (Por Etiquetas/Nombres) --- */}
+                 
+                 <Route path="/dashboard/admin/configuracion" element={
+                    <ProtectedRoute requiredPermission="config_sistema">
+                        <ConfiguracionSistema />
+                    </ProtectedRoute>
+                 } />
+
+                 <Route path="/dashboard/admin/validar-usuarios" element={
+                    <ProtectedRoute requiredPermission="validar_pacientes">
+                        <ValidarUsuarios />
+                    </ProtectedRoute>
+                 } />
+
+                 {/* Esta es la ruta que estabas probando: agendar-admin */}
+                 <Route path="/dashboard/agendar-admin" element={
+                    <ProtectedRoute requiredPermission="agendar_admin">
+                        <AgendarCitaAdmin />
+                    </ProtectedRoute>
+                 } />
+
+                 <Route path="/dashboard/admin/pacientes" element={
+                    <ProtectedRoute requiredPermission="gestion_pacientes">
+                        <GestionPacientes />
+                    </ProtectedRoute>
+                 } />
+
+                 <Route path="/dashboard/admin/usuarios" element={
+                    <ProtectedRoute requiredPermission="gestion_usuarios">
+                        <AdminUsuarios />
+                    </ProtectedRoute>
+                 } />
+
+                 <Route path="/dashboard/admin/parametricas" element={
+                    <ProtectedRoute requiredPermission="admin_parametricas">
+                        <AdminParametricas />
+                    </ProtectedRoute>
+                 } />
+
+                 <Route path="/dashboard/admin/profesionales" element={
+                    <ProtectedRoute requiredPermission="admin_profesionales">
+                        <AdminProfesionales />
+                    </ProtectedRoute>
+                 } />
+
+                 <Route path="/dashboard/admin/citas" element={
+                    <ProtectedRoute requiredPermission="admin_citas">
+                        <AdminCitas />
+                    </ProtectedRoute>
+                 } />
+
+                 <Route path="/dashboard/admin/agenda" element={
+                    <ProtectedRoute requiredPermission="gestion_agenda">
+                        <GestionAgenda />
+                    </ProtectedRoute>
+                 } />
+
+                 <Route path="/dashboard/admin/recepcion" element={
+                    <ProtectedRoute requiredPermission="recepcion_sala">
+                        <RecepcionConsultorio />
+                    </ProtectedRoute>
+                 } />
+             </Route>
           </Route>
 
           {/* 404 */}

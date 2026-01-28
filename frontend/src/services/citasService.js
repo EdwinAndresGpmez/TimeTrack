@@ -1,4 +1,4 @@
-import api from '../api/axiosConfig';
+import api from '../api/axiosConfig'; // <--- Usamos esta instancia configurada
 
 const BASE_URL = '/citas'; 
 
@@ -19,20 +19,17 @@ export const citasService = {
         return response.data;
     },
 
-    // Actualización genérica (Sirve para cambiar estado, agregar nota_interna, etc.)
+  
     update: async (id, data) => {
         const response = await api.patch(`${BASE_URL}/${id}/`, data);
         return response.data;
     },
 
-    // Método legacy o específico solo para cancelar
     cancel: async (id) => {
         const response = await api.patch(`${BASE_URL}/${id}/`, { estado: 'CANCELADA' });
         return response.data;
     },
 
-    // --- HELPER PARA HISTORIAL ---
-    // Trae las citas de un paciente ordenadas por fecha descendente
     getHistorialPaciente: async (pacienteId) => {
         try {
             const response = await api.get(`${BASE_URL}/`, { 
@@ -44,7 +41,16 @@ export const citasService = {
             return response.data;
         } catch (error) {
             console.error("Error obteniendo historial", error);
-            return []; // Retorna array vacío para no romper el map en el front
+            return [];
         }
-    }
+    },
+
+    // --- CORRECCIÓN AQUÍ ---
+    updateEstado: async (id, nuevoEstado) => {
+        // Construimos el objeto JSON aquí para asegurar que siempre sea correcto
+        const payload = { estado: nuevoEstado };
+        
+        const response = await api.patch(`${BASE_URL}/${id}/`, payload);
+        return response.data;
+    },
 };

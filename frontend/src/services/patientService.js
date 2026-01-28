@@ -2,11 +2,17 @@ import api from '../api/axiosConfig';
 
 export const patientService = {
     // 1. NUEVO: Obtener TODOS los pacientes (Para AdminUsuarios)
-    getAll: async () => {
-        const response = await api.get('/pacientes/listado/');
+    getAll: async (params = {}) => {
+        // Al pasar { params }, Axios construye la URL así: 
+        // /pacientes/listado/?search=texto&admin_mode=true
+        const response = await api.get('/pacientes/listado/', { params });
         return response.data;
     },
 
+    getPatientById: async (id) => {
+        const response = await api.get(`/pacientes/listado/${id}/`);
+        return response.data;
+    },
     // 2. Crear Perfil de Paciente
     create: async (patientData) => {
         const response = await api.post('/pacientes/listado/', patientData);
@@ -26,6 +32,7 @@ export const patientService = {
             return null;
         }
     },
+    
 
     // 4. Actualizar Perfil (Unificado)
     update: async (id, data) => {

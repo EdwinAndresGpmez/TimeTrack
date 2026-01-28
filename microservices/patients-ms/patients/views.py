@@ -16,12 +16,36 @@ class PacienteViewSet(viewsets.ModelViewSet):
     filter_backends = [filters.SearchFilter]
     search_fields = ['numero_documento', 'nombre', 'apellido']
 
-    # Filtrado por User ID (Usado por el Perfil)
     def get_queryset(self):
-        queryset = super().get_queryset()
+        # 1. Iniciamos con el queryset base
+        queryset = Paciente.objects.all()
+        
+        # 2. Recuperamos los parámetros de la URL
         user_id = self.request.query_params.get('user_id')
+        search_query = self.request.query_params.get('search')
+        admin_mode = self.request.query_params.get('admin_mode')
+
+        # CASO A: Filtro por User ID (Para el perfil del paciente logueado)
         if user_id:
-            queryset = queryset.filter(user_id=user_id)
+            return queryset.filter(user_id=user_id)
+
+        # CASO B: Buscador del Administrador
+        if admin_mode:
+            if search_query:
+                # Si hay texto de búsqueda, aplicamos el filtro manualmente 
+                # para asegurar que no devuelva todo
+                from django.db.models import Q
+                return queryset.filter(
+                    Q(numero_documento__icontains=search_query) |
+                    Q(nombre__icontains=search_query) |
+                    Q(apellido__icontains=search_query)
+                )
+            else:
+                # Si es modo admin pero no ha escrito nada, retornamos vacío
+                # Esto evita que al cargar la página salgan todos los pacientes
+                return queryset.none()
+
+        # CASO C: Por defecto (si no es admin ni perfil, ej: listados generales)
         return queryset
 
 # 3. NUEVO: ViewSet para Solicitudes de Validación (Para el Admin)

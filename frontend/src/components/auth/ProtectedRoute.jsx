@@ -3,42 +3,39 @@ import { Navigate, Outlet } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
 import Swal from 'sweetalert2';
 
-// allowedRoles: Array de strings. Ej: ['admin', 'paciente']
-const ProtectedRoute = ({ allowedRoles = [] }) => {
-    // 1. Extraemos 'roles' del contexto (ya viene de la BD)
-    const { user, loading, roles } = useContext(AuthContext);
+const ProtectedRoute = ({ children, requiredPermission }) => {
+    const { user, loading, permissions } = useContext(AuthContext);
 
-    if (loading) return <div>Verificando permisos...</div>;
+    if (loading) return (
+        <div className="flex justify-center items-center h-screen bg-gray-50">
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
+            <span className="ml-3 font-bold text-gray-500">Verificando seguridad...</span>
+        </div>
+    );
 
     if (!user) return <Navigate to="/login" replace />;
 
-    // 2. Si no exige roles, pasa cualquiera autenticado
-    if (allowedRoles.length === 0) return <Outlet />;
+    // Superusuario siempre tiene acceso
+    if (user.is_superuser || user.is_staff) return children ? children : <Outlet />;
 
-    // 3. Superusuario siempre pasa (regla de oro)
-    // Nota: user.is_staff viene del token decodificado, lo cual está bien.
-    if (user.is_staff || user.is_superuser) return <Outlet />;
+    if (requiredPermission) {
+        // Obtenemos los codenames de los permisos cargados en el AuthContext
+        const listaPermisos = permissions?.codenames || [];
+        const tieneAcceso = listaPermisos.includes(requiredPermission);
 
-    // 4. Verificación de Roles usando la lista fresca del Contexto
-    // Hacemos la comparación case-insensitive para evitar problemas de mayúsculas/minúsculas
-    const rolesNormalized = Array.isArray(roles) ? roles.map(r => (r || '').toString().toLowerCase()) : [];
-    const hasPermission = allowedRoles.some(role => rolesNormalized.includes((role || '').toString().toLowerCase()));
-
-    if (!hasPermission) {
-        Swal.fire({
-            toast: true,
-            position: 'top-end',
-            icon: 'error',
-            title: 'Acceso Denegado',
-            text: 'No tienes el rol necesario para esta sección.',
-            timer: 3000,
-            showConfirmButton: false
-        });
-        // Retornamos al dashboard si no tiene permiso
-        return <Navigate to="/dashboard" replace />;
+        if (!tieneAcceso) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Acceso Denegado',
+                text: 'No tienes los permisos asignados para esta sección.',
+                timer: 2000,
+                showConfirmButton: false
+            });
+            return <Navigate to="/dashboard" replace />;
+        }
     }
 
-    return <Outlet />;
+    return children ? children : <Outlet />;
 };
 
 export default ProtectedRoute;

@@ -11,7 +11,11 @@ import {
     FaCheckCircle, FaMagic, FaArrowRight, FaArrowLeft, FaChevronRight, FaChevronLeft, FaTimes
 } from 'react-icons/fa';
 
-const NuevaCita = () => {
+/**
+ * @param {Number} adminSelectedPatientId - Opcional. Si se provee, el wizard agendará para este paciente 
+ * en lugar del usuario logueado. Útil para vistas administrativas/secretaría.
+ */
+const NuevaCita = ({ adminSelectedPatientId = null }) => {
     const navigate = useNavigate();
     const { user } = useContext(AuthContext);
 
@@ -35,6 +39,7 @@ const NuevaCita = () => {
     const [loading, setLoading] = useState(false);
     const [loadingSlots, setLoadingSlots] = useState(false);
     const [pacienteId, setPacienteId] = useState(null);
+    const [perfilPaciente, setPerfilPaciente] = useState(null); // Guardamos el perfil para filtrar servicios
     
     const [fechaInicioCarrusel, setFechaInicioCarrusel] = useState(() => {
         const d = new Date();
@@ -51,14 +56,25 @@ const NuevaCita = () => {
     useEffect(() => {
         const init = async () => {
             try {
-                const perfil = await patientService.getMyProfile(user.user_id);
-                setPacienteId(perfil.id);
+                let perfil;
+                // LÓGICA DINÁMICA: Si viene un ID por props (Admin), pedimos ese perfil.
+                // Si no, pedimos el perfil del usuario logueado.
+                if (adminSelectedPatientId) {
+                    perfil = await patientService.getPatientById(adminSelectedPatientId);
+                    setPacienteId(adminSelectedPatientId);
+                } else {
+                    perfil = await patientService.getMyProfile(user.user_id);
+                    setPacienteId(perfil.id);
+                }
                 
+                setPerfilPaciente(perfil);
+
                 const [allServicios, allSedes] = await Promise.all([
                     staffService.getServicios({ activo: true }),
                     staffService.getLugares({ activo: true })
                 ]);
                 
+                // Filtrado por tipo de paciente (EPS, Particular, etc)
                 const tipoId = perfil.tipo_usuario?.id || perfil.tipo_usuario;
                 const serviciosFiltrados = allServicios.filter(s => {
                     const permitidos = s.tipos_paciente_ids?.map(Number) || [];
@@ -67,10 +83,13 @@ const NuevaCita = () => {
 
                 setServicios(serviciosFiltrados);
                 setSedes(allSedes); 
-            } catch (e) { console.error(e); }
+            } catch (e) { 
+                console.error("Error inicializando NuevaCita:", e);
+                Swal.fire('Error', 'No se pudo cargar la información del paciente.', 'error');
+            }
         };
         init();
-    }, []);
+    }, [adminSelectedPatientId, user.user_id]);
 
     // 2. CARGAR SLOTS
     useEffect(() => {
@@ -94,7 +113,7 @@ const NuevaCita = () => {
                 citasService.getAll({ 
                     profesional_id: selection.profesional.id, 
                     fecha: selection.fecha,
-                    estado: 'PENDIENTE' 
+                    estado_ne: 'CANCELADA' // Traer todas excepto canceladas
                 })
             ]);
 
@@ -102,7 +121,6 @@ const NuevaCita = () => {
 
             const slotsLimpios = slotsBase.filter(hora => {
                 const slotStart = new Date(`${selection.fecha}T${hora}`);
-                
                 if (slotStart < ahoraMismo) return false;
 
                 const isBloqueado = bloqueosData.some(b => {
@@ -112,7 +130,6 @@ const NuevaCita = () => {
                 });
                 
                 const isOcupado = citasDia.some(cita => cita.hora_inicio === hora);
-
                 return !isBloqueado && !isOcupado;
             });
 
@@ -159,14 +176,12 @@ const NuevaCita = () => {
                     if (slotsBase.length > 0) {
                         const [bloqueosData, citasDia] = await Promise.all([
                             agendaService.getBloqueos({ profesional_id: prof.id }),
-                            citasService.getAll({ profesional_id: prof.id, fecha: fechaStr, estado: 'PENDIENTE' })
+                            citasService.getAll({ profesional_id: prof.id, fecha: fechaStr, estado_ne: 'CANCELADA' })
                         ]);
 
                         const slotLibre = slotsBase.find(hora => {
                             const slotStart = new Date(`${fechaStr}T${hora}`);
-                            
                             if (slotStart < ahoraMismo) return false;
-
                             const isBloqueado = bloqueosData.some(b => new Date(b.fecha_inicio) <= slotStart && new Date(b.fecha_fin) > slotStart);
                             const isOcupado = citasDia.some(c => c.hora_inicio === hora);
                             return !isBloqueado && !isOcupado;
@@ -188,12 +203,8 @@ const NuevaCita = () => {
             }
 
             setSearchDateStart(diaActual); 
-
-            if (reset) {
-                setSuggestions(nuevosResultados);
-            } else {
-                setSuggestions(prev => [...prev, ...nuevosResultados]);
-            }
+            if (reset) setSuggestions(nuevosResultados);
+            else setSuggestions(prev => [...prev, ...nuevosResultados]);
 
         } catch (e) {
             Swal.fire('Error', 'No pudimos cargar sugerencias.', 'error');
@@ -234,20 +245,14 @@ const NuevaCita = () => {
         nextStep();
     };
 
-    // --- FUNCIÓN DE CONFIRMACIÓN CON CÁLCULO DE HORA FIN ---
     const confirmCita = async () => {
         setLoading(true);
         try {
-            // 1. Calcular hora_fin basada en la duración del servicio
-            const duracion = selection.servicio.duracion_minutos || 30; // Default de seguridad
+            const duracion = selection.servicio.duracion_minutos || 30;
             const [horas, minutos] = selection.hora.split(':').map(Number);
-            
-            // Usamos un objeto Date auxiliar para sumar minutos correctamente (maneja cambio de hora/día si fuera necesario)
             const fechaTemp = new Date();
             fechaTemp.setHours(horas, minutos, 0);
             fechaTemp.setMinutes(fechaTemp.getMinutes() + duracion);
-            
-            // Formateamos de vuelta a HH:MM
             const horaFinCalc = fechaTemp.toTimeString().slice(0, 5);
 
             await citasService.create({
@@ -257,31 +262,23 @@ const NuevaCita = () => {
                 lugar_id: selection.sede.id,
                 fecha: selection.fecha,
                 hora_inicio: selection.hora,
-                hora_fin: horaFinCalc, // <--- AHORA ENVIAMOS ESTE CAMPO OBLIGATORIO
-                nota: 'Agendado vía Web Wizard'
+                hora_fin: horaFinCalc,
+                nota: adminSelectedPatientId 
+                    ? `Agendado por Administrador/Secretaría para: ${perfilPaciente?.nombre}`
+                    : 'Agendado vía Web Wizard'
             });
-            await Swal.fire('¡Cita Confirmada!', 'Tu cita ha sido agendada con éxito.', 'success');
-            navigate('/dashboard/citas');
+            await Swal.fire('¡Cita Confirmada!', 'La cita ha sido agendada con éxito.', 'success');
+            
+            // Si es admin, volvemos al panel de gestión de citas
+            navigate(adminSelectedPatientId ? '/dashboard/admin/citas' : '/dashboard/citas');
+            
         } catch (error) {
             let mensajeError = 'No se pudo agendar la cita. Intente nuevamente.';
-            
-            if (error.response && error.response.data) {
+            if (error.response?.data) {
                 const data = error.response.data;
-                if (data.detalle) mensajeError = data.detalle;
-                else if (data.detail) mensajeError = data.detail;
-                else if (data.non_field_errors) mensajeError = data.non_field_errors[0];
-                else if (typeof data === 'object') {
-                    const mensajes = Object.entries(data).map(([key, val]) => `${key}: ${val}`).join('. ');
-                    mensajeError = mensajes;
-                }
+                mensajeError = data.detalle || data.detail || (typeof data === 'object' ? Object.values(data).flat().join('. ') : mensajeError);
             }
-            
-            Swal.fire({
-                icon: 'error',
-                title: 'No se pudo agendar',
-                text: mensajeError, 
-                confirmButtonColor: '#d33'
-            });
+            Swal.fire({ icon: 'error', title: 'Error', text: mensajeError });
         } finally { 
             setLoading(false); 
         }
@@ -302,17 +299,13 @@ const NuevaCita = () => {
         nuevaFecha.setDate(nuevaFecha.getDate() + dias);
         const hoy = new Date();
         hoy.setHours(0,0,0,0);
-        if (nuevaFecha < hoy) {
-            setFechaInicioCarrusel(hoy);
-        } else {
-            setFechaInicioCarrusel(nuevaFecha);
-        }
+        if (nuevaFecha < hoy) setFechaInicioCarrusel(hoy);
+        else setFechaInicioCarrusel(nuevaFecha);
     };
 
     const esElInicio = fechaInicioCarrusel.getTime() === new Date().setHours(0,0,0,0);
 
-    // ... Renders (Sin cambios) ...
-
+    // --- RENDERS ---
     const renderStep1 = () => (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-fadeIn">
             {servicios.map(s => (
@@ -409,38 +402,50 @@ const NuevaCita = () => {
                             </div>
                         ) : (
                             <div className="text-center p-8 bg-gray-50 rounded-xl border border-dashed border-gray-200">
-                                <p className="text-gray-500 font-medium">No hay citas disponibles para este día.</p>
-                                <button onClick={() => moverCarrusel(1)} className="text-blue-600 text-sm font-bold mt-2 hover:underline">Ver día siguiente →</button>
+                                <p className="text-gray-500 font-medium">No hay horarios disponibles.</p>
+                                <button onClick={() => moverCarrusel(1)} className="text-blue-600 text-sm font-bold mt-2 hover:underline">Ver día siguiente</button>
                             </div>
                         )}
                     </div>
-                ) : <div className="text-center text-gray-400 py-8 border-t border-dashed border-gray-100 mt-4">Selecciona un día arriba 👆</div>}
+                ) : <div className="text-center text-gray-400 py-8 border-t border-dashed border-gray-100 mt-4">Selecciona un día</div>}
             </div>
         );
     };
 
     const renderStep5 = () => (
         <div className="bg-white p-8 rounded-2xl shadow-xl border border-blue-50 text-center max-w-md mx-auto animate-zoomIn">
-            <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner"><FaCheckCircle size={40}/></div>
+            <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6"><FaCheckCircle size={40}/></div>
             <h2 className="text-2xl font-black text-gray-800 mb-2">¡Casi listo!</h2>
-            <p className="text-gray-500 mb-8">Revisa los detalles antes de confirmar.</p>
             <div className="bg-gray-50 p-6 rounded-2xl mb-8 text-left space-y-4 border border-gray-100">
+                {adminSelectedPatientId && <div className="flex justify-between items-center"><span className="text-gray-500 text-sm">Paciente</span><span className="font-bold text-indigo-600">{perfilPaciente?.nombre}</span></div>}
                 <div className="flex justify-between items-center"><span className="text-gray-500 text-sm">Servicio</span><span className="font-bold text-gray-800">{selection.servicio?.nombre}</span></div>
-                <div className="flex justify-between items-center"><span className="text-gray-500 text-sm">Profesional</span><span className="font-bold text-gray-800 text-right">{selection.profesional?.nombre}</span></div>
-                <div className="flex justify-between items-center"><span className="text-gray-500 text-sm">Sede</span><span className="font-bold text-gray-800 text-right text-xs max-w-[150px]">{selection.sede?.nombre}</span></div>
+                <div className="flex justify-between items-center"><span className="text-gray-500 text-sm">Profesional</span><span className="font-bold text-gray-800">{selection.profesional?.nombre}</span></div>
+                <div className="flex justify-between items-center"><span className="text-gray-500 text-sm">Sede</span><span className="font-bold text-gray-800 text-xs">{selection.sede?.nombre}</span></div>
                 <div className="h-px bg-gray-200 my-2"></div>
                 <div className="flex justify-between items-center"><span className="text-gray-500 text-sm">Fecha y Hora</span><span className="font-bold text-blue-600 text-lg">{selection.fecha} | {selection.hora}</span></div>
             </div>
-            <button onClick={confirmCita} disabled={loading} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl font-bold shadow-lg shadow-blue-200 transition transform hover:-translate-y-1 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2">{loading ? 'Confirmando...' : 'Confirmar Agendamiento'}</button>
-            <button onClick={() => setStep(1)} className="mt-4 text-gray-400 text-sm hover:text-gray-600 underline">Cancelar y empezar de nuevo</button>
+            <button onClick={confirmCita} disabled={loading} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl font-bold shadow-lg transition disabled:opacity-50">{loading ? 'Confirmando...' : 'Confirmar Agendamiento'}</button>
+            <button onClick={() => setStep(1)} className="mt-4 text-gray-400 text-sm hover:text-gray-600 underline">Empezar de nuevo</button>
         </div>
     );
 
     return (
-        <div className="max-w-5xl mx-auto p-4 min-h-screen">
+        <div className="max-w-5xl mx-auto p-4">
+            {/* Si es Admin, mostramos un encabezado especial */}
+            {adminSelectedPatientId && (
+                <div className="mb-6 p-4 bg-indigo-50 border border-indigo-100 rounded-2xl flex items-center justify-between">
+                    <div>
+                        <p className="text-indigo-600 text-xs font-bold uppercase tracking-wider">Modo Administrativo</p>
+                        <h2 className="text-indigo-900 font-bold">Agendando para: {perfilPaciente?.nombre || "Cargando..."}</h2>
+                    </div>
+                    <div className="bg-indigo-600 text-white px-3 py-1 rounded-full text-xs font-bold">Admin</div>
+                </div>
+            )}
+
             <div className="flex items-center justify-center mb-10 gap-2">
-                {[1,2,3,4,5].map(i => <div key={i} className={`h-1.5 rounded-full flex-1 transition-all duration-700 ${step >= i ? 'bg-blue-600 shadow-[0_0_10px_rgba(37,99,235,0.5)]' : 'bg-gray-200'}`}></div>)}
+                {[1,2,3,4,5].map(i => <div key={i} className={`h-1.5 rounded-full flex-1 transition-all duration-700 ${step >= i ? 'bg-blue-600' : 'bg-gray-200'}`}></div>)}
             </div>
+
             {step < 5 && (
                 <div className="flex justify-between items-center mb-8">
                     <div>
@@ -449,34 +454,34 @@ const NuevaCita = () => {
                         </h1>
                         <p className="text-gray-400 text-sm mt-1">Paso {step} de 5</p>
                     </div>
-                    {step > 1 && <button onClick={prevStep} className="text-gray-500 hover:text-blue-600 flex items-center gap-2 text-sm font-bold bg-white px-4 py-2 rounded-lg border hover:border-blue-200 transition shadow-sm"><FaArrowLeft/> Atrás</button>}
+                    {step > 1 && <button onClick={prevStep} className="text-gray-500 hover:text-blue-600 flex items-center gap-2 text-sm font-bold bg-white px-4 py-2 rounded-lg border transition shadow-sm"><FaArrowLeft/> Atrás</button>}
                 </div>
             )}
+
             {step === 1 && renderStep1()}
             {step === 2 && renderStep2()}
             {step === 3 && renderStep3()}
             {step === 4 && renderStep4()}
             {step === 5 && renderStep5()}
+
+            {/* Modal Asistente (Sin cambios de lógica) */}
             {showAssistant && (
-                <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn">
+                <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
                     <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-                        <div className="bg-gradient-to-r from-purple-600 to-indigo-600 p-6 flex justify-between items-start text-white shrink-0">
-                            <div><h3 className="text-xl font-bold flex items-center gap-2"><FaMagic className="text-yellow-300"/> Asistente Inteligente</h3><p className="text-purple-100 text-sm mt-1">Encontramos estas opciones disponibles para ti.</p></div>
+                        <div className="bg-gradient-to-r from-purple-600 to-indigo-600 p-6 flex justify-between items-start text-white">
+                            <div><h3 className="text-xl font-bold flex items-center gap-2"><FaMagic className="text-yellow-300"/> Asistente Inteligente</h3><p className="text-purple-100 text-sm mt-1">Opciones disponibles para {perfilPaciente?.nombre}</p></div>
                             <button onClick={() => setShowAssistant(false)} className="text-white/80 hover:text-white hover:bg-white/20 p-2 rounded-full transition"><FaTimes size={20}/></button>
                         </div>
                         <div className="p-6 overflow-y-auto bg-gray-50 flex-1">
-                            {assistantLoading && suggestions.length === 0 ? <div className="text-center py-10"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-purple-600 mx-auto mb-3"></div><p className="text-gray-500">Buscando las mejores opciones...</p></div> : suggestions.length === 0 ? <div className="text-center py-10 text-gray-500"><p>No encontramos opciones cercanas.</p><button onClick={() => buscarSugerencias(searchDateStart)} className="text-blue-600 font-bold mt-2 hover:underline">Intentar buscar más adelante</button></div> : (
+                            {assistantLoading && suggestions.length === 0 ? <div className="text-center py-10"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-purple-600 mx-auto mb-3"></div></div> : suggestions.length === 0 ? <div className="text-center py-10 text-gray-500"><p>No hay opciones.</p></div> : (
                                 <div className="space-y-3">
                                     {suggestions.map((sug, idx) => (
-                                        <div key={idx} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4 hover:border-purple-300 transition group">
-                                            <div className="flex items-center gap-4 w-full sm:w-auto">
-                                                <div className="w-12 h-12 bg-purple-50 text-purple-600 rounded-full flex items-center justify-center font-bold text-lg shrink-0">{sug.profesional.nombre.charAt(0)}</div>
-                                                <div className="text-left"><h4 className="font-bold text-gray-800">{sug.profesional.nombre}</h4><div className="flex items-center gap-2 text-sm text-gray-500"><FaCalendarAlt className="text-purple-400"/><span className="capitalize">{new Date(sug.fecha + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}</span></div><div className="flex items-center gap-2 text-sm text-gray-500"><FaClock className="text-purple-400"/><span>{sug.hora}</span></div></div>
-                                            </div>
-                                            <button onClick={() => seleccionarSugerencia(sug)} className="w-full sm:w-auto bg-white border-2 border-purple-600 text-purple-600 hover:bg-purple-600 hover:text-white px-6 py-2 rounded-lg font-bold transition whitespace-nowrap">Seleccionar</button>
+                                        <div key={idx} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between gap-4">
+                                            <div className="text-left"><h4 className="font-bold text-gray-800">{sug.profesional.nombre}</h4><p className="text-xs text-gray-500">{sug.fecha} | {sug.hora}</p></div>
+                                            <button onClick={() => seleccionarSugerencia(sug)} className="bg-purple-600 text-white px-4 py-2 rounded-lg font-bold text-sm">Seleccionar</button>
                                         </div>
                                     ))}
-                                    <button onClick={() => buscarSugerencias(searchDateStart)} disabled={assistantLoading} className="w-full mt-4 py-3 text-sm text-gray-500 font-bold hover:text-purple-600 hover:bg-purple-50 rounded-lg transition dashed border-2 border-transparent hover:border-purple-200">{assistantLoading ? 'Buscando más...' : '🔍 Cargar más opciones...'}</button>
+                                    <button onClick={() => buscarSugerencias(searchDateStart)} disabled={assistantLoading} className="w-full mt-4 py-3 text-sm text-gray-400 font-bold uppercase tracking-widest border-2 border-dashed border-gray-200 rounded-xl">Cargar más</button>
                                 </div>
                             )}
                         </div>

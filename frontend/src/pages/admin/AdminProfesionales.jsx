@@ -215,7 +215,7 @@ const AdminProfesionales = () => {
                     onClick={() => openModal()}
                     className="bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-lg font-bold flex items-center gap-2 shadow-md transition transform hover:scale-105"
                 >
-                    <FaPlus /> Nuevo Médico
+                    <FaPlus /> Nuevo Profesional
                 </button>
             </div>
 
