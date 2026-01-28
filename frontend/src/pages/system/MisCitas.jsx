@@ -4,6 +4,7 @@ import { staffService } from '../../services/staffService';
 import { FaCalendarPlus, FaNotesMedical, FaTimesCircle, FaCheckCircle, FaMapMarkerAlt, FaUserMd, FaStethoscope } from 'react-icons/fa';
 import Swal from 'sweetalert2'; 
 import { Link } from 'react-router-dom';
+import DataUpdateEnforcer from '../../components/system/DataUpdateEnforcer'; 
 
 const MisCitas = () => {
     // --- ESTADOS ---
@@ -35,7 +36,10 @@ const MisCitas = () => {
 
         } catch (err) {
             console.error("Error cargando datos", err);
-            Swal.fire('Error', 'No se pudo cargar el historial completo. Por favor, recarga la página.', 'error');
+            // Ignoramos error 404 si es usuario nuevo sin citas
+            if (!err.response || err.response.status !== 404) {
+                Swal.fire('Error', 'No se pudo cargar el historial completo. Por favor, recarga la página.', 'error');
+            }
         } finally {
             setLoading(false);
         }
@@ -85,7 +89,7 @@ const MisCitas = () => {
                     'success'
                 );
                 
-                // Recargar datos
+                // Recargar datos para refrescar la lista
                 const nuevasCitas = await citasService.getAll();
                 setCitas(nuevasCitas);
 
@@ -131,9 +135,11 @@ const MisCitas = () => {
             'PENDIENTE':  { color: 'bg-yellow-100 text-yellow-800 border-yellow-200', label: 'Pendiente' },
             'ACEPTADA':   { color: 'bg-blue-100 text-blue-800 border-blue-200', label: 'Aceptada' },
             'CONFIRMADA': { color: 'bg-green-100 text-green-800 border-green-200', label: 'Confirmada' },
+            'EN_SALA':    { color: 'bg-indigo-100 text-indigo-800 border-indigo-200', label: 'En Sala' },
             'REALIZADA':  { color: 'bg-gray-100 text-gray-800 border-gray-200', label: 'Realizada' },
             'CANCELADA':  { color: 'bg-red-100 text-red-800 border-red-200', label: 'Cancelada' },
-            'INASISTENCIA': { color: 'bg-orange-100 text-orange-800 border-orange-200', label: 'Inasistencia' }
+            'NO_ASISTIO': { color: 'bg-orange-100 text-orange-800 border-orange-200', label: 'No Asistió' },
+            'INASISTENCIA': { color: 'bg-orange-100 text-orange-800 border-orange-200', label: 'No Asistió' }
         };
         
         const status = config[estado] || config['PENDIENTE'];
@@ -154,6 +160,9 @@ const MisCitas = () => {
 
     return (
         <div className="max-w-7xl mx-auto p-4">
+            {/* 1. COMPONENTE VIGILANTE DE DATOS */}
+            <DataUpdateEnforcer />
+
             <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
                 <div>
                     <h1 className="text-3xl font-black text-gray-800">Mis Citas</h1>

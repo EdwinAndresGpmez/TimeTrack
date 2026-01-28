@@ -17,6 +17,7 @@ from .serializers import (
     HistoricoCitaSerializer, 
     ConfiguracionGlobalSerializer
 )
+from django.db.models import Count
 
 # URLs de Microservicios (Asegúrate que coincidan con tu docker-compose)
 PATIENTS_MS_URL = "http://patients-ms:8001/api/v1/pacientes/internal/bulk-info/"
@@ -69,6 +70,44 @@ class CitaViewSet(viewsets.ModelViewSet):
 
         # 1. Cargar Reglas de Negocio
         config, _ = ConfiguracionGlobal.objects.get_or_create(pk=1)
+
+        if config.limite_inasistencias > 0:
+            
+            # 1. Obtener información del paciente para saber su fecha de corte
+            fecha_corte = None
+            try:
+                # Usamos tu URL configurada para consultar detalles internos
+                # Nota: Asegúrate de que este endpoint devuelva el campo 'ultima_fecha_desbloqueo'
+                url = f"http://patients-ms:8001/api/v1/pacientes/{paciente_id}/" 
+                resp = requests.get(url, timeout=3)
+                if resp.status_code == 200:
+                    paciente_data = resp.json()
+                    fecha_str = paciente_data.get('ultima_fecha_desbloqueo')
+                    if fecha_str:
+                        fecha_corte = datetime.fromisoformat(fecha_str.replace('Z', '+00:00'))
+            except Exception as e:
+                logger.error(f"Error consultando fecha desbloqueo paciente: {e}")
+                # Si falla la conexión, asumimos nulo (cuenta histórica completa) por seguridad
+
+            # 2. Construir la consulta
+            query_inasistencias = Cita.objects.filter(
+                paciente_id=paciente_id,
+                estado='NO_ASISTIO'
+            )
+
+            # 3. APLICAR FILTRO DE FECHA (La clave de tu requerimiento)
+            if fecha_corte:
+                # Solo contamos las citas que ocurrieron DESPUÉS del último desbloqueo
+                query_inasistencias = query_inasistencias.filter(fecha__gte=fecha_corte.date())
+
+            conteo_inasistencias = query_inasistencias.count()
+
+            if conteo_inasistencias >= config.limite_inasistencias:
+                mensaje = config.mensaje_bloqueo_inasistencia or "Usuario bloqueado por inasistencias."
+                return Response(
+                    {"detalle": mensaje},
+                    status=status.HTTP_403_FORBIDDEN
+                )
 
         # 2. Consultar historial del paciente para ese día
         citas_existentes_dia = Cita.objects.filter(
@@ -239,3 +278,35 @@ class NotaMedicaViewSet(viewsets.ModelViewSet):
 class HistoricoCitaViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = HistoricoCita.objects.all().order_by('-fecha_registro')
     serializer_class = HistoricoCitaSerializer
+
+class ReporteInasistenciasViewSet(viewsets.ViewSet):
+    """
+    Devuelve un diccionario con el estado de inasistencias de los pacientes.
+    Respuesta: { "123": { "cantidad": 3, "bloqueado": true }, ... }
+    """
+    permission_classes = [permissions.IsAuthenticated] # O IsAdminUser
+
+    def list(self, request):
+        config, _ = ConfiguracionGlobal.objects.get_or_create(pk=1)
+        limite = config.limite_inasistencias
+        
+        # Obtenemos solo los pacientes que tienen al menos 1 inasistencia
+        data = (
+            Cita.objects.filter(estado='NO_ASISTIO')
+            .values('paciente_id')
+            .annotate(total=Count('id'))
+        )
+
+        resultado = {}
+        for item in data:
+            pid = str(item['paciente_id'])
+            cantidad = item['total']
+            # Determinamos si está bloqueado según la regla global
+            bloqueado = (limite > 0) and (cantidad >= limite)
+            
+            resultado[pid] = {
+                "inasistencias": cantidad,
+                "bloqueado_por_inasistencias": bloqueado
+            }
+
+        return Response(resultado)

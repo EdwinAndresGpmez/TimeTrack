@@ -1,8 +1,11 @@
+from datetime import timezone
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import viewsets, filters, status, permissions
 from .models import Paciente, TipoPaciente, SolicitudValidacion
 from .serializers import PacienteSerializer, TipoPacienteSerializer, SolicitudValidacionSerializer
+from rest_framework.decorators import action
+from django.utils import timezone
 
 # 1. ViewSet para Tipos de Paciente (EPS, Prepagada, etc.)
 class TipoPacienteViewSet(viewsets.ModelViewSet):
@@ -24,6 +27,7 @@ class PacienteViewSet(viewsets.ModelViewSet):
         user_id = self.request.query_params.get('user_id')
         search_query = self.request.query_params.get('search')
         admin_mode = self.request.query_params.get('admin_mode')
+
 
         # CASO A: Filtro por User ID (Para el perfil del paciente logueado)
         if user_id:
@@ -47,6 +51,23 @@ class PacienteViewSet(viewsets.ModelViewSet):
 
         # CASO C: Por defecto (si no es admin ni perfil, ej: listados generales)
         return queryset
+    
+    @action(detail=True, methods=['post'], url_path='reset-inasistencias')
+    def reset_inasistencias(self, request, pk=None):
+        """
+        No borra citas. Solo marca la fecha actual como el nuevo "punto de partida"
+        para el conteo de penalizaciones.
+        """
+        paciente = self.get_object()
+        paciente.ultima_fecha_desbloqueo = timezone.now()
+        paciente.save()
+        
+        return Response({
+            "mensaje": "Contador reiniciado.", 
+            "nueva_fecha_corte": paciente.ultima_fecha_desbloqueo
+        })
+    
+    
 
 # 3. NUEVO: ViewSet para Solicitudes de Validación (Para el Admin)
 class SolicitudValidacionViewSet(viewsets.ModelViewSet):

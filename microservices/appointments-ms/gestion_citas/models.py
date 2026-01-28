@@ -101,7 +101,10 @@ class ConfiguracionGlobal(models.Model):
         default=24, 
         verbose_name="Horas mínimas para cancelar"
     )
-    
+    dias_para_actualizar_datos = models.IntegerField(
+        default=180, 
+        help_text="Cada cuántos días se le pedirá al paciente validar sus datos (0 para desactivar)"
+    )
     # Aquí puedes agregar más reglas a futuro (Ej: max_citas_dia, hora_apertura, etc.)
     mensaje_notificacion_cancelacion = models.TextField(
         default="Su cita ha sido cancelada.", 
@@ -115,6 +118,14 @@ class ConfiguracionGlobal(models.Model):
     permitir_mismo_servicio_dia = models.BooleanField(
         default=False,
         verbose_name="¿Permitir repetir servicio el mismo día?"
+    )
+    limite_inasistencias = models.IntegerField(
+        default=3, 
+        help_text="Número de citas 'NO_ASISTIO' permitidas antes de bloquear el agendamiento (0 para desactivar)."
+    )
+    mensaje_bloqueo_inasistencia = models.TextField(
+        default="Su cuenta ha sido bloqueada por inasistencias reiteradas. Contacte a la clínica.",
+        blank=True
     )
 
     def save(self, *args, **kwargs):

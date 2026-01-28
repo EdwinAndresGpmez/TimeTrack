@@ -1,7 +1,7 @@
 import api from '../api/axiosConfig';
 
 export const patientService = {
-    // 1. NUEVO: Obtener TODOS los pacientes (Para AdminUsuarios)
+    // 1. Obtener TODOS los pacientes (Para AdminUsuarios)
     getAll: async (params = {}) => {
         // Al pasar { params }, Axios construye la URL así: 
         // /pacientes/listado/?search=texto&admin_mode=true
@@ -13,6 +13,7 @@ export const patientService = {
         const response = await api.get(`/pacientes/listado/${id}/`);
         return response.data;
     },
+
     // 2. Crear Perfil de Paciente
     create: async (patientData) => {
         const response = await api.post('/pacientes/listado/', patientData);
@@ -32,7 +33,6 @@ export const patientService = {
             return null;
         }
     },
-    
 
     // 4. Actualizar Perfil (Unificado)
     update: async (id, data) => {
@@ -67,6 +67,7 @@ export const patientService = {
     },
 
     // --- FUNCIONES ADMINISTRATIVAS ---
+    
     crearSolicitudValidacion: async (data) => {
         const response = await api.post('/pacientes/solicitudes/', data);
         return response.data;
@@ -75,16 +76,24 @@ export const patientService = {
     getSolicitudesPendientes: async () => {
         const response = await api.get('/pacientes/solicitudes/?procesado=false');
         return response.data;
-    }
-    ,
+    },
+
     // Actualizar una solicitud (marcar procesada, corregir campos, etc.)
     updateSolicitud: async (id, data) => {
         const response = await api.patch(`/pacientes/solicitudes/${id}/`, data);
         return response.data;
     },
+
     // Borrar una solicitud si lo deseas
     deleteSolicitud: async (id) => {
         const response = await api.delete(`/pacientes/solicitudes/${id}/`);
+        return response.data;
+    },
+
+    // 8. NUEVO: Resetear Inasistencias (Fecha de Corte)
+    // Este es el método que faltaba para el botón de desbloqueo
+    resetInasistencias: async (id) => {
+        const response = await api.post(`/pacientes/listado/${id}/reset-inasistencias/`);
         return response.data;
     }
 };

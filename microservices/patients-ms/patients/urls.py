@@ -5,7 +5,7 @@ from .views import (
     TipoPacienteViewSet, 
     SyncPacienteUserView, 
     SolicitudValidacionViewSet,
-    BulkPacienteView # <--- Verificación 1: Importación correcta
+    BulkPacienteView 
 )
 
 # Configuración del Router
@@ -15,13 +15,9 @@ router.register(r'tipos', TipoPacienteViewSet, basename='tipopaciente')
 router.register(r'solicitudes', SolicitudValidacionViewSet, basename='solicitud')
 
 urlpatterns = [
-    # --- RUTAS MANUALES (Deben ir PRIMERO) ---
-    
-    # Esta es la ruta que está fallando (404). Al ponerla primero, Django la encontrará.
+    path('internal/sync-user/', SyncPacienteUserView.as_view(), name='sync_user'),
     path('internal/bulk-info/', BulkPacienteView.as_view(), name='bulk_pacientes'),
     
-    path('internal/sync-user/', SyncPacienteUserView.as_view(), name='sync_user'),
-
     # --- RUTAS DEL ROUTER (Deben ir AL FINAL) ---
     path('', include(router.urls)),
 ]

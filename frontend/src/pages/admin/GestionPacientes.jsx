@@ -2,29 +2,33 @@ import React, { useEffect, useState, useContext } from 'react';
 import { patientService } from '../../services/patientService';
 import { authService } from '../../services/authService';
 import { AuthContext } from '../../context/AuthContext';
+import { citasService } from '../../services/citasService'; // Importamos el servicio de citas
 import Swal from 'sweetalert2';
 import { 
     FaPlus, FaEdit, FaToggleOn, FaToggleOff, FaUserTie, 
-    FaSearch, FaChevronLeft, FaChevronRight, FaKey, FaUserCheck, FaDownload 
+    FaSearch, FaChevronLeft, FaChevronRight, FaKey, FaUserCheck, FaDownload,
+    FaLock, FaLockOpen, FaHistory 
 } from 'react-icons/fa';
 
 const ITEMS_PER_PAGE = 10;
 
 const GestionPacientes = () => {
-    const { roles, user } = useContext(AuthContext);
+    // --- CONTEXTO ---
+    const { user, permissions } = useContext(AuthContext);
+    const roles = permissions?.roles || []; 
+
+    // --- ESTADOS ---
     const [pacientes, setPacientes] = useState([]);
     const [tipos, setTipos] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    // --- ESTADOS PARA BÚSQUEDA DE USUARIOS ---
+    // Búsqueda y Paginación
     const [userQuery, setUserQuery] = useState('');
     const [userResults, setUserResults] = useState([]);
-
-    // Paginación y filtros
     const [query, setQuery] = useState('');
     const [page, setPage] = useState(1);
 
-    // Modal / form
+    // Modal
     const [modalOpen, setModalOpen] = useState(false);
     const [editing, setEditing] = useState(null);
     const [form, setForm] = useState({
@@ -33,18 +37,55 @@ const GestionPacientes = () => {
     });
 
     useEffect(() => {
-        if (!roles) return; 
-        cargarDatos();
-    }, [roles]);
+        if (user) {
+            cargarDatos();
+        }
+    }, [user]);
 
+    // --- CARGA DE DATOS (FUSIÓN DE MICROSERVICIOS) ---
     const cargarDatos = async () => {
         setLoading(true);
         try {
-            const [p, t] = await Promise.all([patientService.getAll(), patientService.getTiposPaciente()]);
-            setPacientes(Array.isArray(p) ? p : []);
-            setTipos(Array.isArray(t) ? t : []);
+            // Hacemos peticiones en paralelo a los 2 microservicios
+            const [listaPacientes, tipos, reporteFaltas] = await Promise.all([
+                patientService.getAll(),
+                patientService.getTiposPaciente(),
+                citasService.getReporteInasistencias() // Traemos reporte de bloqueos
+            ]);
+
+            const pacientesRaw = Array.isArray(listaPacientes) ? listaPacientes : [];
+            const tiposRaw = Array.isArray(tipos) ? tipos : [];
+
+            // Cruzamos la información: Pacientes + Inasistencias
+            const pacientesEnriquecidos = pacientesRaw.map(p => {
+                // Buscamos si este paciente tiene reporte de faltas (usando ID como clave)
+                const estadoFaltas = reporteFaltas && reporteFaltas[p.id.toString()];
+                
+                if (estadoFaltas) {
+                    return {
+                        ...p,
+                        inasistencias: estadoFaltas.inasistencias,
+                        bloqueado_por_inasistencias: estadoFaltas.bloqueado_por_inasistencias
+                    };
+                }
+                // Si no aparece en el reporte, está limpio
+                return { ...p, inasistencias: 0, bloqueado_por_inasistencias: false };
+            });
+
+            setPacientes(pacientesEnriquecidos);
+            setTipos(tiposRaw);
+
         } catch (error) {
-            Swal.fire('Error', 'No se pudieron cargar los datos.', 'error');
+            console.error(error);
+            Swal.fire('Aviso', 'Error de conexión. Se cargarán datos parciales.', 'warning');
+            
+            // Fallback: Si falla el reporte de citas, cargamos solo pacientes básicos
+            try {
+                const p = await patientService.getAll();
+                setPacientes(Array.isArray(p) ? p : []);
+            } catch (e) {
+                setPacientes([]);
+            }
         } finally {
             setLoading(false);
         }
@@ -52,12 +93,10 @@ const GestionPacientes = () => {
 
     const isAdmin = () => {
         if (user && (user.is_superuser || user.is_staff)) return true;
-        if (!roles) return false;
         const rn = roles.map(r => (r || '').toString().toLowerCase());
         return rn.includes('admin') || rn.includes('administrador') || rn.includes('superuser') || rn.includes('staff');
     };
 
-    // --- BÚSQUEDA PARA EL FORMULARIO ---
     const searchUsers = async (val) => {
         setUserQuery(val);
         if (val.length < 3) {
@@ -70,7 +109,8 @@ const GestionPacientes = () => {
         } catch (error) { console.error(error); }
     };
 
-    // --- VÍNCULO RÁPIDO CON BUSCADOR DINÁMICO (BOTÓN FaKey) ---
+    // --- ACCIONES ---
+
     const handleAssignUserQuick = async (p) => {
         await Swal.fire({
             title: `Vincular Usuario a ${p.nombre}`,
@@ -121,8 +161,7 @@ const GestionPacientes = () => {
                             item.addEventListener('click', async () => {
                                 const id = item.getAttribute('data-id');
                                 const name = item.getAttribute('data-name');
-                                
-                                Swal.close(); // Cerramos el buscador para mostrar la confirmación
+                                Swal.close();
                                 
                                 const confirm = await Swal.fire({
                                     title: '¿Confirmar vínculo?',
@@ -150,6 +189,47 @@ const GestionPacientes = () => {
                 });
             }
         });
+    };
+
+    // --- NUEVO: DESBLOQUEO DE INASISTENCIAS ---
+    const handleUnlockInasistencias = async (p) => {
+        const confirm = await Swal.fire({
+            title: '¿Desbloquear Paciente?',
+            html: `
+                <div class="text-left text-sm">
+                    <p>El paciente tiene inasistencias que bloquean su acceso.</p>
+                    <p class="mt-2 text-gray-500">
+                        Al confirmar, se actualizará su <b>fecha de corte</b> al día de hoy. 
+                        Las inasistencias antiguas <b>se mantendrán en el historial</b> pero ya no contarán para el bloqueo.
+                    </p>
+                </div>
+            `,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Sí, aplicar fecha de corte',
+            confirmButtonColor: '#10b981', // Verde éxito
+            cancelButtonText: 'Cancelar'
+        });
+
+        if (confirm.isConfirmed) {
+            try {
+                // CAMBIO IMPORTANTE: Llamamos al patientService (MS Pacientes)
+                // Usamos el método resetInasistencias que actualiza la fecha de corte
+                if (patientService.resetInasistencias) {
+                    await patientService.resetInasistencias(p.id);
+                } else {
+                    // Fallback si no está definido el método específico, intentamos update manual
+                    // (Asegúrate de tener el endpoint en el backend)
+                    await patientService.update(p.id, { reset_inasistencias: true });
+                }
+                
+                Swal.fire('Desbloqueado', 'El contador se ha reiniciado desde hoy.', 'success');
+                cargarDatos(); // Recargar tabla para ver el candado abrirse
+            } catch (error) {
+                console.error(error);
+                Swal.fire('Error', 'No se pudo realizar el desbloqueo.', 'error');
+            }
+        }
     };
 
     const openCreate = () => {
@@ -261,7 +341,6 @@ const GestionPacientes = () => {
         return !q || (p.nombre && p.nombre.toLowerCase().includes(q)) || (p.numero_documento && p.numero_documento.toLowerCase().includes(q));
     });
 
-    // --- CORRECCIÓN AQUÍ: Definir variable 'pages' ---
     const pages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
     const visible = filtered.slice((page-1)*ITEMS_PER_PAGE, page*ITEMS_PER_PAGE);
 
@@ -320,6 +399,12 @@ const GestionPacientes = () => {
                                             ) : (
                                                 <span className="text-[10px] text-orange-500 font-medium italic">Sin cuenta de acceso</span>
                                             )}
+                                            {/* Indicador visual de inasistencias */}
+                                            {p.inasistencias > 0 && (
+                                                <span className="text-[9px] text-red-500 font-bold bg-red-50 px-1.5 rounded w-max mt-1 flex items-center gap-1">
+                                                    <FaHistory/> {p.inasistencias} Faltas
+                                                </span>
+                                            )}
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 font-mono text-xs text-gray-700">{p.tipo_documento} {p.numero_documento}</td>
@@ -341,11 +426,27 @@ const GestionPacientes = () => {
                                     </td>
                                     <td className="px-6 py-4 text-center">
                                         <div className="flex justify-center gap-2">
+                                            {/* EDITAR */}
                                             <button onClick={() => openEdit(p)} className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-all" title="Editar Ficha">
                                                 <FaEdit size={16} />
                                             </button>
+                                            
+                                            {/* VINCULAR */}
                                             <button onClick={() => handleAssignUserQuick(p)} className="p-2 text-gray-400 hover:text-teal-600 hover:bg-teal-50 rounded-full transition-all" title="Vínculo Rápido de Usuario">
                                                 <FaKey size={14} />
+                                            </button>
+
+                                            {/* DESBLOQUEO */}
+                                            <button 
+                                                onClick={() => handleUnlockInasistencias(p)} 
+                                                className="p-2 text-gray-400 hover:text-orange-500 hover:bg-orange-50 rounded-full transition-all" 
+                                                title="Gestionar Bloqueo por Inasistencias"
+                                            >
+                                                {p.bloqueado_por_inasistencias ? (
+                                                    <FaLock size={14} className="text-red-500" />
+                                                ) : (
+                                                    <FaLockOpen size={14} />
+                                                )}
                                             </button>
                                         </div>
                                     </td>
@@ -372,12 +473,13 @@ const GestionPacientes = () => {
                 </div>
             </div>
 
-            {/* Modal Principal (Edición/Creación Completa) */}
+            {/* Modal Principal */}
             {modalOpen && (
                 <div className="fixed inset-0 z-50 overflow-y-auto backdrop-blur-sm">
                     <div className="flex items-center justify-center min-h-screen px-4 py-8">
                         <div className="fixed inset-0 bg-gray-900/60" onClick={() => setModalOpen(false)}></div>
                         <div className="bg-white rounded-2xl overflow-hidden shadow-2xl transform transition-all sm:max-w-2xl w-full z-10 border border-gray-100">
+                            {/* ... FORMULARIO DEL MODAL (Se mantiene igual) ... */}
                             <div className="bg-white px-8 py-6">
                                 <h3 className="text-2xl font-black text-gray-800 mb-6 flex items-center gap-3 border-b pb-5">
                                     <div className="p-2.5 bg-teal-600 rounded-xl text-white shadow-lg"><FaUserTie /></div>

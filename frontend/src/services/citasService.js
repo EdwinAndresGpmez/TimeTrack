@@ -53,4 +53,9 @@ export const citasService = {
         const response = await api.patch(`${BASE_URL}/${id}/`, payload);
         return response.data;
     },
+
+    getReporteInasistencias: async () => {
+        const response = await api.get('/citas/reportes/inasistencias/');
+        return response.data;
+    }
 };

@@ -1,4 +1,4 @@
-import React, { useEffect, useContext, useState, useRef } from 'react';
+import React, { useEffect, useContext, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import { AuthContext } from '../../context/AuthContext';
@@ -6,78 +6,59 @@ import { patientService } from '../../services/patientService';
 import { authService } from '../../services/authService';
 
 const PatientOnboarding = () => {
-    // Asumimos que AuthContext exporta 'setUser' para actualizar el estado local
     const { user, setUser } = useContext(AuthContext); 
     const navigate = useNavigate();
     const hasChecked = useRef(false);
     
     useEffect(() => {
-        // Evitar ejecución si no hay usuario o ya se verificó en este montaje
         if (!user || hasChecked.current) return;
         
-        const verificarEstadoUsuario = async () => {
+        const verificarEstado = async () => {
             hasChecked.current = true;
 
-            // 1. Si es Staff (Médico/Admin), ignorar flujo de paciente.
-            if (user.profesional_id || user.is_staff) {
-                return;
-            }
+            // 1. Ignorar Staff
+            if (user.profesional_id || user.is_staff) return;
 
-            // 2. VERIFICACIÓN: ¿El token ya dice que es paciente?
+            // 2. Si ya es paciente, verificar redirección pendiente y salir
             if (user.paciente_id) {
-                verificarIntencionRedireccion();
+                checkPendingRedirect();
                 return;
             }
 
-            // 3. AUTO-REPARACIÓN (Self-Healing):
-            // Si el token dice "null" pero la BD dice "existe", corregimos aquí.
+            // 3. Si NO es paciente, intentamos buscarlo por documento (Self-Healing)
             try {
                 const syncResponse = await patientService.vincularExistente({
                     documento: user.documento,
                     user_id: user.user_id || user.id
                 });
 
+                // CASO A: El paciente EXISTÍA pero no estaba vinculado
                 if (syncResponse.status === 'found') {
-                    console.log("Paciente encontrado en BD. Sincronizando sesión...");
-
-                    // A. Vinculamos en Backend (por seguridad)
-                    await authService.updateUser(user.user_id || user.id, { 
-                        paciente_id: syncResponse.paciente_id 
-                    });
-
-                    // B. CORRECCIÓN DEL BUCLE (Estado Local):
-                    // Actualizamos el contexto de React manualmente para que la UI sepa 
-                    // que ya es paciente sin necesidad de recargar o reloguear ahora mismo.
+                    console.log("Perfil recuperado. Vinculando...");
+                    
+                    await authService.updateUser(user.user_id || user.id, { paciente_id: syncResponse.paciente_id });
+                    
                     if (setUser) {
-                        const updatedUser = { ...user, paciente_id: syncResponse.paciente_id };
-                        setUser(updatedUser);
-                        // Opcional: Actualizar localStorage si guardas el user ahí
-                        // localStorage.setItem('user', JSON.stringify(updatedUser)); 
+                        setUser({ ...user, paciente_id: syncResponse.paciente_id });
                     }
-
-                    // C. Dejamos pasar
-                    verificarIntencionRedireccion();
-                    return;
+                    checkPendingRedirect();
                 }
 
             } catch (error) {
-                // SOLO SI REALMENTE NO EXISTE (404), MOSTRAMOS EL FORMULARIO
+                // CASO B: El paciente NO EXISTE (404) -> Es NUEVO -> Preguntar
                 if (error.response && error.response.status === 404) {
-                    // Doble chequeo final
-                    if (!user.paciente_id) {
-                        iniciarFlujoDecision();
-                    }
+                    showRegistrationModal();
                 } else {
-                    console.error("Error verificando integridad:", error);
+                    console.error("Error de verificación:", error);
                 }
             }
         };
 
-        verificarEstadoUsuario();
+        verificarEstado();
         // eslint-disable-next-line
     }, [user]);
 
-    const verificarIntencionRedireccion = () => {
+    const checkPendingRedirect = () => {
         const intencion = localStorage.getItem('intencionCita');
         if (intencion === 'PARTICULAR') {
             localStorage.removeItem('intencionCita');
@@ -85,39 +66,48 @@ const PatientOnboarding = () => {
         }
     };
 
-    const iniciarFlujoDecision = async () => {
-        const intencion = localStorage.getItem('intencionCita');
-        if (intencion === 'PARTICULAR') {
-            await abrirFormularioParticular();
-            return;
-        }
+    const showRegistrationModal = async () => {
+        // --- CORRECCIÓN 1: SIEMPRE PREGUNTAR ---
+        // Eliminamos la validación de localStorage para forzar la pregunta siempre.
 
-        const { isConfirmed, isDenied } = await Swal.fire({
-            title: 'Configuración de Acceso',
-            html: `<p class="mb-4 text-gray-600">No tienes un perfil clínico activo.</p>
-                   <div class="text-sm bg-yellow-50 p-4 rounded text-left border border-yellow-200">
-                       <p class="font-bold text-yellow-800 mb-2">⚠ Requerido:</p>
-                       <p>Para gestionar citas, debes activar tu perfil de paciente.</p>
-                   </div>`,
-            icon: 'warning',
+        const { isConfirmed, isDenied, isDismissed } = await Swal.fire({
+            title: 'Bienvenido a TimeTrack',
+            html: `
+                <div class="text-left text-gray-600">
+                    <p class="mb-3">Para agendar citas médicas, necesitamos configurar tu perfil clínico.</p>
+                    <p class="text-sm font-bold text-blue-600">¿Cómo deseas registrarte?</p>
+                </div>
+            `,
+            icon: 'info',
+            
+            // --- CORRECCIÓN 2: BOTÓN DE CERRAR (X) ---
+            showCloseButton: true,  // Muestra la X en la esquina
+            allowOutsideClick: true, // Permite cerrar clicando fuera
+            allowEscapeKey: true,    // Permite cerrar con ESC
+            
             showCancelButton: true,
             showDenyButton: true,
-            confirmButtonText: 'Quiero Cita Particular',
-            denyButtonText: 'Soy Afiliado EPS/Seguro',
-            cancelButtonText: 'Salir',
-            allowOutsideClick: false,
-            allowEscapeKey: false
+            confirmButtonText: 'Particular (Paga Cita)',
+            confirmButtonColor: '#3b82f6', // Azul
+            denyButtonText: 'Afiliado (EPS/Seguro)',
+            denyButtonColor: '#10b981', // Verde
+            cancelButtonText: 'Más tarde', // Botón gris para salir
         });
 
-        if (isConfirmed) await abrirFormularioParticular();
-        else if (isDenied) await crearSolicitudValidacion();
-        else navigate('/'); // O logout si prefieres
+        if (isConfirmed) {
+            await abrirFormularioParticular();
+        } else if (isDenied) {
+            await crearSolicitudValidacion();
+        } else if (isDismissed) {
+             // El usuario cerró el modal. No hacemos nada, se queda en la página actual.
+             console.log("Registro pospuesto por el usuario.");
+        }
     };
 
     const abrirFormularioParticular = async () => {
         const { value: formValues } = await Swal.fire({
-             title: 'Registro Paciente Particular',
-             html: `
+            title: 'Registro Paciente Particular',
+            html: `
                 <p class="text-sm text-gray-500 mb-4">Completa tus datos para activar la cuenta.</p>
                 <input class="swal2-input m-0 mb-3 w-full bg-gray-100" value="${user.nombre}" readonly>
                 <div class="grid grid-cols-2 gap-3 mb-3">
@@ -135,6 +125,7 @@ const PatientOnboarding = () => {
                 </div>
                 <input id="sw-dir" class="swal2-input m-0 w-full" placeholder="Dirección *">
             `,
+            showCloseButton: true, // También agregamos X al formulario por si se arrepiente
             focusConfirm: false,
             allowOutsideClick: false,
             preConfirm: () => {
@@ -153,7 +144,6 @@ const PatientOnboarding = () => {
 
         if (formValues) {
             Swal.fire({ title: 'Creando perfil...', didOpen: () => Swal.showLoading() });
-
             try {
                 // 1. Crear Paciente
                 const nuevoPaciente = await patientService.create({
@@ -166,7 +156,7 @@ const PatientOnboarding = () => {
                     fecha_nacimiento: formValues.fecha,
                     genero: formValues.genero,
                     direccion: formValues.dir,
-                    tipo_usuario: 1, // Particular
+                    tipo_usuario: 1, // Asegúrate que ID 1 sea Particular en tu BD
                     activo: true
                 });
 
@@ -183,19 +173,13 @@ const PatientOnboarding = () => {
                     allowOutsideClick: false
                 });
 
-                // 3. LOGOUT FORZADO (Crítico para actualizar el Token JWT)
+                // 3. LOGOUT FORZADO
                 authService.logout();
                 window.location.href = '/login';
 
             } catch (error) {
                 console.error("Error creación:", error);
-                
-                // Si el error dice que ya existe, recargamos para que el useEffect lo arregle
-                if (error.response?.data?.numero_documento) {
-                     window.location.reload();
-                } else {
-                     Swal.fire('Error', 'No se pudo crear el perfil. Verifica los datos.', 'error');
-                }
+                Swal.fire('Error', 'No se pudo crear el perfil. Verifica los datos.', 'error');
             }
         }
     };
@@ -210,7 +194,7 @@ const PatientOnboarding = () => {
             });
             await Swal.fire('Solicitud Enviada', 'Te notificaremos vía email cuando validemos tu EPS.', 'success');
         } catch (error) {
-            Swal.fire('Aviso', 'Ya tienes una solicitud en proceso.', 'info');
+            Swal.fire('Aviso', 'Ya tienes una solicitud en proceso de revisión.', 'info');
         }
     };
 

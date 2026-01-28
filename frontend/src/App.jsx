@@ -44,19 +44,21 @@ function App() {
                  <Route path="/dashboard" element={<Dashboard />} />
                  <Route path="/dashboard/perfil" element={<Perfil />} />
                  
-                 {/* Módulos de Paciente / Agendamiento Personal */}
+                 {/* --- MÓDULOS DE PACIENTE --- */}
+                 {/* AHORA SÍ TIENEN CANDADO: Solo entra quien tenga el permiso 'acceso_mis_citas' */}
                  <Route path="/dashboard/citas" element={
-                    <ProtectedRoute requiredPermission="modulo_agendamiento">
+                    <ProtectedRoute requiredPermission="acceso_mis_citas">
                         <MisCitas />
                     </ProtectedRoute>
                  } />
+                 
                  <Route path="/dashboard/citas/nueva" element={
-                    <ProtectedRoute requiredPermission="modulo_agendamiento">
+                    <ProtectedRoute requiredPermission="acceso_mis_citas">
                         <NuevaCita />
                     </ProtectedRoute>
                  } />
 
-                 {/* --- ZONA ADMINISTRATIVA DINÁMICA (Por Etiquetas/Nombres) --- */}
+                 {/* --- ZONA ADMINISTRATIVA --- */}
                  
                  <Route path="/dashboard/admin/configuracion" element={
                     <ProtectedRoute requiredPermission="config_sistema">
@@ -70,7 +72,6 @@ function App() {
                     </ProtectedRoute>
                  } />
 
-                 {/* Esta es la ruta que estabas probando: agendar-admin */}
                  <Route path="/dashboard/agendar-admin" element={
                     <ProtectedRoute requiredPermission="agendar_admin">
                         <AgendarCitaAdmin />

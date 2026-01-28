@@ -3,7 +3,7 @@ import { Navigate, Outlet } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
 import Swal from 'sweetalert2';
 
-const ProtectedRoute = ({ children, requiredPermission }) => {
+const ProtectedRoute = ({ children, requiredPermission, requiredRole }) => {
     const { user, loading, permissions } = useContext(AuthContext);
 
     if (loading) return (
@@ -13,13 +13,34 @@ const ProtectedRoute = ({ children, requiredPermission }) => {
         </div>
     );
 
+    // 1. Validar Login
     if (!user) return <Navigate to="/login" replace />;
 
-    // Superusuario siempre tiene acceso
+    // 2. Superusuario y Staff siempre tienen acceso (Puerta trasera administrativa)
     if (user.is_superuser || user.is_staff) return children ? children : <Outlet />;
 
+    // 3. Validación por ROL (Nuevo: Más fácil para reglas generales)
+    // Ejemplo: requiredRole="Paciente"
+    if (requiredRole) {
+        // Normalizamos a minúsculas para evitar errores de tipeo (backend suele enviar nombres exactos)
+        const rolesUsuario = (permissions?.roles || []).map(r => r.toLowerCase());
+        const tieneRol = rolesUsuario.includes(requiredRole.toLowerCase());
+
+        if (!tieneRol) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Se requiere otro perfil',
+                text: `Esta sección es exclusiva para usuarios con perfil: ${requiredRole}`,
+                timer: 2500,
+                showConfirmButton: false
+            });
+            return <Navigate to="/dashboard" replace />;
+        }
+    }
+
+    // 4. Validación por PERMISO (Granular: Para reglas específicas)
+    // Ejemplo: requiredPermission="modulo_agendamiento"
     if (requiredPermission) {
-        // Obtenemos los codenames de los permisos cargados en el AuthContext
         const listaPermisos = permissions?.codenames || [];
         const tieneAcceso = listaPermisos.includes(requiredPermission);
 
@@ -27,7 +48,7 @@ const ProtectedRoute = ({ children, requiredPermission }) => {
             Swal.fire({
                 icon: 'error',
                 title: 'Acceso Denegado',
-                text: 'No tienes los permisos asignados para esta sección.',
+                text: 'No tienes los permisos asignados para esta operación.',
                 timer: 2000,
                 showConfirmButton: false
             });
@@ -35,6 +56,7 @@ const ProtectedRoute = ({ children, requiredPermission }) => {
         }
     }
 
+    // Si pasó todas las validaciones (o no se requirió ninguna específica), adelante.
     return children ? children : <Outlet />;
 };
 

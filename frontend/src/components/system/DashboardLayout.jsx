@@ -1,8 +1,9 @@
 import React, { useState, useContext } from 'react';
 import { Outlet } from 'react-router-dom'; 
-import { AuthContext } from '../../context/AuthContext'; // Verifica que esta ruta sea correcta para tu proyecto
-import Sidebar from './Sidebar'; // Importa el Sidebar que está AL LADO
+import { AuthContext } from '../../context/AuthContext'; 
+import Sidebar from './Sidebar'; 
 import { FaBars } from 'react-icons/fa';
+import DataUpdateEnforcer from './DataUpdateEnforcer'; 
 
 const DashboardLayout = () => {
     const { logout, user } = useContext(AuthContext);
@@ -10,6 +11,11 @@ const DashboardLayout = () => {
 
     return (
         <div className="min-h-screen bg-gray-50 flex">
+            
+            {/* 2. AGREGAR COMPONENTE VIGILANTE AQUÍ */}
+            {/* Se ejecutará apenas cargue el Layout, protegiendo todas las vistas */}
+            <DataUpdateEnforcer />
+
             <Sidebar isOpen={isSidebarOpen} logout={logout} />
 
             <div className={`flex-1 transition-all duration-300 ${isSidebarOpen ? 'md:ml-64' : 'md:ml-20'}`}>

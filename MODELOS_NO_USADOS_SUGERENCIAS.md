@@ -18,7 +18,8 @@ Este documento identifica los modelos de cada microservicio y su uso real en bac
 - TipoPaciente: Usado en backend y frontend (listado, selección en formularios).
 - Paciente: Usado en backend y frontend (gestión de pacientes).
 - SolicitudValidacion: Usado en backend (admin, API, serializers, views) y en frontend (servicio patientService.js: crearSolicitudValidacion, getSolicitudesPendientes). 
-  - **Sugerencia:** Mejorar el flujo de validación en el frontend, permitiendo a los administradores aprobar/rechazar solicitudes y notificar al usuario.
+  - **Sugerencia:** Mejorar el flujo de validación en el frontend, permitiendo a los administradores aprobar/rechazar solicitudes y notificar al usuario
+  - **Avances:** Se realiza modulo de administración de pacientes pediente ajustar diseño de modal y diseño de tabla.
 
 ---
 
