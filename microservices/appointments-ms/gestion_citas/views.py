@@ -2,6 +2,7 @@ import requests
 import logging
 from django.utils import timezone
 from datetime import datetime, timedelta
+from django.db import transaction 
 from rest_framework import viewsets, permissions, status, filters
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
@@ -91,94 +92,185 @@ class CitaViewSet(viewsets.ModelViewSet):
             }
         return Response(resultado)
 
-    # --- AGENDAR CITA (CREATE) ---
+    # --- AGENDAR CITA (CREATE - CON PROTECCIÓN ATÓMICA) ---
     def create(self, request, *args, **kwargs):
-        data = request.data
+        # Copia mutable para poder inyectar datos calculados (hora_fin)
+        data = request.data.copy()
+        
         paciente_id = data.get('paciente_id')
         fecha_solicitada = data.get('fecha')
         servicio_id = data.get('servicio_id')
+        hora_inicio_str = data.get('hora_inicio')
 
         config, _ = ConfiguracionGlobal.objects.get_or_create(pk=1)
 
         print(f"\n🚀 --- INICIO VALIDACIÓN AGENDAMIENTO ---")
-        print(f"🧐 Paciente ID: {paciente_id} | Límite Configurado: {config.limite_inasistencias}")
+        
+        # =====================================================================
+        # 🔒 INICIO DE TRANSACCIÓN ATÓMICA
+        # Todo lo que ocurra aquí dentro es "Todo o Nada".
+        # Evita que dos usuarios agenden el mismo hueco al mismo tiempo.
+        # =====================================================================
+        try:
+            with transaction.atomic():
 
-        if config.limite_inasistencias > 0:
-            fecha_corte = None
-            try:
-                # URL interna hacia Pacientes (Asegúrate que coincida con tu red Docker)
-                url = f"http://patients-ms:8001/api/v1/pacientes/listado/{paciente_id}/" 
-                print(f"📡 1. Consultando URL interna: {url}")
-                
-                resp = requests.get(url, timeout=3)
-                print(f"📡 2. Respuesta Status Code: {resp.status_code}") 
-                
-                if resp.status_code == 200:
-                    paciente_data = resp.json()
-                    fecha_str = paciente_data.get('ultima_fecha_desbloqueo')
-                    print(f"📅 3. Fecha 'ultima_fecha_desbloqueo' recibida: {fecha_str}")
+                # ---------------------------------------------------------------------
+                # 1. VALIDACIÓN DE BLOQUEO POR INASISTENCIAS
+                # ---------------------------------------------------------------------
+                if config.limite_inasistencias > 0:
+                    fecha_corte = None
+                    try:
+                        # Consultamos fecha de desbloqueo al MS de Pacientes
+                        url = f"http://patients-ms:8001/api/v1/pacientes/listado/{paciente_id}/" 
+                        resp = requests.get(url, timeout=2) # Timeout corto para no bloquear la transacción
+                        
+                        if resp.status_code == 200:
+                            p_data = resp.json()
+                            f_str = p_data.get('ultima_fecha_desbloqueo')
+                            if f_str:
+                                if f_str.endswith('Z'): f_str = f_str.replace('Z', '+00:00')
+                                fecha_corte = datetime.fromisoformat(f_str)
+                    except Exception as e:
+                        logger.error(f"Error consultando pacientes: {e}")
+
+                    # Contamos faltas
+                    query_inasistencias = Cita.objects.filter(paciente_id=paciente_id, estado='NO_ASISTIO')
                     
-                    if fecha_str:
-                        # Limpieza de formato ISO por si acaso
-                        if fecha_str.endswith('Z'):
-                            fecha_str = fecha_str.replace('Z', '+00:00')
-                        fecha_corte = datetime.fromisoformat(fecha_str)
-                        print(f"✅ 4. Fecha Corte Parseada Correctamente: {fecha_corte}")
-                    else:
-                        print("⚠️ El paciente existe pero NO tiene fecha de desbloqueo (es None)")
-                else:
-                    print(f"❌ ERROR: No se pudo obtener paciente. Body: {resp.text}")
+                    if fecha_corte:
+                        # TRUCO: Filtro estricto (Mayor que). Perdonamos el día exacto del desbloqueo.
+                        fecha_filtro = fecha_corte.date() 
+                        query_inasistencias = query_inasistencias.filter(fecha__gt=fecha_filtro)
 
-            except Exception as e:
-                print(f"🔥 EXCEPCIÓN CRÍTICA CONECTANDO A PACIENTES: {e}")
+                    if query_inasistencias.count() >= config.limite_inasistencias:
+                        return Response(
+                            {"detalle": config.mensaje_bloqueo_inasistencia}, 
+                            status=status.HTTP_403_FORBIDDEN
+                        )
 
-            # Consulta de Inasistencias
-            query_inasistencias = Cita.objects.filter(
-                paciente_id=paciente_id,
-                estado='NO_ASISTIO'
-            )
-            
-            total_historico = query_inasistencias.count()
-            print(f"📊 5. Inasistencias Totales Históricas: {total_historico}")
+                # ---------------------------------------------------------------------
+                # 1.5. VALIDACIÓN DE ANTELACIÓN MÍNIMA (LEAD TIME) - ¡NUEVO! ⏳
+                # ---------------------------------------------------------------------
+                try:
+                    # Construimos el objeto datetime completo de la cita solicitada
+                    fmt = '%H:%M:%S' if len(hora_inicio_str) > 5 else '%H:%M'
+                    hora_parseada = datetime.strptime(hora_inicio_str, fmt).time()
+                    fecha_parseada = datetime.strptime(fecha_solicitada, '%Y-%m-%d').date()
+                    
+                    cita_dt = datetime.combine(fecha_parseada, hora_parseada)
+                    if timezone.is_naive(cita_dt):
+                        cita_dt = timezone.make_aware(cita_dt)
+                        
+                    ahora = timezone.now()
+                    
+                    # REGLA: Mínimo 1 hora de antelación
+                    margen_antelacion = timedelta(hours=1) 
+                    
+                    if cita_dt < (ahora + margen_antelacion):
+                        return Response(
+                            {"detalle": "Las citas deben agendarse con al menos 1 hora de antelación."},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+                except ValueError:
+                    return Response({"detalle": "Formato de fecha/hora inválido."}, status=status.HTTP_400_BAD_REQUEST)
 
-            if fecha_corte:
-                # TRUCO: Le sumamos 1 día a la fecha de corte para que el conteo empiece desde mañana.
-                # Así, cualquier "No Asistió" de hoy (o antes) queda perdonado automáticamente.
-                fecha_filtro = fecha_corte.date() # + timedelta(days=1) si quieres ser muy permisivo
+                # ---------------------------------------------------------------------
+                # 2. VALIDACIÓN DE OVERBOOKING (CRUCE DE HORARIOS) 🛡️
+                # ---------------------------------------------------------------------
+                # A. Obtener Duración del Servicio
+                duracion = 20 # Default
+                try:
+                    if servicio_id:
+                        url_srv = f"{SERVICES_MS_URL}?ids={servicio_id}"
+                        resp_srv = requests.get(url_srv, timeout=2)
+                        if resp_srv.status_code == 200:
+                            d_srv = resp_srv.json()
+                            if str(servicio_id) in d_srv:
+                                duracion = d_srv[str(servicio_id)].get('duracion', 20)
+                except: pass
+
+                # B. Calcular Hora Fin
+                try:
+                    # Reusamos lógica de tiempo calculada o parseamos de nuevo si es necesario
+                    # Aquí parseamos de nuevo para asegurar el cálculo de hora_fin
+                    fmt = '%H:%M:%S' if len(hora_inicio_str) > 5 else '%H:%M'
+                    h_ini_dt = datetime.strptime(hora_inicio_str, fmt)
+                    h_fin_dt = h_ini_dt + timedelta(minutes=duracion)
+                    
+                    hora_ini_time = h_ini_dt.time()
+                    hora_fin_time = h_fin_dt.time()
+                    
+                    # Inyectamos hora_fin calculada para guardarla
+                    data['hora_fin'] = h_fin_dt.strftime('%H:%M:%S')
+                except ValueError:
+                    return Response({"detalle": "Formato de hora inválido"}, status=status.HTTP_400_BAD_REQUEST)
+
+                # C. Verificar Cruce del MÉDICO (Con bloqueo de filas para concurrencia)
+                # select_for_update() bloquea las filas encontradas hasta que termine la transacción.
+                # Si no encuentra filas (agenda vacía), el atomic() protege la inserción concurrente.
                 
-                # Usamos __gt (Mayor que).
-                # Si corte es 28/01. Buscamos citas > 28/01. Osea del 29 en adelante.
-                query_inasistencias = query_inasistencias.filter(fecha__gt=fecha_filtro)
-                print(f"🧹 6. Aplicando filtro ESTRICTO: Contar solo citas > {fecha_filtro}")
+                cruce_medico = Cita.objects.select_for_update().filter(
+                    profesional_id=data.get('profesional_id'),
+                    fecha=fecha_solicitada,
+                    estado__in=['PENDIENTE', 'ACEPTADA', 'EN_SALA']
+                ).filter(
+                    # Lógica de solapamiento: (StartA < EndB) and (EndA > StartB)
+                    hora_inicio__lt=hora_fin_time,
+                    hora_fin__gt=hora_ini_time
+                ).exists()
 
-            conteo_inasistencias = query_inasistencias.count()
-            print(f"🏁 7. CONTEO FINAL PARA VALIDACIÓN: {conteo_inasistencias}")
+                if cruce_medico:
+                    # Lanzamos respuesta directa (el return hace rollback implícito al salir del atomic)
+                    return Response(
+                        {"detalle": "El horario seleccionado ya no está disponible (Cruce con otra cita)."},
+                        status=status.HTTP_409_CONFLICT
+                    )
 
-            if conteo_inasistencias >= config.limite_inasistencias:
-                print("⛔ RESULTADO: BLOQUEADO (403 Forbidden)")
-                return Response(
-                    {"detalle": config.mensaje_bloqueo_inasistencia or "Usuario bloqueado por inasistencias."},
-                    status=status.HTTP_403_FORBIDDEN
-                )
-            else:
-                print("🟢 RESULTADO: PERMITIDO")
+                # D. Verificar Cruce del PACIENTE (Bilocación)
+                cruce_paciente = Cita.objects.filter(
+                    paciente_id=paciente_id,
+                    fecha=fecha_solicitada,
+                    estado__in=['PENDIENTE', 'ACEPTADA', 'EN_SALA']
+                ).filter(
+                    hora_inicio__lt=hora_fin_time,
+                    hora_fin__gt=hora_ini_time
+                ).exists()
 
-        # 2. Validación de Máximo de Citas Diarias
-        citas_existentes_dia = Cita.objects.filter(
-            paciente_id=paciente_id,
-            fecha=fecha_solicitada
-        ).exclude(estado__in=['CANCELADA', 'NO_ASISTIO', 'RECHAZADA'])
+                if cruce_paciente:
+                    return Response(
+                        {"detalle": "El paciente ya tiene otra cita médica agendada en este horario."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
 
-        cantidad_citas_hoy = citas_existentes_dia.count()
+                # ---------------------------------------------------------------------
+                # 3. LÍMITES DIARIOS
+                # ---------------------------------------------------------------------
+                citas_dia = Cita.objects.filter(
+                    paciente_id=paciente_id, fecha=fecha_solicitada
+                ).exclude(estado__in=['CANCELADA', 'NO_ASISTIO', 'RECHAZADA'])
 
-        if cantidad_citas_hoy >= config.max_citas_dia_paciente:
-             return Response({"detalle": f"Límite diario alcanzado ({config.max_citas_dia_paciente})."}, status=status.HTTP_400_BAD_REQUEST)
+                if citas_dia.count() >= config.max_citas_dia_paciente:
+                    return Response({"detalle": "Límite diario de citas alcanzado."}, status=status.HTTP_400_BAD_REQUEST)
 
-        if not config.permitir_mismo_servicio_dia:
-            if citas_existentes_dia.filter(servicio_id=servicio_id).exists():
-                return Response({"detalle": "Ya tienes cita para este servicio hoy."}, status=status.HTTP_400_BAD_REQUEST)
+                if not config.permitir_mismo_servicio_dia:
+                    if citas_dia.filter(servicio_id=servicio_id).exists():
+                        return Response({"detalle": "Ya tiene una cita para este servicio hoy."}, status=status.HTTP_400_BAD_REQUEST)
 
-        return super().create(request, *args, **kwargs)
+                # ---------------------------------------------------------------------
+                # 4. GUARDADO FINAL
+                # ---------------------------------------------------------------------
+                serializer = self.get_serializer(data=data)
+                serializer.is_valid(raise_exception=True)
+                self.perform_create(serializer)
+                headers = self.get_success_headers(serializer.data)
+                
+                print("🟢 CITA CREADA EXITOSAMENTE")
+                return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
+        except Exception as e:
+            # Captura errores inesperados para no romper el servidor con 500 feos
+            logger.error(f"Error en transacción de cita: {e}")
+            # Si el error vino de una Response interna, Django DRF lo manejará, pero si es python puro:
+            return Response({"error": "Error procesando la solicitud."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     # --- CANCELAR/MODIFICAR CITA ---
     def update(self, request, *args, **kwargs):

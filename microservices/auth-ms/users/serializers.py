@@ -16,16 +16,20 @@ class UserSerializer(serializers.ModelSerializer):
         ]
         extra_kwargs = {
             'password': {'write_only': True},
-            # Es vital que estos sean opcionales para evitar errores de validación
             'paciente_id': {'required': False, 'allow_null': True},
             'profesional_id': {'required': False, 'allow_null': True},
         }
+
+    def validate_acepto_tratamiento_datos(self, value):
+        if value is not True:
+            raise serializers.ValidationError("Es obligatorio aceptar la política de tratamiento de datos para registrarse.")
+        return value
 
     def create(self, validated_data):
         password = validated_data.pop('password', None)
         instance = self.Meta.model(**validated_data)
         if password:
-            instance.set_password(password) # Encriptamos la contraseña
+            instance.set_password(password) 
         instance.save()
         return instance
 
@@ -37,8 +41,6 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod
     def get_token(cls, user):
         token = super().get_token(user)
-
-        # Claims actualizados
         token['documento'] = user.documento  
         token['nombre'] = user.nombre
         token['email'] = user.correo
@@ -62,7 +64,6 @@ class PermisoVistaSerializer(serializers.ModelSerializer):
 
 
 class UserAdminSerializer(serializers.ModelSerializer):
-    # Serializamos los grupos para verlos y editarlos
     groups = serializers.SlugRelatedField(
         many=True, 
         queryset=Group.objects.all(), 
@@ -72,4 +73,4 @@ class UserAdminSerializer(serializers.ModelSerializer):
     class Meta:
         model = CrearCuenta
         fields = ['id', 'email', 'nombre', 'documento', 'is_active', 'is_staff', 'groups', 'paciente_id']
-        read_only_fields = ['paciente_id'] # El admin gestiona usuarios, la vinculación es automática
+        read_only_fields = ['paciente_id'] 
