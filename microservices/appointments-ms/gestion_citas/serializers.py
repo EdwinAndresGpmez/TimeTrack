@@ -9,10 +9,7 @@ class NotaMedicaSerializer(serializers.ModelSerializer):
 class CitaSerializer(serializers.ModelSerializer):
     nota_medica = NotaMedicaSerializer(read_only=True, required=False)
     
-    # --- AJUSTE CLAVE ---
-    # Usamos SerializerMethodField para crear estos campos en el JSON de respuesta.
-    # Inicialmente devuelven None, pero el ViewSet 'inyectará' los datos reales
-    # traídos de los otros microservicios (Patients-MS y Professionals-MS).
+    # Campos calculados (se llenan en el ViewSet via _enrich_data)
     paciente_nombre = serializers.SerializerMethodField()
     paciente_doc = serializers.SerializerMethodField()
     profesional_nombre = serializers.SerializerMethodField()
@@ -23,20 +20,11 @@ class CitaSerializer(serializers.ModelSerializer):
         model = Cita
         fields = '__all__'
 
-    def get_paciente_nombre(self, obj):
-        return getattr(obj, 'paciente_nombre', None)
-
-    def get_paciente_doc(self, obj):
-        return getattr(obj, 'paciente_doc', None)
-
-    def get_profesional_nombre(self, obj):
-        return getattr(obj, 'profesional_nombre', None)
-
-    def get_servicio_nombre(self, obj):
-        return getattr(obj, 'servicio_nombre', None)
-
-    def get_lugar_nombre(self, obj):
-        return getattr(obj, 'lugar_nombre', None)
+    def get_paciente_nombre(self, obj): return getattr(obj, 'paciente_nombre', None)
+    def get_paciente_doc(self, obj): return getattr(obj, 'paciente_doc', None)
+    def get_profesional_nombre(self, obj): return getattr(obj, 'profesional_nombre', None)
+    def get_servicio_nombre(self, obj): return getattr(obj, 'servicio_nombre', None)
+    def get_lugar_nombre(self, obj): return getattr(obj, 'lugar_nombre', None)
 
 class HistoricoCitaSerializer(serializers.ModelSerializer):
     class Meta:

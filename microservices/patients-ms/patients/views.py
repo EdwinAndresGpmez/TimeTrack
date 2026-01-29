@@ -19,6 +19,8 @@ class PacienteViewSet(viewsets.ModelViewSet):
     filter_backends = [filters.SearchFilter]
     search_fields = ['numero_documento', 'nombre', 'apellido']
 
+    permission_classes = [permissions.AllowAny]
+
     def get_queryset(self):
         # 1. Iniciamos con el queryset base
         queryset = Paciente.objects.all()

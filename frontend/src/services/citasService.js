@@ -25,6 +25,11 @@ export const citasService = {
         return response.data;
     },
 
+    getReporteInasistencias: async () => {
+        const response = await api.get('/citas/reportes/inasistencias/');
+        return response.data;
+    },
+
     cancel: async (id) => {
         const response = await api.patch(`${BASE_URL}/${id}/`, { estado: 'CANCELADA' });
         return response.data;
@@ -52,10 +57,7 @@ export const citasService = {
         
         const response = await api.patch(`${BASE_URL}/${id}/`, payload);
         return response.data;
-    },
-
-    getReporteInasistencias: async () => {
-        const response = await api.get('/citas/reportes/inasistencias/');
-        return response.data;
     }
+
+    
 };

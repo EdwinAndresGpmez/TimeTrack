@@ -46,29 +46,43 @@ const GestionPacientes = () => {
     const cargarDatos = async () => {
         setLoading(true);
         try {
-            // Hacemos peticiones en paralelo a los 2 microservicios
             const [listaPacientes, tipos, reporteFaltas] = await Promise.all([
                 patientService.getAll(),
                 patientService.getTiposPaciente(),
-                citasService.getReporteInasistencias() // Traemos reporte de bloqueos
+                citasService.getReporteInasistencias()
             ]);
 
             const pacientesRaw = Array.isArray(listaPacientes) ? listaPacientes : [];
             const tiposRaw = Array.isArray(tipos) ? tipos : [];
 
-            // Cruzamos la información: Pacientes + Inasistencias
             const pacientesEnriquecidos = pacientesRaw.map(p => {
-                // Buscamos si este paciente tiene reporte de faltas (usando ID como clave)
                 const estadoFaltas = reporteFaltas && reporteFaltas[p.id.toString()];
                 
                 if (estadoFaltas) {
+                    let inasistenciasReales = estadoFaltas.inasistencias; // Valor original (Histórico)
+                    let estaBloqueado = estadoFaltas.bloqueado_por_inasistencias;
+                    
+                    // --- LÓGICA DE COMPARACIÓN DE FECHAS ---
+                    if (p.ultima_fecha_desbloqueo && estadoFaltas.ultima_falta) {
+                        const fechaReset = new Date(p.ultima_fecha_desbloqueo);
+                        const fechaUltimaFalta = new Date(estadoFaltas.ultima_falta);
+                        
+                        // CORRECCIÓN: Usamos fechaUltimaFalta <= fechaReset para ser consistentes con el backend
+                        // Si la última falta fue antes o el mismo momento del reset, ya no cuenta.
+                        if (fechaUltimaFalta <= fechaReset) {
+                            estaBloqueado = false;
+                            inasistenciasReales = 0; // <--- TRUCO VISUAL: Mostramos 0 al usuario
+                        }
+                    }
+
                     return {
                         ...p,
-                        inasistencias: estadoFaltas.inasistencias,
-                        bloqueado_por_inasistencias: estadoFaltas.bloqueado_por_inasistencias
+                        inasistencias: inasistenciasReales, // Ahora mostramos 0 si está desbloqueado
+                        inasistencias_historicas: estadoFaltas.inasistencias, // Guardamos el dato real por si acaso
+                        bloqueado_por_inasistencias: estaBloqueado
                     };
                 }
-                // Si no aparece en el reporte, está limpio
+                
                 return { ...p, inasistencias: 0, bloqueado_por_inasistencias: false };
             });
 
@@ -78,8 +92,6 @@ const GestionPacientes = () => {
         } catch (error) {
             console.error(error);
             Swal.fire('Aviso', 'Error de conexión. Se cargarán datos parciales.', 'warning');
-            
-            // Fallback: Si falla el reporte de citas, cargamos solo pacientes básicos
             try {
                 const p = await patientService.getAll();
                 setPacientes(Array.isArray(p) ? p : []);
@@ -90,7 +102,6 @@ const GestionPacientes = () => {
             setLoading(false);
         }
     };
-
     const isAdmin = () => {
         if (user && (user.is_superuser || user.is_staff)) return true;
         const rn = roles.map(r => (r || '').toString().toLowerCase());

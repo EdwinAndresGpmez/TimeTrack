@@ -16,14 +16,18 @@ class PacienteAdmin(admin.ModelAdmin):
         'user_id',
         'tipo_usuario', 
         'telefono', 
+        'ultima_fecha_desbloqueo', # <--- NUEVO: Para verificar el desbloqueo
         'activo'
     )
     
-    # Filtros laterales potentes
+    # Filtros laterales
     list_filter = ('tipo_usuario', 'tipo_documento', 'genero', 'activo')
     
     # Barra de búsqueda
     search_fields = ('nombre', 'apellido', 'numero_documento')
+    
+    # Campos de solo lectura (fechas de sistema)
+    readonly_fields = ('created_at', 'updated_at')
     
     # Paginación
     list_per_page = 25
@@ -33,7 +37,6 @@ class PacienteAdmin(admin.ModelAdmin):
         return f"{obj.nombre} {obj.apellido}"
     nombre_completo.short_description = 'Paciente'
 
-# --- NUEVO: ADMIN PARA SOLICITUDES DE VALIDACIÓN ---
 @admin.register(SolicitudValidacion)
 class SolicitudValidacionAdmin(admin.ModelAdmin):
     list_display = (
@@ -45,11 +48,6 @@ class SolicitudValidacionAdmin(admin.ModelAdmin):
         'user_id'
     )
     
-    # Filtros para ver rápidamente qué falta por procesar
     list_filter = ('procesado', 'fecha_solicitud')
-    
-    # Búsqueda por documento o correo
     search_fields = ('nombre', 'user_doc', 'email')
-    
-    # Ordenar por fecha descendente (lo más nuevo arriba)
     ordering = ('-fecha_solicitud',)

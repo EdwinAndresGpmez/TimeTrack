@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Cita, NotaMedica, HistoricoCita
+from .models import Cita, NotaMedica, HistoricoCita, ConfiguracionGlobal
 
 class NotaMedicaInline(admin.StackedInline):
     model = NotaMedica
@@ -12,8 +12,8 @@ class CitaAdmin(admin.ModelAdmin):
         'estado', 'paciente_id', 'profesional_id', 'activo'
     )
     list_filter = ('estado', 'fecha', 'activo')
-    search_fields = ('id',) # Búsqueda por ID de cita
-    inlines = [NotaMedicaInline] # Permite ver/editar la nota médica dentro de la cita
+    search_fields = ('id', 'paciente_id') # Búsqueda por ID de cita o paciente
+    inlines = [NotaMedicaInline]
 
 @admin.register(HistoricoCita)
 class HistoricoCitaAdmin(admin.ModelAdmin):
@@ -23,4 +23,12 @@ class HistoricoCitaAdmin(admin.ModelAdmin):
         'estado', 'fecha_registro'
     )
     list_filter = ('estado', 'fecha_cita')
-    readonly_fields = [field.name for field in HistoricoCita._meta.fields] # Solo lectura para seguridad
+    readonly_fields = [field.name for field in HistoricoCita._meta.fields]
+
+# --- NUEVO: Configuración Global en Admin ---
+@admin.register(ConfiguracionGlobal)
+class ConfiguracionGlobalAdmin(admin.ModelAdmin):
+    list_display = ('id', 'limite_inasistencias', 'max_citas_dia_paciente')
+    # Limitamos permisos para que no creen configuraciones extra (es un Singleton)
+    def has_add_permission(self, request):
+        return False if self.model.objects.exists() else True
