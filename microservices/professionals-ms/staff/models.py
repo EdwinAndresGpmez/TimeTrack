@@ -42,7 +42,10 @@ class Lugar(models.Model):
         if self.profesionales.exists():
             raise ValidationError(
                 {
-                    "detail": f"No se puede borrar la sede '{self.nombre}' porque tiene profesionales asignados. Desactívela."
+                    "detail": (
+                        f"No se puede borrar la sede '{self.nombre}' porque tiene "
+                        "profesionales asignados. Desactívela."
+                    )
                 }
             )
         super().delete(*args, **kwargs)

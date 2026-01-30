@@ -320,7 +320,8 @@ class CitaViewSet(viewsets.ModelViewSet):
             if fecha_cita > ahora:
                 return Response(
                     {
-                        "detalle": "Error lógico: No puedes marcar 'No Asistió' en una cita futura. Usa 'Cancelar' si corresponde."
+                        "detalle": "Error lógico: No puedes marcar 'No Asistió' en una cita futura. "
+                        "Usa 'Cancelar' si corresponde."
                     },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
