@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { staffService } from '../../services/staffService';
 import { citasService } from '../../services/citasService';
@@ -91,14 +91,8 @@ const NuevaCita = ({ adminSelectedPatientId = null }) => {
         init();
     }, [adminSelectedPatientId, user.user_id]);
 
-    // 2. CARGAR SLOTS
-    useEffect(() => {
-        if (selection.profesional && selection.sede && selection.fecha) {
-            fetchSlots();
-        }
-    }, [selection.fecha, selection.profesional, selection.sede]);
-
-    const fetchSlots = async () => {
+    // 2. DEFINIR FETCH SLOTS (Antes del useEffect)
+    const fetchSlots = useCallback(async () => {
         setLoadingSlots(true);
         setSlots([]);
         try {
@@ -134,9 +128,19 @@ const NuevaCita = ({ adminSelectedPatientId = null }) => {
             });
 
             setSlots(slotsLimpios);
-        } catch (e) { console.error(e); }
-        finally { setLoadingSlots(false); }
-    };
+        } catch (e) { 
+            console.error(e); 
+        } finally { 
+            setLoadingSlots(false); 
+        }
+    }, [selection.profesional, selection.fecha, selection.servicio]);
+
+    // 3. EFFECT (Ahora incluye fetchSlots)
+    useEffect(() => {
+        if (selection.profesional && selection.sede && selection.fecha) {
+            fetchSlots();
+        }
+    }, [selection.fecha, selection.profesional, selection.sede, fetchSlots]);
 
     // --- ASISTENTE MÁGICO ---
     const abrirAsistente = () => {
@@ -207,6 +211,7 @@ const NuevaCita = ({ adminSelectedPatientId = null }) => {
             else setSuggestions(prev => [...prev, ...nuevosResultados]);
 
         } catch (e) {
+            console.error(e);
             Swal.fire('Error', 'No pudimos cargar sugerencias.', 'error');
         } finally {
             setAssistantLoading(false);

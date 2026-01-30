@@ -158,6 +158,7 @@ const AdminProfesionales = () => {
             const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
             Toast.fire({ icon: 'success', title: `Profesional ${texto}` });
         } catch (error) {
+            console.error(error);
             Swal.fire('Error', 'No se pudo cambiar el estado.', 'error');
             cargarDatos();
         }

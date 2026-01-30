@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { patientService } from '../../services/patientService';
 import Swal from 'sweetalert2';
 import { FaUserPlus, FaUsers } from 'react-icons/fa';
@@ -8,30 +8,31 @@ const ValidarUsuarios = () => {
     const [solicitudes, setSolicitudes] = useState([]);
     const [tiposPaciente, setTiposPaciente] = useState([]);
 
-    useEffect(() => {
-        cargarDatos();
-    }, []);
-
-    const cargarDatos = async () => {
+    // 1. DEFINIR LA FUNCIÓN PRIMERO (Antes del useEffect)
+    // Usamos useCallback para que la referencia de la función no cambie en cada render
+    const cargarDatos = useCallback(async () => {
         try {
-            // 1. Cargas las solicitudes
+            // A. Cargas las solicitudes
             const dataSolicitudes = await patientService.getSolicitudesPendientes();
             setSolicitudes(dataSolicitudes);
 
-            // 2. Cargas los tipos de paciente (EPS, Convenios, etc.) dinámicamente
-            // Esto evita tener opciones "quemadas" en el código
+            // B. Cargas los tipos de paciente dinámicamente
             const dataTipos = await patientService.getTiposPaciente();
             setTiposPaciente(dataTipos);
         } catch (error) {
             console.error("Error cargando datos admin:", error);
         }
-    };
+    }, []); // No tiene dependencias externas que cambien
+
+    // 2. EJECUTAR EL EFFECT DESPUÉS
+    useEffect(() => {
+        cargarDatos();
+    }, [cargarDatos]); // ✅ Ahora es seguro añadirla como dependencia
 
     const handleCrearPaciente = async (solicitud) => {
         // Generamos las opciones del Select dinámicamente basado en la BD
-        // Excluimos 'Particular' (ID 1) si quieres, o lo dejas. Normalmente el admin asigna EPS.
         const opcionesHtml = tiposPaciente
-            .filter(t => t.activo) // Solo activos
+            .filter(t => t.activo)
             .map(t => `<option value="${t.id}">${t.nombre}</option>`)
             .join('');
 
@@ -61,34 +62,34 @@ const ValidarUsuarios = () => {
 
         if (formValues) {
             try {
-                // 1. Crear el paciente (Ahora sí con el tipo validado por Admin)
+                // 1. Crear el paciente
                 await patientService.create({
                     user_id: solicitud.user_id,
                     nombre: solicitud.nombre,
                     numero_documento: formValues.doc,
                     email_contacto: solicitud.email,
-                    tipo_usuario: formValues.tipo, // ID seleccionado de la BD
+                    tipo_usuario: formValues.tipo,
                     
                     // Defaults obligatorios
                     tipo_documento: 'CC', 
-                    fecha_nacimiento: '2000-01-01', // Se pedirá actualizar en perfil
+                    fecha_nacimiento: '2000-01-01',
                     genero: 'O',
                     direccion: 'Validado por Admin',
                     activo: true
                 });
 
-                // 2. Marcar solicitud como procesada usando el método genérico `update`
-                 await patientService.updateSolicitud(solicitud.id, { ...solicitud, procesado: true }); // Ajusta según tu backend
+                // 2. Marcar solicitud como procesada
+                 await patientService.updateSolicitud(solicitud.id, { ...solicitud, procesado: true });
 
                 Swal.fire('Validado', 'El paciente ha sido creado y vinculado.', 'success');
-                cargarDatos(); // Recargar tabla
-            }catch (error) {
+                
+                // Recargar tabla usando la función definida arriba
+                cargarDatos(); 
+
+            } catch (error) {
                 console.error(error);
-                // Si el error es "user_id already exists", significa que el paciente ya estaba creado
-                // pero la solicitud no se había marcado. Podemos manejarlo así:
                 if (error.response && error.response.status === 400) {
                      Swal.fire('Atención', 'El paciente ya existía. Se marcará la solicitud como procesada.', 'warning');
-                     // Intentamos marcarla como procesada de todas formas para limpiar la lista
                      await patientService.updateSolicitud(solicitud.id, { ...solicitud, procesado: true });
                      cargarDatos();
                 } else {

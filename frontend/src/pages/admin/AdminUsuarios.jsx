@@ -118,7 +118,10 @@ const AdminUsuarios = () => {
                 icon: 'success', title: !user.is_active ? 'Activado' : 'Desactivado', 
                 timer: 1000, showConfirmButton: false
             });
-        } catch (error) { Swal.fire('Error', 'No se pudo cambiar el estado', 'error'); }
+        } catch (error) { 
+            console.error(error); 
+            Swal.fire('Error', 'No se pudo cambiar el estado', 'error'); 
+        }
     };
 
     const handleChangePassword = async (user) => {
@@ -134,7 +137,10 @@ const AdminUsuarios = () => {
             try {
                 await authService.adminChangePassword(user.id, password);
                 Swal.fire('Éxito', 'Contraseña actualizada', 'success');
-            } catch (error) { Swal.fire('Error', 'No se pudo actualizar', 'error'); }
+            } catch (error) { 
+                console.error(error); 
+                Swal.fire('Error', 'No se pudo actualizar', 'error'); 
+            }
         }
     };
 
@@ -162,7 +168,10 @@ const AdminUsuarios = () => {
                 const updatedUsers = users.map(u => u.id === user.id ? { ...u, groups: formValues } : u);
                 setUsers(updatedUsers);
                 Swal.fire('Roles actualizados', '', 'success');
-            } catch (error) { Swal.fire('Error', 'Fallo al actualizar roles', 'error'); }
+            } catch (error) { 
+                console.error(error);
+                Swal.fire('Error', 'Fallo al actualizar roles', 'error'); 
+            }
         }
     };
 
@@ -233,6 +242,7 @@ const AdminUsuarios = () => {
 
                 Swal.fire('Actualizado', 'Clasificación modificada.', 'success');
             } catch (error) {
+                console.error(error);
                 Swal.fire('Error', 'No se pudo guardar.', 'error');
             }
         }
@@ -256,7 +266,10 @@ const AdminUsuarios = () => {
             setUsers(updatedUsers);
             setIsModalOpen(false);
             Swal.fire('Guardado', 'Datos actualizados.', 'success');
-        } catch (error) { Swal.fire('Error', 'Error guardando datos.', 'error'); }
+        } catch (error) { 
+            console.error(error);
+            Swal.fire('Error', 'Error guardando datos.', 'error'); 
+        }
     };
 
     // --- RENDER ---

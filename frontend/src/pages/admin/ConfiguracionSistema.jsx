@@ -63,6 +63,7 @@ const ConfiguracionSistema = () => {
                 showConfirmButton: false
             });
         } catch (error) {
+            console.error(error);
             Swal.fire('Error', 'No se pudieron guardar los cambios.', 'error');
         }
     };

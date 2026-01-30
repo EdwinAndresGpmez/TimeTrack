@@ -275,3 +275,6 @@ docker compose run --rm -v ${PWD}/pyproject.toml:/app/pyproject.toml notificatio
 
 # 8. IA MS
 docker compose run --rm -v ${PWD}/pyproject.toml:/app/pyproject.toml ia-ms ruff format .
+
+
+

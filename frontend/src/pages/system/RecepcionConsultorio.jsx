@@ -109,6 +109,7 @@ const RecepcionConsultorio = () => {
             setModalOpen(false);
             cargarCitasHoy(); // Recargar lista para ver el cambio de estado
         } catch (error) {
+            console.error(error);
             Swal.fire('Error', 'No se pudo procesar el ingreso', 'error');
         }
     };

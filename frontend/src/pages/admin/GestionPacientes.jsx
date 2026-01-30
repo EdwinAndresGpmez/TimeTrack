@@ -189,12 +189,14 @@ const GestionPacientes = () => {
                                         Swal.fire('¡Listo!', 'Vinculación exitosa.', 'success');
                                         cargarDatos();
                                     } catch (err) {
+                                        console.error(err);
                                         Swal.fire('Error', 'No se pudo vincular.', 'error');
                                     }
                                 }
                             });
                         });
                     } catch (err) {
+                        console.error(err);
                         container.innerHTML = '<p class="p-4 text-center text-red-500 text-sm">Error en el servidor.</p>';
                     }
                 });
@@ -289,14 +291,20 @@ const GestionPacientes = () => {
             }
             setModalOpen(false);
             cargarDatos();
-        } catch (error) { Swal.fire('Error', 'Error al procesar la solicitud.', 'error'); }
+        } catch (error) { 
+            console.error(error);
+            Swal.fire('Error', 'Error al procesar la solicitud.', 'error'); 
+        }
     };
 
     const handleToggleActivo = async (p) => {
         try {
             await patientService.update(p.id, { activo: !p.activo });
             cargarDatos();
-        } catch (error) { Swal.fire('Error', 'No se pudo cambiar el estado.', 'error'); }
+        } catch (error) { 
+            console.error(error);
+            Swal.fire('Error', 'No se pudo cambiar el estado.', 'error'); 
+        }
     };
 
     const downloadSampleCSV = () => {

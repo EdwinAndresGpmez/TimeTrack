@@ -132,7 +132,6 @@ const AdminParametricas = () => {
     };
 
     // --- LÓGICA DE BORRADO Y ESTADO ---
-    const handleDelete = async (item) => { /* ... Código igual al original ... */ };
     const handleToggle = async (item) => {
         try {
             const newState = !item.activo;

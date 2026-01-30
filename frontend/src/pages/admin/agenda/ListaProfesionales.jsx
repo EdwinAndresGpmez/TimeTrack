@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FaMapMarkerAlt, FaCalendarAlt, FaSearch, FaCheck, FaExternalLinkAlt, FaChevronLeft, FaUserMd } from 'react-icons/fa';
+import { FaCalendarAlt, FaSearch, FaCheck, FaExternalLinkAlt, FaChevronLeft, FaUserMd } from 'react-icons/fa';
 
 const ListaProfesionales = ({ 
     sedes, profesionales, 

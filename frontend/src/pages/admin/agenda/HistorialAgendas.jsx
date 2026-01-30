@@ -15,16 +15,7 @@ const HistorialPanel = ({ profesionalSeleccionado }) => {
         estado: ''
     });
 
-    // Cargar datos cuando cambia el profesional o al montar
-    useEffect(() => {
-        if (profesionalSeleccionado) {
-            handleBuscar();
-        } else {
-            setCitas([]);
-        }
-    }, [profesionalSeleccionado]);
-
-    // --- LÓGICA DE BÚSQUEDA ---
+    // --- LÓGICA DE BÚSQUEDA (Definida ANTES del useEffect) ---
     const handleBuscar = async (e) => {
         if (e) e.preventDefault();
         
@@ -32,9 +23,6 @@ const HistorialPanel = ({ profesionalSeleccionado }) => {
 
         setLoading(true);
         try {
-            // Nota: Asumimos que profesionalSeleccionado puede ser un objeto único (modo single) 
-            // o podríamos adaptar para array si quisieras historial combinado. 
-            // Por ahora, soporta el modo "un médico a la vez" que es lo estándar en historiales detallados.
             const profId = profesionalSeleccionado.id;
 
             const data = await citasService.getAll({
@@ -66,6 +54,24 @@ const HistorialPanel = ({ profesionalSeleccionado }) => {
             setLoading(false);
         }
     };
+
+    // Cargar datos cuando cambia el profesional o al montar
+    useEffect(() => {
+        if (profesionalSeleccionado) {
+            handleBuscar();
+        } else {
+            setCitas([]);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [profesionalSeleccionado]); // Ignoramos handleBuscar aquí para evitar loop si no usamos useCallback, o mejor aún:
+
+    /* NOTA TÉCNICA:
+       Si quieres ser 100% estricto con ESLint sin desactivar la regla, 
+       deberías envolver handleBuscar en useCallback y añadirlo al array.
+       Pero mover la función dentro del useEffect es otra opción válida si no se usara en el formulario.
+       Dado que se usa en el formulario (onSubmit), la estructura actual con la línea de disable es segura 
+       o puedes envolver handleBuscar en useCallback.
+    */
 
     const handleChange = (e) => {
         setFiltros({ ...filtros, [e.target.name]: e.target.value });

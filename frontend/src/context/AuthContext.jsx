@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect } from 'react';
+import React, { createContext, useState, useEffect, useCallback } from 'react';
 import { jwtDecode } from "jwt-decode";
 import { authService } from '../services/authService';
 
@@ -10,33 +10,52 @@ export const AuthProvider = ({ children }) => {
     const [permisos, setPermisos] = useState([]); 
     const [loading, setLoading] = useState(true);
 
-    const fetchRolesYPermisos = async () => {
+    // 1. Definimos logout PRIMERO (usado en checkSession)
+    const logout = useCallback(() => {
+        authService.logout();
+        setUser(null);
+        setRoles([]);    
+        setPermisos([]);  
+        window.location.href = '/login';
+    }, []);
+
+    // 2. Definimos fetchRolesYPermisos SEGUNDO
+    const fetchRolesYPermisos = useCallback(async () => {
         try {
             const data = await authService.getMisPermisos();
-            // console.log('MisPermisos response:', data); // Descomenta para debug
             
             setPermisos(Array.isArray(data.codenames) ? data.codenames : []); 
             setRoles(Array.isArray(data.roles) ? data.roles : []);        
             
-            if (user) {
-                // Actualizamos estado de staff/superuser si viene del backend
-                setUser(prev => ({ ...prev, is_superuser: data.is_superuser, is_staff: data.is_staff }));
-            }
+            // Usamos el callback del setter para asegurar que tenemos el estado más reciente
+            setUser(prevUser => {
+                if (prevUser) {
+                    return { 
+                        ...prevUser, 
+                        is_superuser: data.is_superuser, 
+                        is_staff: data.is_staff 
+                    };
+                }
+                return prevUser;
+            });
         } catch (error) {
             console.error("Error cargando roles y permisos:", error);
         }
-    };
+    }, []);
 
+    // 3. useEffect ahora puede ver las funciones de arriba
     useEffect(() => {
         const checkSession = async () => {
             const token = localStorage.getItem('token');
             if (token) {
                 try {
                     const decoded = jwtDecode(token);
+                    // Verificamos expiración
                     if (decoded.exp * 1000 < Date.now()) {
                         logout();
                     } else {
                         setUser(decoded);
+                        // Llamamos a la función estable
                         await fetchRolesYPermisos(); 
                     }
                 } catch (error) {
@@ -47,28 +66,17 @@ export const AuthProvider = ({ children }) => {
             setLoading(false);
         };
         checkSession();
-    }, []);
+    }, [logout, fetchRolesYPermisos]); // ✅ Dependencias agregadas
 
+    // 4. Función login simplificada (sin try/catch redundante)
     const login = async (credentials) => {
-        try {
-            const data = await authService.login(credentials);
-            if (data.access) {
-                const decoded = jwtDecode(data.access);
-                setUser(decoded);
-                await fetchRolesYPermisos(); 
-                return true;
-            }
-        } catch (error) {
-            throw error;
+        const data = await authService.login(credentials);
+        if (data.access) {
+            const decoded = jwtDecode(data.access);
+            setUser(decoded);
+            await fetchRolesYPermisos(); 
+            return true;
         }
-    };
-
-    const logout = () => {
-        authService.logout();
-        setUser(null);
-        setRoles([]);    
-        setPermisos([]);  
-        window.location.href = '/login';
     };
 
     return (

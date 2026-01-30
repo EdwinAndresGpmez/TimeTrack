@@ -1,7 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { staffService } from '../../../services/staffService';
 import { agendaService } from '../../../services/agendaService';
-import { citasService } from '../../../services/citasService'; 
 import Swal from 'sweetalert2';
 import { FaCalendarAlt, FaChevronLeft, FaChevronRight, FaTimes, FaUsers, FaSearch, FaPlusCircle, FaCogs, FaHistory } from 'react-icons/fa';
 
@@ -36,7 +35,7 @@ const GestionAgenda = () => {
     const [showFooterResults, setShowFooterResults] = useState(false);
     const footerInputRef = useRef(null);
 
-    // 1. CARGA INICIAL
+    // 1. CARGA INICIAL DE PARAMÉTRICAS
     useEffect(() => {
         const cargarDatos = async () => {
             try {
@@ -53,15 +52,6 @@ const GestionAgenda = () => {
         };
         cargarDatos();
     }, []);
-
-    // 2. REACCIÓN A CAMBIOS
-    useEffect(() => {
-        if (selectedProfs.length > 0 && sedeSeleccionada && viewMode === 'config') {
-            cargarMultiplesAgendas();
-        } else {
-            setAgendasCombinadas({});
-        }
-    }, [selectedProfs, sedeSeleccionada, viewMode]);
 
     const getColorForId = (id) => {
         const index = id % PALETA_COLORES.length;
@@ -84,7 +74,8 @@ const GestionAgenda = () => {
         setShowFooterResults(false);
     };
 
-    const cargarMultiplesAgendas = async () => {
+    // --- CORRECCIÓN: Definir función ANTES del useEffect y con useCallback ---
+    const cargarMultiplesAgendas = useCallback(async () => {
         setLoadingAgenda(true);
         const nuevasAgendas = {};
         try {
@@ -99,9 +90,21 @@ const GestionAgenda = () => {
             const resultados = await Promise.all(promesas);
             resultados.forEach(res => { nuevasAgendas[res.id] = res.data; });
             setAgendasCombinadas(nuevasAgendas);
-        } catch (error) { console.error(error); } 
-        finally { setLoadingAgenda(false); }
-    };
+        } catch (error) { 
+            console.error(error); 
+        } finally { 
+            setLoadingAgenda(false); 
+        }
+    }, [selectedProfs, sedeSeleccionada]); // Dependencias
+
+    // 2. REACCIÓN A CAMBIOS (Ahora sí ve la función)
+    useEffect(() => {
+        if (selectedProfs.length > 0 && sedeSeleccionada && viewMode === 'config') {
+            cargarMultiplesAgendas();
+        } else {
+            setAgendasCombinadas({});
+        }
+    }, [selectedProfs, sedeSeleccionada, viewMode, cargarMultiplesAgendas]); // ✅ Dependencia agregada
 
     const navegarCalendario = (direccion) => {
         const nuevaFecha = new Date(fechaReferencia);
@@ -275,7 +278,11 @@ const GestionAgenda = () => {
         }
 
         let bloqueosFrescos = [];
-        try { bloqueosFrescos = await agendaService.getBloqueos({ profesional_id: turno.profesional_id }); } catch(e) {}
+        try { 
+            bloqueosFrescos = await agendaService.getBloqueos({ profesional_id: turno.profesional_id }); 
+        } catch(e) {
+            console.error(e); // ✅ Error impreso (Evita empty block)
+        }
 
         const slots = [];
         let [h, m] = turno.hora_inicio.split(':').map(Number);

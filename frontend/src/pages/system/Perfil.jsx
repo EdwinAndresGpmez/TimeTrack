@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useContext } from 'react';
+import React, { useEffect, useState, useContext, useCallback } from 'react';
 import { AuthContext } from '../../context/AuthContext';
 import { patientService } from '../../services/patientService';
 import Swal from 'sweetalert2';
@@ -7,7 +7,7 @@ import { FaUser, FaIdCard, FaPhone, FaMapMarkerAlt, FaVenusMars, FaSave, FaHospi
 const Perfil = () => {
     const { user } = useContext(AuthContext);
     const [loading, setLoading] = useState(true);
-    const [tiposPaciente, setTiposPaciente] = useState([]);
+    // const [tiposPaciente, setTiposPaciente] = useState([]); // Eliminado por unused
     const [existePerfil, setExistePerfil] = useState(false);
     
     // Nombre del tipo para mostrar (ej: "EPS SURA")
@@ -27,19 +27,16 @@ const Perfil = () => {
         tipo_usuario: null 
     });
 
-    useEffect(() => {
-        if (user) cargarDatos();
-    }, [user]);
-
-    const cargarDatos = async () => {
+    // 1. DEFINIR CARGAR DATOS PRIMERO
+    const cargarDatos = useCallback(async () => {
         try {
             setLoading(true);
             const [tipos, perfil] = await Promise.all([
-                patientService.getTiposPaciente(), // Asegúrate que la función se llame así en tu servicio
+                patientService.getTiposPaciente(), 
                 patientService.getMyProfile(user.user_id || user.id)
             ]);
             
-            setTiposPaciente(tipos);
+            // setTiposPaciente(tipos); // Eliminado para limpiar ESLint
 
             if (perfil) {
                 setExistePerfil(true);
@@ -48,15 +45,15 @@ const Perfil = () => {
                 // --- LÓGICA ROBUSTA PARA OBTENER EL NOMBRE ---
                 let nombreReal = 'Sin Validar';
 
-                // Caso 1: El backend ya manda el nombre en un campo calculado (Ideal)
+                // Caso 1: El backend ya manda el nombre
                 if (perfil.tipo_usuario_nombre) {
                     nombreReal = perfil.tipo_usuario_nombre;
                 } 
-                // Caso 2: El campo tipo_usuario es un objeto { id, nombre }
+                // Caso 2: El campo tipo_usuario es un objeto
                 else if (perfil.tipo_usuario && typeof perfil.tipo_usuario === 'object') {
                     nombreReal = perfil.tipo_usuario.nombre;
                 }
-                // Caso 3: El campo tipo_usuario es solo un ID, buscamos en el catálogo 'tipos'
+                // Caso 3: El campo es ID, buscamos en el catálogo local 'tipos'
                 else if (perfil.tipo_usuario) {
                     const tipoEncontrado = tipos.find(t => t.id === parseInt(perfil.tipo_usuario));
                     if (tipoEncontrado) nombreReal = tipoEncontrado.nombre;
@@ -64,7 +61,6 @@ const Perfil = () => {
 
                 setNombreAfiliacion(nombreReal);
             } else {
-                // Si no tiene perfil, pre-llenamos con datos del Auth
                 setFormData(prev => ({
                     ...prev,
                     nombre: user.nombre || '',
@@ -77,7 +73,12 @@ const Perfil = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [user]);
+
+    // 2. EFFECT
+    useEffect(() => {
+        if (user) cargarDatos();
+    }, [user, cargarDatos]);
 
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -87,27 +88,21 @@ const Perfil = () => {
         e.preventDefault();
         try {
             if (existePerfil) {
-                // Preparamos payload limpio (sin campos anidados que rompan el backend)
                 const payload = { ...formData };
-                
-                // Si tipo_usuario es un objeto, lo convertimos a ID o lo quitamos para no sobrescribirlo
                 if (typeof payload.tipo_usuario === 'object' && payload.tipo_usuario !== null) {
                     payload.tipo_usuario = payload.tipo_usuario.id;
                 }
                 
-                // Nota: Idealmente no enviamos tipo_usuario en updates de perfil personal para seguridad
                 delete payload.tipo_usuario; 
                 delete payload.tipo_usuario_nombre;
 
                 await patientService.update(formData.id, payload);
                 Swal.fire('Actualizado', 'Tus datos han sido actualizados.', 'success');
-                // Recargar para refrescar nombres si algo cambió
                 cargarDatos(); 
             } else {
-                // CREACIÓN
                 const payload = {
                     ...formData,
-                    tipo_usuario: null // Se crea como "Por definir" o "Particular" según lógica backend
+                    tipo_usuario: null 
                 };
 
                 await patientService.create(payload);

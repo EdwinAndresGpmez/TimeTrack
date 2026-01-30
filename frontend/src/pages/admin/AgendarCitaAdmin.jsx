@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { patientService } from '../../services/patientService';
 import NuevaCita from '../system/NuevaCita'; 
 import { FaSearch, FaArrowLeft, FaUserCircle, FaIdCard, FaSpinner } from 'react-icons/fa';

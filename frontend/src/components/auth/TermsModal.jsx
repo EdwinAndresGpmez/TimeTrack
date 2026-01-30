@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { createPortal } from 'react-dom'; // <--- Importamos esto
+import { createPortal } from 'react-dom';
 
 const TermsModal = ({ isOpen, onAccept }) => {
     const [isChecked, setIsChecked] = useState(false);
-    const [mounted, setMounted] = useState(false);
+    
+    // --- CORRECCIÓN: Eliminamos 'mounted' para evitar errores de renderizado síncrono ---
+    // El modal ahora depende exclusivamente de 'isOpen'.
 
     useEffect(() => {
-        setMounted(true);
         // Bloquear el scroll del cuerpo cuando el modal está abierto
         if (isOpen) {
             document.body.style.overflow = 'hidden';
@@ -16,7 +17,7 @@ const TermsModal = ({ isOpen, onAccept }) => {
         };
     }, [isOpen]);
 
-    if (!isOpen || !mounted) return null;
+    if (!isOpen) return null;
 
     // El contenido del modal
     const modalContent = (
@@ -24,7 +25,7 @@ const TermsModal = ({ isOpen, onAccept }) => {
             {/* Fondo Oscuro (Overlay) */}
             <div className="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity" />
 
-            {/* Contenedor del Modal - AHORA SÍ SE VERÁ ANCHO */}
+            {/* Contenedor del Modal */}
             <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-6xl h-[85vh] flex flex-col overflow-hidden border border-gray-200 animate-scale-in">
                 
                 {/* Encabezado Azul */}
@@ -39,7 +40,7 @@ const TermsModal = ({ isOpen, onAccept }) => {
                     </div>
                 </div>
 
-                {/* Cuerpo del Texto - Diseño a dos columnas en pantallas grandes */}
+                {/* Cuerpo del Texto */}
                 <div className="flex-1 overflow-y-auto bg-gray-50 p-6 md:p-10">
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 text-gray-700 text-sm md:text-base leading-relaxed">
                         

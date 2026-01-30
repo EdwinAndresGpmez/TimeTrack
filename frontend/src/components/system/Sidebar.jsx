@@ -41,7 +41,7 @@ const Sidebar = ({ isOpen, logout }) => {
                 setMenuItems(items);
             } catch (error) {
                 // Si es 401, el interceptor ya lo manejará, aquí solo evitamos que rompa la UI
-                console.error("No se pudo cargar el menú dinámico."); 
+                console.error("No se pudo cargar el menú dinámico.", error);
             } finally {
                 setLoading(false);
             }

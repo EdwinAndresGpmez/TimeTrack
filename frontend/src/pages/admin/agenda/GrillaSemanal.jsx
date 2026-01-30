@@ -10,7 +10,7 @@ const GrillaSemanal = ({
     onGestionarTurno,
     calendarView, 
     fechaReferencia,
-    setCalendarView // Necesario para el ajuste responsivo automático
+    setCalendarView 
 }) => {
     
     // --- ESTRATEGIA RESPONSIVA (Hook de Efecto) ---
