@@ -8,3 +8,7 @@ celery
 redis
 whitenoise
 requests
+pytest
+pytest-django
+requests-mock
+ruff

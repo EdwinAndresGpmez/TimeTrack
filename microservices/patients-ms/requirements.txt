@@ -4,3 +4,7 @@ django-environ
 psycopg2-binary
 django-cors-headers
 requests
+pytest
+pytest-django
+requests-mock
+ruff

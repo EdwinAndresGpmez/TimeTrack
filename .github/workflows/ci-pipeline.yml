@@ -1,47 +1,120 @@
-name: TimeTrack CI
+name: TimeTrack CI/CD
 
-# ¿Cuándo se ejecuta?
+# Se ejecuta en cada Push o PR a main
 on:
   push:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
+  # Permite ejecutarlo manualmente desde GitHub si es necesario
+  workflow_dispatch:
 
 jobs:
+  # ------------------------------------------------------------------
+  # JOB 1: CALIDAD DE CÓDIGO (LINTING) - Falla rápido y barato
+  # Usamos Ruff (Backend) y ESLint (Frontend)
+  # ------------------------------------------------------------------
+  code-quality:
+    name: 🔍 Calidad de Código (Linting)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # --- BACKEND (RUFF) ---
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Ruff (Linter Ultrarrápido)
+        run: pip install ruff
+
+      - name: Analizar Backend con Ruff
+        run: |
+          # Escanea todos los microservicios
+          ruff check ./microservices
+          # Verifica formato (Black compatible)
+          ruff format --check ./microservices
+
+      # --- FRONTEND (ESLINT) ---
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: './frontend/package-lock.json'
+
+      - name: Install Frontend Deps
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Analizar Frontend con ESLint
+        working-directory: ./frontend
+        run: npm run lint
+        # Nota: Asegúrate de tener el script "lint": "eslint ." en tu package.json
+
+  # ------------------------------------------------------------------
+  # JOB 2: CONSTRUCCIÓN Y PRUEBAS UNITARIAS (PYTEST)
+  # Se ejecuta solo si la calidad de código pasó.
+  # ------------------------------------------------------------------
   build-and-test:
+    name: 🏗️ Build & Unit Tests (Docker)
+    needs: code-quality # Espera a que pase el linting
     runs-on: ubuntu-latest
 
     steps:
-    # 1. Descargar tu código en el servidor de GitHub
-    - name: Checkout code
-      uses: actions/checkout@v6
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    # 2. Configurar Docker
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-    # 3. Crear un archivo .env temporal
-    # Esto es vital: GitHub no tiene tu .env real. 
-    # Creamos uno falso con valores genéricos solo para que Docker no falle al iniciar.
-    - name: Create dummy .env file
-      run: |
-        echo "DB_NAME=test_db" >> .env
-        echo "DB_USER=postgres" >> .env
-        echo "DB_PASSWORD=postgres" >> .env
-        echo "DB_HOST=db" >> .env
-        echo "DB_PORT=5432" >> .env
-        echo "SECRET_KEY=django-insecure-test-key-12345" >> .env
-        echo "DEBUG=True" >> .env
-        echo "ALLOWED_HOSTS=localhost,127.0.0.1" >> .env
-        echo "REDIS_URL=redis://redis:6379/0" >> .env
-        echo "DATABASE_URL=postgres://postgres:postgres@db:5432/test_db" >> .env
-        # Variables para el frontend si las necesita
-        echo "VITE_API_URL=http://localhost:8080/api" >> .env
+      # Creamos el .env dummy (Igual que tenías, es vital)
+      - name: Create dummy .env file
+        run: |
+          echo "DB_NAME=test_db" >> .env
+          echo "DB_USER=postgres" >> .env
+          echo "DB_PASSWORD=postgres" >> .env
+          echo "DB_HOST=db" >> .env
+          echo "DB_PORT=5432" >> .env
+          echo "SECRET_KEY=django-insecure-test-key-for-ci-pipeline" >> .env
+          echo "DEBUG=True" >> .env
+          echo "ALLOWED_HOSTS=localhost,127.0.0.1,auth-ms,patients-ms,appointments-ms" >> .env
+          echo "REDIS_URL=redis://redis:6379/0" >> .env
+          echo "DATABASE_URL=postgres://postgres:postgres@db:5432/test_db" >> .env
+          echo "VITE_API_URL=http://localhost:8080/api" >> .env
 
-    # 4. Probar que los contenedores se construyen correctamente
-    - name: Build Docker Services
-      run: docker compose build
+      # Construimos las imágenes
+      - name: Build Docker Services
+        run: docker compose build
 
-    # 5. Probar que los servicios levantan sin crashear inmediatamente
-    - name: Test Containers Up
-      run: docker compose up -d
+      # Levantamos base de datos y servicios necesarios en segundo plano
+      # Usamos --wait para asegurar que la DB esté lista antes de testear
+      - name: Start Services
+        run: docker compose up -d --wait db redis
+
+      # ------------------------------------------------------------------
+      # EJECUCIÓN DE PRUEBAS UNITARIAS (PYTEST)
+      # Ejecutamos pytest DENTRO del contenedor para asegurar el entorno real.
+      # ------------------------------------------------------------------
+      
+      - name: 🧪 Test Auth MS
+        run: docker compose run --rm auth-ms pytest
+
+      - name: 🧪 Test Patients MS
+        run: docker compose run --rm patients-ms pytest
+
+      - name: 🧪 Test Appointments MS (Reglas Críticas)
+        run: docker compose run --rm appointments-ms pytest
+
+      - name: 🧪 Test Professionals MS
+        run: docker compose run --rm professionals-ms pytest
+
+      - name: 🧪 Test Schedule MS
+        run: docker compose run --rm schedule-ms pytest
+
+      # Limpieza final
+      - name: Stop Containers
+        if: always()
+        run: docker compose down

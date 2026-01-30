@@ -6,3 +6,7 @@ python-dotenv
 requests
 openai>=1.0.0
 langchain
+pytest
+pytest-django
+requests-mock
+ruff

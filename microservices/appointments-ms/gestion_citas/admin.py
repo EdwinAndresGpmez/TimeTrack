@@ -28,7 +28,10 @@ class HistoricoCitaAdmin(admin.ModelAdmin):
 # --- NUEVO: Configuración Global en Admin ---
 @admin.register(ConfiguracionGlobal)
 class ConfiguracionGlobalAdmin(admin.ModelAdmin):
-    list_display = ('id', 'limite_inasistencias', 'max_citas_dia_paciente')
+    list_display = ('id', 'limite_inasistencias', 'mensaje_bloqueo_inasistencia',
+                    'max_citas_dia_paciente', 'horas_antelacion_cancelar', 
+                    'dias_para_actualizar_datos', 'permitir_mismo_servicio_dia',
+                    'mensaje_notificacion_cancelacion')
     # Limitamos permisos para que no creen configuraciones extra (es un Singleton)
     def has_add_permission(self, request):
         return False if self.model.objects.exists() else True

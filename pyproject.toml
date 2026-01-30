@@ -1,0 +1,30 @@
+[tool.ruff]
+# Excluir carpetas comunes que no queremos analizar
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".hg",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "venv",
+    "**/migrations/*.py"  # IMPORTANTE: Ignorar migraciones de Django
+]
+line-length = 88
+
+[tool.ruff.lint]
+# E: Errores estilo, F: Pyflakes (bugs), I: Import sorting
+select = ["E", "F", "I"]

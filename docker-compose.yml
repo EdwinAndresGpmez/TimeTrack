@@ -26,6 +26,7 @@ services:
     command: python manage.py runserver 0.0.0.0:8000
     volumes:
       - ./microservices/auth-ms:/app
+      - ./frontend/src/App.jsx:/app/source_feed/App.jsx
     ports:
       - "8000:8000"
     depends_on:
