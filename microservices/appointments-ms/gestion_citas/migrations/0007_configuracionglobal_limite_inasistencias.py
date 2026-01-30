@@ -4,15 +4,17 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('gestion_citas', '0006_configuracionglobal_dias_para_actualizar_datos'),
+        ("gestion_citas", "0006_configuracionglobal_dias_para_actualizar_datos"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='configuracionglobal',
-            name='limite_inasistencias',
-            field=models.IntegerField(default=3, help_text="Número de citas 'NO_ASISTIO' permitidas antes de bloquear el agendamiento (0 para desactivar)."),
+            model_name="configuracionglobal",
+            name="limite_inasistencias",
+            field=models.IntegerField(
+                default=3,
+                help_text="Número de citas 'NO_ASISTIO' permitidas antes de bloquear el agendamiento (0 para desactivar).",
+            ),
         ),
     ]

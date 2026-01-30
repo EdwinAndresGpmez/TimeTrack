@@ -4,15 +4,14 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('agenda', '0002_disponibilidad_fecha'),
+        ("agenda", "0002_disponibilidad_fecha"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='disponibilidad',
-            name='fecha_fin_vigencia',
-            field=models.DateField(blank=True, null=True, verbose_name='Vigente hasta'),
+            model_name="disponibilidad",
+            name="fecha_fin_vigencia",
+            field=models.DateField(blank=True, null=True, verbose_name="Vigente hasta"),
         ),
     ]

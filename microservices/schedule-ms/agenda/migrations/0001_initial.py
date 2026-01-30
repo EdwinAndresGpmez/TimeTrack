@@ -4,43 +4,70 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='BloqueoAgenda',
+            name="BloqueoAgenda",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('profesional_id', models.BigIntegerField(db_index=True)),
-                ('fecha_inicio', models.DateTimeField()),
-                ('fecha_fin', models.DateTimeField()),
-                ('motivo', models.CharField(max_length=255)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("profesional_id", models.BigIntegerField(db_index=True)),
+                ("fecha_inicio", models.DateTimeField()),
+                ("fecha_fin", models.DateTimeField()),
+                ("motivo", models.CharField(max_length=255)),
             ],
             options={
-                'verbose_name': 'Bloqueo de Agenda',
-                'verbose_name_plural': 'Bloqueos de Agenda',
+                "verbose_name": "Bloqueo de Agenda",
+                "verbose_name_plural": "Bloqueos de Agenda",
             },
         ),
         migrations.CreateModel(
-            name='Disponibilidad',
+            name="Disponibilidad",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('profesional_id', models.BigIntegerField(db_index=True)),
-                ('lugar_id', models.BigIntegerField()),
-                ('servicio_id', models.BigIntegerField(blank=True, null=True)),
-                ('dia_semana', models.IntegerField(choices=[(0, 'Lunes'), (1, 'Martes'), (2, 'Miércoles'), (3, 'Jueves'), (4, 'Viernes'), (5, 'Sábado'), (6, 'Domingo')])),
-                ('hora_inicio', models.TimeField()),
-                ('hora_fin', models.TimeField()),
-                ('activo', models.BooleanField(default=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("profesional_id", models.BigIntegerField(db_index=True)),
+                ("lugar_id", models.BigIntegerField()),
+                ("servicio_id", models.BigIntegerField(blank=True, null=True)),
+                (
+                    "dia_semana",
+                    models.IntegerField(
+                        choices=[
+                            (0, "Lunes"),
+                            (1, "Martes"),
+                            (2, "Miércoles"),
+                            (3, "Jueves"),
+                            (4, "Viernes"),
+                            (5, "Sábado"),
+                            (6, "Domingo"),
+                        ]
+                    ),
+                ),
+                ("hora_inicio", models.TimeField()),
+                ("hora_fin", models.TimeField()),
+                ("activo", models.BooleanField(default=True)),
             ],
             options={
-                'verbose_name': 'Disponibilidad',
-                'verbose_name_plural': 'Disponibilidades',
-                'ordering': ['dia_semana', 'hora_inicio'],
+                "verbose_name": "Disponibilidad",
+                "verbose_name_plural": "Disponibilidades",
+                "ordering": ["dia_semana", "hora_inicio"],
             },
         ),
     ]

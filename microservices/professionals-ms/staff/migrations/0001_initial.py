@@ -4,55 +4,95 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='Especialidad',
+            name="Especialidad",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('nombre', models.CharField(max_length=100)),
-                ('descripcion', models.TextField(blank=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("nombre", models.CharField(max_length=100)),
+                ("descripcion", models.TextField(blank=True)),
             ],
         ),
         migrations.CreateModel(
-            name='Lugar',
+            name="Lugar",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('nombre', models.CharField(max_length=255)),
-                ('direccion', models.CharField(max_length=255)),
-                ('ciudad', models.CharField(max_length=100)),
-                ('activo', models.BooleanField(default=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("nombre", models.CharField(max_length=255)),
+                ("direccion", models.CharField(max_length=255)),
+                ("ciudad", models.CharField(max_length=100)),
+                ("activo", models.BooleanField(default=True)),
             ],
         ),
         migrations.CreateModel(
-            name='Profesional',
+            name="Profesional",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('nombre', models.CharField(max_length=255)),
-                ('numero_documento', models.CharField(max_length=50, unique=True)),
-                ('registro_medico', models.CharField(max_length=100, unique=True)),
-                ('email_profesional', models.EmailField(max_length=254, unique=True)),
-                ('telefono_profesional', models.CharField(max_length=50)),
-                ('activo', models.BooleanField(default=True)),
-                ('especialidades', models.ManyToManyField(to='staff.especialidad')),
-                ('lugares_atencion', models.ManyToManyField(related_name='profesionales', to='staff.lugar')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("nombre", models.CharField(max_length=255)),
+                ("numero_documento", models.CharField(max_length=50, unique=True)),
+                ("registro_medico", models.CharField(max_length=100, unique=True)),
+                ("email_profesional", models.EmailField(max_length=254, unique=True)),
+                ("telefono_profesional", models.CharField(max_length=50)),
+                ("activo", models.BooleanField(default=True)),
+                ("especialidades", models.ManyToManyField(to="staff.especialidad")),
+                (
+                    "lugares_atencion",
+                    models.ManyToManyField(
+                        related_name="profesionales", to="staff.lugar"
+                    ),
+                ),
             ],
         ),
         migrations.CreateModel(
-            name='Servicio',
+            name="Servicio",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('nombre', models.CharField(max_length=255)),
-                ('descripcion', models.TextField(blank=True)),
-                ('duracion_minutos', models.IntegerField()),
-                ('precio_base', models.DecimalField(decimal_places=2, max_digits=10)),
-                ('activo', models.BooleanField(default=True)),
-                ('profesionales', models.ManyToManyField(related_name='servicios_habilitados', to='staff.profesional')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("nombre", models.CharField(max_length=255)),
+                ("descripcion", models.TextField(blank=True)),
+                ("duracion_minutos", models.IntegerField()),
+                ("precio_base", models.DecimalField(decimal_places=2, max_digits=10)),
+                ("activo", models.BooleanField(default=True)),
+                (
+                    "profesionales",
+                    models.ManyToManyField(
+                        related_name="servicios_habilitados", to="staff.profesional"
+                    ),
+                ),
             ],
         ),
     ]

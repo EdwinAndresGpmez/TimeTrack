@@ -4,21 +4,28 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('patients', '0002_paciente_user_id'),
+        ("patients", "0002_paciente_user_id"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='SolicitudValidacion',
+            name="SolicitudValidacion",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('user_id', models.BigIntegerField(unique=True)),
-                ('nombre', models.CharField(max_length=255)),
-                ('email', models.EmailField(max_length=254)),
-                ('fecha_solicitud', models.DateTimeField(auto_now_add=True)),
-                ('procesado', models.BooleanField(default=False)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("user_id", models.BigIntegerField(unique=True)),
+                ("nombre", models.CharField(max_length=255)),
+                ("email", models.EmailField(max_length=254)),
+                ("fecha_solicitud", models.DateTimeField(auto_now_add=True)),
+                ("procesado", models.BooleanField(default=False)),
             ],
         ),
     ]

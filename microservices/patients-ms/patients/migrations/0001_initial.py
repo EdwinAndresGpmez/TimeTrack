@@ -5,38 +5,89 @@ import django.db.models.deletion
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='TipoPaciente',
+            name="TipoPaciente",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('nombre', models.CharField(max_length=100, unique=True)),
-                ('activo', models.BooleanField(default=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("nombre", models.CharField(max_length=100, unique=True)),
+                ("activo", models.BooleanField(default=True)),
             ],
         ),
         migrations.CreateModel(
-            name='Paciente',
+            name="Paciente",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('nombre', models.CharField(max_length=255)),
-                ('apellido', models.CharField(blank=True, max_length=255)),
-                ('tipo_documento', models.CharField(choices=[('CC', 'Cédula de ciudadanía'), ('NIT', 'NIT'), ('RC', 'Registro Civil'), ('TI', 'Tarjeta de identidad'), ('CE', 'Cédula de extranjería'), ('PA', 'Pasaporte'), ('AS', 'Adulto sin identificación'), ('MS', 'Menor sin identificación'), ('PE', 'Permiso especial'), ('CN', 'Nacido Vivo'), ('PT', 'Permiso de Protección Temporal')], max_length=10)),
-                ('numero_documento', models.CharField(db_index=True, max_length=50, unique=True)),
-                ('fecha_nacimiento', models.DateField()),
-                ('genero', models.CharField(choices=[('M', 'Masculino'), ('F', 'Femenino'), ('O', 'Otro')], max_length=20)),
-                ('direccion', models.CharField(blank=True, max_length=255, null=True)),
-                ('telefono', models.CharField(blank=True, max_length=50, null=True)),
-                ('email_contacto', models.EmailField(blank=True, max_length=254, null=True)),
-                ('activo', models.BooleanField(default=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('tipo_usuario', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, to='patients.tipopaciente')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("nombre", models.CharField(max_length=255)),
+                ("apellido", models.CharField(blank=True, max_length=255)),
+                (
+                    "tipo_documento",
+                    models.CharField(
+                        choices=[
+                            ("CC", "Cédula de ciudadanía"),
+                            ("NIT", "NIT"),
+                            ("RC", "Registro Civil"),
+                            ("TI", "Tarjeta de identidad"),
+                            ("CE", "Cédula de extranjería"),
+                            ("PA", "Pasaporte"),
+                            ("AS", "Adulto sin identificación"),
+                            ("MS", "Menor sin identificación"),
+                            ("PE", "Permiso especial"),
+                            ("CN", "Nacido Vivo"),
+                            ("PT", "Permiso de Protección Temporal"),
+                        ],
+                        max_length=10,
+                    ),
+                ),
+                (
+                    "numero_documento",
+                    models.CharField(db_index=True, max_length=50, unique=True),
+                ),
+                ("fecha_nacimiento", models.DateField()),
+                (
+                    "genero",
+                    models.CharField(
+                        choices=[("M", "Masculino"), ("F", "Femenino"), ("O", "Otro")],
+                        max_length=20,
+                    ),
+                ),
+                ("direccion", models.CharField(blank=True, max_length=255, null=True)),
+                ("telefono", models.CharField(blank=True, max_length=50, null=True)),
+                (
+                    "email_contacto",
+                    models.EmailField(blank=True, max_length=254, null=True),
+                ),
+                ("activo", models.BooleanField(default=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "tipo_usuario",
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        to="patients.tipopaciente",
+                    ),
+                ),
             ],
         ),
     ]

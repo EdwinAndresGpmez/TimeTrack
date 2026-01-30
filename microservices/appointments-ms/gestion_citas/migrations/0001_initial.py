@@ -5,61 +5,123 @@ import django.db.models.deletion
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='Cita',
+            name="Cita",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('usuario_id', models.BigIntegerField(blank=True, null=True)),
-                ('profesional_id', models.BigIntegerField(db_index=True)),
-                ('lugar_id', models.BigIntegerField(blank=True, null=True)),
-                ('horario_id', models.BigIntegerField(blank=True, null=True)),
-                ('paciente_id', models.BigIntegerField(db_index=True)),
-                ('servicio_id', models.BigIntegerField(blank=True, null=True)),
-                ('fecha', models.DateField()),
-                ('hora_inicio', models.TimeField()),
-                ('hora_fin', models.TimeField()),
-                ('nota', models.TextField(blank=True, null=True, verbose_name='Nota inicial')),
-                ('estado', models.CharField(choices=[('PROGRAMADA', 'Programada'), ('CONFIRMADA', 'Confirmada'), ('CANCELADA', 'Cancelada'), ('REALIZADA', 'Realizada'), ('NO_ASISTIO', 'No Asistió')], default='PROGRAMADA', max_length=20)),
-                ('activo', models.BooleanField(default=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("usuario_id", models.BigIntegerField(blank=True, null=True)),
+                ("profesional_id", models.BigIntegerField(db_index=True)),
+                ("lugar_id", models.BigIntegerField(blank=True, null=True)),
+                ("horario_id", models.BigIntegerField(blank=True, null=True)),
+                ("paciente_id", models.BigIntegerField(db_index=True)),
+                ("servicio_id", models.BigIntegerField(blank=True, null=True)),
+                ("fecha", models.DateField()),
+                ("hora_inicio", models.TimeField()),
+                ("hora_fin", models.TimeField()),
+                (
+                    "nota",
+                    models.TextField(
+                        blank=True, null=True, verbose_name="Nota inicial"
+                    ),
+                ),
+                (
+                    "estado",
+                    models.CharField(
+                        choices=[
+                            ("PROGRAMADA", "Programada"),
+                            ("CONFIRMADA", "Confirmada"),
+                            ("CANCELADA", "Cancelada"),
+                            ("REALIZADA", "Realizada"),
+                            ("NO_ASISTIO", "No Asistió"),
+                        ],
+                        default="PROGRAMADA",
+                        max_length=20,
+                    ),
+                ),
+                ("activo", models.BooleanField(default=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
             ],
         ),
         migrations.CreateModel(
-            name='HistoricoCita',
+            name="HistoricoCita",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('cita_original_id', models.BigIntegerField(db_index=True)),
-                ('profesional_id', models.IntegerField(null=True)),
-                ('paciente_id', models.IntegerField(null=True)),
-                ('servicio_id', models.IntegerField(null=True)),
-                ('nombre_profesional', models.CharField(blank=True, max_length=255, null=True)),
-                ('nombre_paciente', models.CharField(blank=True, max_length=255, null=True)),
-                ('nombre_servicio', models.CharField(blank=True, max_length=255, null=True)),
-                ('nombre_lugar', models.CharField(blank=True, max_length=255, null=True)),
-                ('fecha_cita', models.DateField()),
-                ('hora_inicio', models.TimeField()),
-                ('estado', models.CharField(max_length=50)),
-                ('fecha_registro', models.DateTimeField(auto_now_add=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("cita_original_id", models.BigIntegerField(db_index=True)),
+                ("profesional_id", models.IntegerField(null=True)),
+                ("paciente_id", models.IntegerField(null=True)),
+                ("servicio_id", models.IntegerField(null=True)),
+                (
+                    "nombre_profesional",
+                    models.CharField(blank=True, max_length=255, null=True),
+                ),
+                (
+                    "nombre_paciente",
+                    models.CharField(blank=True, max_length=255, null=True),
+                ),
+                (
+                    "nombre_servicio",
+                    models.CharField(blank=True, max_length=255, null=True),
+                ),
+                (
+                    "nombre_lugar",
+                    models.CharField(blank=True, max_length=255, null=True),
+                ),
+                ("fecha_cita", models.DateField()),
+                ("hora_inicio", models.TimeField()),
+                ("estado", models.CharField(max_length=50)),
+                ("fecha_registro", models.DateTimeField(auto_now_add=True)),
             ],
         ),
         migrations.CreateModel(
-            name='NotaMedica',
+            name="NotaMedica",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('contenido', models.TextField(verbose_name='Evolución / Nota Médica')),
-                ('diagnostico', models.TextField(blank=True, null=True)),
-                ('nacimiento_paciente_snapshot', models.DateField(blank=True, null=True)),
-                ('activo', models.BooleanField(default=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('cita', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='nota_medica', to='gestion_citas.cita')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("contenido", models.TextField(verbose_name="Evolución / Nota Médica")),
+                ("diagnostico", models.TextField(blank=True, null=True)),
+                (
+                    "nacimiento_paciente_snapshot",
+                    models.DateField(blank=True, null=True),
+                ),
+                ("activo", models.BooleanField(default=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "cita",
+                    models.OneToOneField(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="nota_medica",
+                        to="gestion_citas.cita",
+                    ),
+                ),
             ],
         ),
     ]

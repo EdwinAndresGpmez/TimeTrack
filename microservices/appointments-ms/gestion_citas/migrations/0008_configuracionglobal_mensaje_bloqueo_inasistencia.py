@@ -4,15 +4,17 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('gestion_citas', '0007_configuracionglobal_limite_inasistencias'),
+        ("gestion_citas", "0007_configuracionglobal_limite_inasistencias"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='configuracionglobal',
-            name='mensaje_bloqueo_inasistencia',
-            field=models.TextField(blank=True, default='Su cuenta ha sido bloqueada por inasistencias reiteradas. Contacte a la clínica.'),
+            model_name="configuracionglobal",
+            name="mensaje_bloqueo_inasistencia",
+            field=models.TextField(
+                blank=True,
+                default="Su cuenta ha sido bloqueada por inasistencias reiteradas. Contacte a la clínica.",
+            ),
         ),
     ]

@@ -1,10 +1,11 @@
 from django.db import models
-from rest_framework.exceptions import ValidationError 
+from rest_framework.exceptions import ValidationError
+
 
 class Especialidad(models.Model):
     nombre = models.CharField(max_length=100)
     descripcion = models.TextField(blank=True)
-    activo = models.BooleanField(default=True) 
+    activo = models.BooleanField(default=True)
 
     class Meta:
         verbose_name = "Especialidad"
@@ -17,7 +18,9 @@ class Especialidad(models.Model):
     def delete(self, *args, **kwargs):
         if self.profesional_set.exists():
             raise ValidationError(
-                {"detail": f"No se puede borrar '{self.nombre}' porque hay profesionales con esta especialidad. Desactívelo en su lugar."}
+                {
+                    "detail": f"No se puede borrar '{self.nombre}' porque hay profesionales con esta especialidad. Desactívelo en su lugar."
+                }
             )
         super().delete(*args, **kwargs)
 
@@ -38,7 +41,9 @@ class Lugar(models.Model):
     def delete(self, *args, **kwargs):
         if self.profesionales.exists():
             raise ValidationError(
-                {"detail": f"No se puede borrar la sede '{self.nombre}' porque tiene profesionales asignados. Desactívela."}
+                {
+                    "detail": f"No se puede borrar la sede '{self.nombre}' porque tiene profesionales asignados. Desactívela."
+                }
             )
         super().delete(*args, **kwargs)
 
@@ -49,10 +54,10 @@ class Profesional(models.Model):
     registro_medico = models.CharField(max_length=100, unique=True)
     email_profesional = models.EmailField(unique=True)
     telefono_profesional = models.CharField(max_length=50)
-    
+
     especialidades = models.ManyToManyField(Especialidad)
     lugares_atencion = models.ManyToManyField(Lugar, related_name="profesionales")
-    
+
     activo = models.BooleanField(default=True)
 
     class Meta:
@@ -66,13 +71,15 @@ class Profesional(models.Model):
 class Servicio(models.Model):
     nombre = models.CharField(max_length=255)
     descripcion = models.TextField(blank=True)
-    duracion_minutos = models.IntegerField() 
+    duracion_minutos = models.IntegerField()
     precio_base = models.DecimalField(max_digits=10, decimal_places=2)
-    
-    profesionales = models.ManyToManyField(Profesional, related_name='servicios_habilitados', blank=True)
-    
-    tipos_paciente_ids = models.JSONField(default=list, blank=True) 
-    
+
+    profesionales = models.ManyToManyField(
+        Profesional, related_name="servicios_habilitados", blank=True
+    )
+
+    tipos_paciente_ids = models.JSONField(default=list, blank=True)
+
     activo = models.BooleanField(default=True)
 
     class Meta:
@@ -84,7 +91,9 @@ class Servicio(models.Model):
 
     def delete(self, *args, **kwargs):
         if self.profesionales.exists():
-             raise ValidationError(
-                {"detail": f"No se puede borrar '{self.nombre}' porque tiene profesionales. Desactívelo."}
+            raise ValidationError(
+                {
+                    "detail": f"No se puede borrar '{self.nombre}' porque tiene profesionales. Desactívelo."
+                }
             )
         super().delete(*args, **kwargs)

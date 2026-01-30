@@ -4,15 +4,17 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('gestion_citas', '0005_configuracionglobal_max_citas_dia_paciente_and_more'),
+        ("gestion_citas", "0005_configuracionglobal_max_citas_dia_paciente_and_more"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='configuracionglobal',
-            name='dias_para_actualizar_datos',
-            field=models.IntegerField(default=180, help_text='Cada cuántos días se le pedirá al paciente validar sus datos (0 para desactivar)'),
+            model_name="configuracionglobal",
+            name="dias_para_actualizar_datos",
+            field=models.IntegerField(
+                default=180,
+                help_text="Cada cuántos días se le pedirá al paciente validar sus datos (0 para desactivar)",
+            ),
         ),
     ]

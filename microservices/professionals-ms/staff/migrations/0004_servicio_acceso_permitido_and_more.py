@@ -4,20 +4,29 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('staff', '0003_especialidad_activo'),
+        ("staff", "0003_especialidad_activo"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='servicio',
-            name='acceso_permitido',
-            field=models.CharField(choices=[('TODOS', 'Para todos los pacientes'), ('PARTICULAR', 'Solo Particulares'), ('EPS', 'Solo EPS/Convenios')], default='TODOS', max_length=20),
+            model_name="servicio",
+            name="acceso_permitido",
+            field=models.CharField(
+                choices=[
+                    ("TODOS", "Para todos los pacientes"),
+                    ("PARTICULAR", "Solo Particulares"),
+                    ("EPS", "Solo EPS/Convenios"),
+                ],
+                default="TODOS",
+                max_length=20,
+            ),
         ),
         migrations.AlterField(
-            model_name='servicio',
-            name='profesionales',
-            field=models.ManyToManyField(blank=True, related_name='servicios_habilitados', to='staff.profesional'),
+            model_name="servicio",
+            name="profesionales",
+            field=models.ManyToManyField(
+                blank=True, related_name="servicios_habilitados", to="staff.profesional"
+            ),
         ),
     ]

@@ -4,15 +4,14 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('agenda', '0001_initial'),
+        ("agenda", "0001_initial"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='disponibilidad',
-            name='fecha',
+            model_name="disponibilidad",
+            name="fecha",
             field=models.DateField(blank=True, db_index=True, null=True),
         ),
     ]

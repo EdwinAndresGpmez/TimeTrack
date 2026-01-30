@@ -4,19 +4,18 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('staff', '0004_servicio_acceso_permitido_and_more'),
+        ("staff", "0004_servicio_acceso_permitido_and_more"),
     ]
 
     operations = [
         migrations.RemoveField(
-            model_name='servicio',
-            name='acceso_permitido',
+            model_name="servicio",
+            name="acceso_permitido",
         ),
         migrations.AddField(
-            model_name='servicio',
-            name='tipos_paciente_ids',
+            model_name="servicio",
+            name="tipos_paciente_ids",
             field=models.JSONField(blank=True, default=list),
         ),
     ]

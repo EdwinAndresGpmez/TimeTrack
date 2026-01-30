@@ -4,26 +4,31 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('staff', '0001_initial'),
+        ("staff", "0001_initial"),
     ]
 
     operations = [
         migrations.AlterModelOptions(
-            name='especialidad',
-            options={'verbose_name': 'Especialidad', 'verbose_name_plural': 'Especialidades'},
+            name="especialidad",
+            options={
+                "verbose_name": "Especialidad",
+                "verbose_name_plural": "Especialidades",
+            },
         ),
         migrations.AlterModelOptions(
-            name='lugar',
-            options={'verbose_name': 'Lugar', 'verbose_name_plural': 'Lugares'},
+            name="lugar",
+            options={"verbose_name": "Lugar", "verbose_name_plural": "Lugares"},
         ),
         migrations.AlterModelOptions(
-            name='profesional',
-            options={'verbose_name': 'Profesional', 'verbose_name_plural': 'Profesionales'},
+            name="profesional",
+            options={
+                "verbose_name": "Profesional",
+                "verbose_name_plural": "Profesionales",
+            },
         ),
         migrations.AlterModelOptions(
-            name='servicio',
-            options={'verbose_name': 'Servicio', 'verbose_name_plural': 'Servicios'},
+            name="servicio",
+            options={"verbose_name": "Servicio", "verbose_name_plural": "Servicios"},
         ),
     ]

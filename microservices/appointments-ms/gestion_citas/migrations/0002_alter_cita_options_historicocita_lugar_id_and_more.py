@@ -4,34 +4,50 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('gestion_citas', '0001_initial'),
+        ("gestion_citas", "0001_initial"),
     ]
 
     operations = [
         migrations.AlterModelOptions(
-            name='cita',
-            options={'ordering': ['-fecha', '-hora_inicio'], 'verbose_name': 'Cita', 'verbose_name_plural': 'Citas'},
+            name="cita",
+            options={
+                "ordering": ["-fecha", "-hora_inicio"],
+                "verbose_name": "Cita",
+                "verbose_name_plural": "Citas",
+            },
         ),
         migrations.AddField(
-            model_name='historicocita',
-            name='lugar_id',
+            model_name="historicocita",
+            name="lugar_id",
             field=models.IntegerField(null=True),
         ),
         migrations.AddField(
-            model_name='historicocita',
-            name='usuario_responsable',
+            model_name="historicocita",
+            name="usuario_responsable",
             field=models.CharField(blank=True, max_length=100, null=True),
         ),
         migrations.AlterField(
-            model_name='cita',
-            name='estado',
-            field=models.CharField(choices=[('PENDIENTE', 'Pendiente'), ('ACEPTADA', 'Aceptada'), ('CANCELADA', 'Cancelada'), ('REALIZADA', 'Realizada'), ('NO_ASISTIO', 'No Asistió')], db_index=True, default='PENDIENTE', max_length=20),
+            model_name="cita",
+            name="estado",
+            field=models.CharField(
+                choices=[
+                    ("PENDIENTE", "Pendiente"),
+                    ("ACEPTADA", "Aceptada"),
+                    ("CANCELADA", "Cancelada"),
+                    ("REALIZADA", "Realizada"),
+                    ("NO_ASISTIO", "No Asistió"),
+                ],
+                db_index=True,
+                default="PENDIENTE",
+                max_length=20,
+            ),
         ),
         migrations.AlterField(
-            model_name='cita',
-            name='nota',
-            field=models.TextField(blank=True, null=True, verbose_name='Nota inicial del paciente'),
+            model_name="cita",
+            name="nota",
+            field=models.TextField(
+                blank=True, null=True, verbose_name="Nota inicial del paciente"
+            ),
         ),
     ]

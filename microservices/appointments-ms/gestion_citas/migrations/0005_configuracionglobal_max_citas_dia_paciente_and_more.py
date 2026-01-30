@@ -4,20 +4,23 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('gestion_citas', '0004_cita_nota_interna_alter_cita_estado'),
+        ("gestion_citas", "0004_cita_nota_interna_alter_cita_estado"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='configuracionglobal',
-            name='max_citas_dia_paciente',
-            field=models.IntegerField(default=1, verbose_name='Máximo de citas por día por paciente'),
+            model_name="configuracionglobal",
+            name="max_citas_dia_paciente",
+            field=models.IntegerField(
+                default=1, verbose_name="Máximo de citas por día por paciente"
+            ),
         ),
         migrations.AddField(
-            model_name='configuracionglobal',
-            name='permitir_mismo_servicio_dia',
-            field=models.BooleanField(default=False, verbose_name='¿Permitir repetir servicio el mismo día?'),
+            model_name="configuracionglobal",
+            name="permitir_mismo_servicio_dia",
+            field=models.BooleanField(
+                default=False, verbose_name="¿Permitir repetir servicio el mismo día?"
+            ),
         ),
     ]

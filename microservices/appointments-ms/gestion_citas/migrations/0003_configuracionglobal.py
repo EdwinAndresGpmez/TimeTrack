@@ -4,18 +4,36 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('gestion_citas', '0002_alter_cita_options_historicocita_lugar_id_and_more'),
+        ("gestion_citas", "0002_alter_cita_options_historicocita_lugar_id_and_more"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='ConfiguracionGlobal',
+            name="ConfiguracionGlobal",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('horas_antelacion_cancelar', models.IntegerField(default=24, verbose_name='Horas mínimas para cancelar')),
-                ('mensaje_notificacion_cancelacion', models.TextField(default='Su cita ha sido cancelada.', verbose_name='Mensaje default al cancelar')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "horas_antelacion_cancelar",
+                    models.IntegerField(
+                        default=24, verbose_name="Horas mínimas para cancelar"
+                    ),
+                ),
+                (
+                    "mensaje_notificacion_cancelacion",
+                    models.TextField(
+                        default="Su cita ha sido cancelada.",
+                        verbose_name="Mensaje default al cancelar",
+                    ),
+                ),
             ],
         ),
     ]

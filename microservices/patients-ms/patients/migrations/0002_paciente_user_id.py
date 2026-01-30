@@ -4,15 +4,16 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('patients', '0001_initial'),
+        ("patients", "0001_initial"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='paciente',
-            name='user_id',
-            field=models.BigIntegerField(blank=True, db_index=True, null=True, unique=True),
+            model_name="paciente",
+            name="user_id",
+            field=models.BigIntegerField(
+                blank=True, db_index=True, null=True, unique=True
+            ),
         ),
     ]

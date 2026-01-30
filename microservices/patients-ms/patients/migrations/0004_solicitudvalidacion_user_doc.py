@@ -4,15 +4,14 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('patients', '0003_solicitudvalidacion'),
+        ("patients", "0003_solicitudvalidacion"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='solicitudvalidacion',
-            name='user_doc',
+            model_name="solicitudvalidacion",
+            name="user_doc",
             field=models.CharField(blank=True, max_length=50, null=True),
         ),
     ]

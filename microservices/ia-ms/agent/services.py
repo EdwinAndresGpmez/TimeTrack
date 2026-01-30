@@ -1,6 +1,4 @@
 import requests
-import json
-from django.core.exceptions import ImproperlyConfigured
 from .models import AIConfiguration, ChatSession, ChatMessage
 
 class AIService:
