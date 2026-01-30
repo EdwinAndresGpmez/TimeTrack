@@ -2,7 +2,7 @@ import React, { useEffect, useState, useContext } from 'react';
 import { patientService } from '../../services/patientService';
 import { authService } from '../../services/authService';
 import { AuthContext } from '../../context/AuthContext';
-import { citasService } from '../../services/citasService'; // Importamos el servicio de citas
+import { citasService } from '../../services/citasService';
 import Swal from 'sweetalert2';
 import { 
     FaPlus, FaEdit, FaToggleOn, FaToggleOff, FaUserTie, 
@@ -13,22 +13,18 @@ import {
 const ITEMS_PER_PAGE = 10;
 
 const GestionPacientes = () => {
-    // --- CONTEXTO ---
     const { user, permissions } = useContext(AuthContext);
     const roles = permissions?.roles || []; 
 
-    // --- ESTADOS ---
     const [pacientes, setPacientes] = useState([]);
     const [tipos, setTipos] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    // Búsqueda y Paginación
     const [userQuery, setUserQuery] = useState('');
     const [userResults, setUserResults] = useState([]);
     const [query, setQuery] = useState('');
     const [page, setPage] = useState(1);
 
-    // Modal
     const [modalOpen, setModalOpen] = useState(false);
     const [editing, setEditing] = useState(null);
     const [form, setForm] = useState({
@@ -42,7 +38,6 @@ const GestionPacientes = () => {
         }
     }, [user]);
 
-    // --- CARGA DE DATOS (FUSIÓN DE MICROSERVICIOS) ---
     const cargarDatos = async () => {
         setLoading(true);
         try {
@@ -59,26 +54,23 @@ const GestionPacientes = () => {
                 const estadoFaltas = reporteFaltas && reporteFaltas[p.id.toString()];
                 
                 if (estadoFaltas) {
-                    let inasistenciasReales = estadoFaltas.inasistencias; // Valor original (Histórico)
+                    let inasistenciasReales = estadoFaltas.inasistencias; 
                     let estaBloqueado = estadoFaltas.bloqueado_por_inasistencias;
                     
-                    // --- LÓGICA DE COMPARACIÓN DE FECHAS ---
                     if (p.ultima_fecha_desbloqueo && estadoFaltas.ultima_falta) {
                         const fechaReset = new Date(p.ultima_fecha_desbloqueo);
                         const fechaUltimaFalta = new Date(estadoFaltas.ultima_falta);
                         
-                        // CORRECCIÓN: Usamos fechaUltimaFalta <= fechaReset para ser consistentes con el backend
-                        // Si la última falta fue antes o el mismo momento del reset, ya no cuenta.
                         if (fechaUltimaFalta <= fechaReset) {
                             estaBloqueado = false;
-                            inasistenciasReales = 0; // <--- TRUCO VISUAL: Mostramos 0 al usuario
+                            inasistenciasReales = 0;
                         }
                     }
 
                     return {
                         ...p,
-                        inasistencias: inasistenciasReales, // Ahora mostramos 0 si está desbloqueado
-                        inasistencias_historicas: estadoFaltas.inasistencias, // Guardamos el dato real por si acaso
+                        inasistencias: inasistenciasReales, 
+                        inasistencias_historicas: estadoFaltas.inasistencias, 
                         bloqueado_por_inasistencias: estaBloqueado
                     };
                 }
@@ -95,7 +87,7 @@ const GestionPacientes = () => {
             try {
                 const p = await patientService.getAll();
                 setPacientes(Array.isArray(p) ? p : []);
-            } catch (e) {
+            } catch {
                 setPacientes([]);
             }
         } finally {
@@ -119,8 +111,6 @@ const GestionPacientes = () => {
             setUserResults(data || []);
         } catch (error) { console.error(error); }
     };
-
-    // --- ACCIONES ---
 
     const handleAssignUserQuick = async (p) => {
         await Swal.fire({
@@ -188,15 +178,13 @@ const GestionPacientes = () => {
                                         await patientService.update(p.id, { user_id: id });
                                         Swal.fire('¡Listo!', 'Vinculación exitosa.', 'success');
                                         cargarDatos();
-                                    } catch (err) {
-                                        console.error(err);
+                                    } catch {
                                         Swal.fire('Error', 'No se pudo vincular.', 'error');
                                     }
                                 }
                             });
                         });
-                    } catch (err) {
-                        console.error(err);
+                    } catch {
                         container.innerHTML = '<p class="p-4 text-center text-red-500 text-sm">Error en el servidor.</p>';
                     }
                 });
@@ -204,7 +192,6 @@ const GestionPacientes = () => {
         });
     };
 
-    // --- NUEVO: DESBLOQUEO DE INASISTENCIAS ---
     const handleUnlockInasistencias = async (p) => {
         const confirm = await Swal.fire({
             title: '¿Desbloquear Paciente?',
@@ -220,24 +207,20 @@ const GestionPacientes = () => {
             icon: 'question',
             showCancelButton: true,
             confirmButtonText: 'Sí, aplicar fecha de corte',
-            confirmButtonColor: '#10b981', // Verde éxito
+            confirmButtonColor: '#10b981', 
             cancelButtonText: 'Cancelar'
         });
 
         if (confirm.isConfirmed) {
             try {
-                // CAMBIO IMPORTANTE: Llamamos al patientService (MS Pacientes)
-                // Usamos el método resetInasistencias que actualiza la fecha de corte
                 if (patientService.resetInasistencias) {
                     await patientService.resetInasistencias(p.id);
                 } else {
-                    // Fallback si no está definido el método específico, intentamos update manual
-                    // (Asegúrate de tener el endpoint en el backend)
                     await patientService.update(p.id, { reset_inasistencias: true });
                 }
                 
                 Swal.fire('Desbloqueado', 'El contador se ha reiniciado desde hoy.', 'success');
-                cargarDatos(); // Recargar tabla para ver el candado abrirse
+                cargarDatos();
             } catch (error) {
                 console.error(error);
                 Swal.fire('Error', 'No se pudo realizar el desbloqueo.', 'error');
@@ -273,7 +256,7 @@ const GestionPacientes = () => {
                     setForm(prev => ({ ...prev, user_id: match.id }));
                     setUserQuery(`${match.nombre} (${match.documento})`);
                 }
-            } catch (err) { console.log("Auto-búsqueda fallida"); }
+            } catch { console.log("Auto-búsqueda fallida"); }
         }
     };
 
@@ -301,8 +284,7 @@ const GestionPacientes = () => {
         try {
             await patientService.update(p.id, { activo: !p.activo });
             cargarDatos();
-        } catch (error) { 
-            console.error(error);
+        } catch { 
             Swal.fire('Error', 'No se pudo cambiar el estado.', 'error'); 
         }
     };
@@ -347,7 +329,7 @@ const GestionPacientes = () => {
                         nombre: it.nombre || 'N/A', apellido: it.apellido || '', tipo_documento: it.tipo_documento || 'CC', numero_documento: it.numero_documento || '', 
                         fecha_nacimiento: it.fecha_nacimiento || '2000-01-01', genero: it.genero || 'O', email_contacto: it.email_contacto || ''
                     });
-                } catch (error) { console.error("Error en fila"); }
+                } catch { console.error("Error en fila"); }
             }
             Swal.fire('Terminado', 'Proceso de importación finalizado.', 'info');
             cargarDatos();
@@ -367,7 +349,6 @@ const GestionPacientes = () => {
 
     return (
         <div className="max-w-7xl mx-auto p-4">
-            {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
                 <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-2">
                     <FaUserTie className="text-teal-600"/> Gestión de Pacientes
@@ -377,7 +358,6 @@ const GestionPacientes = () => {
                 </div>
             </div>
 
-            {/* Filtros */}
             <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100 mb-6 flex flex-col md:flex-row gap-4 items-center">
                 <div className="relative w-full md:flex-1">
                     <FaSearch className="absolute left-3 top-3 text-gray-400" />
@@ -389,7 +369,6 @@ const GestionPacientes = () => {
                 </button>
             </div>
 
-            {/* Tabla */}
             <div className="bg-white shadow-lg rounded-xl overflow-hidden border border-gray-200">
                 <div className="overflow-x-auto">
                     <table className="min-w-full leading-normal">
@@ -418,7 +397,6 @@ const GestionPacientes = () => {
                                             ) : (
                                                 <span className="text-[10px] text-orange-500 font-medium italic">Sin cuenta de acceso</span>
                                             )}
-                                            {/* Indicador visual de inasistencias */}
                                             {p.inasistencias > 0 && (
                                                 <span className="text-[9px] text-red-500 font-bold bg-red-50 px-1.5 rounded w-max mt-1 flex items-center gap-1">
                                                     <FaHistory/> {p.inasistencias} Faltas
@@ -445,17 +423,14 @@ const GestionPacientes = () => {
                                     </td>
                                     <td className="px-6 py-4 text-center">
                                         <div className="flex justify-center gap-2">
-                                            {/* EDITAR */}
                                             <button onClick={() => openEdit(p)} className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-all" title="Editar Ficha">
                                                 <FaEdit size={16} />
                                             </button>
                                             
-                                            {/* VINCULAR */}
                                             <button onClick={() => handleAssignUserQuick(p)} className="p-2 text-gray-400 hover:text-teal-600 hover:bg-teal-50 rounded-full transition-all" title="Vínculo Rápido de Usuario">
                                                 <FaKey size={14} />
                                             </button>
 
-                                            {/* DESBLOQUEO */}
                                             <button 
                                                 onClick={() => handleUnlockInasistencias(p)} 
                                                 className="p-2 text-gray-400 hover:text-orange-500 hover:bg-orange-50 rounded-full transition-all" 
@@ -475,7 +450,6 @@ const GestionPacientes = () => {
                     </table>
                 </div>
 
-                {/* Footer / Paginación */}
                 <div className="px-6 py-4 bg-gray-50 border-t flex flex-col md:flex-row justify-between items-center gap-4">
                     <div className="flex items-center gap-3">
                         <label className="text-xs font-bold text-gray-400 uppercase">Carga Masiva:</label>
@@ -492,13 +466,11 @@ const GestionPacientes = () => {
                 </div>
             </div>
 
-            {/* Modal Principal */}
             {modalOpen && (
                 <div className="fixed inset-0 z-50 overflow-y-auto backdrop-blur-sm">
                     <div className="flex items-center justify-center min-h-screen px-4 py-8">
                         <div className="fixed inset-0 bg-gray-900/60" onClick={() => setModalOpen(false)}></div>
                         <div className="bg-white rounded-2xl overflow-hidden shadow-2xl transform transition-all sm:max-w-2xl w-full z-10 border border-gray-100">
-                            {/* ... FORMULARIO DEL MODAL (Se mantiene igual) ... */}
                             <div className="bg-white px-8 py-6">
                                 <h3 className="text-2xl font-black text-gray-800 mb-6 flex items-center gap-3 border-b pb-5">
                                     <div className="p-2.5 bg-teal-600 rounded-xl text-white shadow-lg"><FaUserTie /></div>

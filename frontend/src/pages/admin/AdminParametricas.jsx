@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { staffService } from '../../services/staffService';
-import { patientService } from '../../services/patientService'; // Servicio para traer los tipos reales
+import { patientService } from '../../services/patientService';
 import Swal from 'sweetalert2';
 import { 
     FaHospital, FaStethoscope, FaNotesMedical, FaPlus, FaEdit, 
@@ -8,44 +8,16 @@ import {
 } from 'react-icons/fa';
 
 const AdminParametricas = () => {
-    // Tabs: sedes | especialidades | servicios
     const [activeTab, setActiveTab] = useState('sedes'); 
     const [dataList, setDataList] = useState([]);
     const [loading, setLoading] = useState(false);
-
-    // Estado para catálogo auxiliar (Tipos de Paciente desde MS Patients)
     const [tiposPacienteOptions, setTiposPacienteOptions] = useState([]);
-
-    // Estado para el Modal Genérico
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [currentId, setCurrentId] = useState(null);
     const [formData, setFormData] = useState({});
 
-    // Cargar datos principales al cambiar de tab
-    useEffect(() => {
-        cargarDatos();
-        
-        // Si entramos a servicios, cargamos también el catálogo de tipos de paciente
-        if (activeTab === 'servicios') {
-            cargarTiposExternos();
-        }
-    }, [activeTab]);
-
-    const cargarTiposExternos = async () => {
-        try {
-            // Trae todos los tipos (EPS, Particular, etc.)
-            const tipos = await patientService.getTiposPaciente();
-            // Filtramos solo los activos para no asignar tipos viejos
-            if (Array.isArray(tipos)) {
-                setTiposPacienteOptions(tipos.filter(t => t.activo));
-            }
-        } catch (e) {
-            console.error("Error cargando tipos de pacientes", e);
-        }
-    };
-
-    const cargarDatos = async () => {
+    const cargarDatos = useCallback(async () => {
         setLoading(true);
         try {
             let data = [];
@@ -53,7 +25,6 @@ const AdminParametricas = () => {
             if (activeTab === 'especialidades') data = await staffService.getEspecialidades();
             if (activeTab === 'servicios') data = await staffService.getServicios();
             
-            // ORDENAR: Activos primero
             data.sort((a, b) => Number(b.activo) - Number(a.activo));
             setDataList(data);
         } catch (error) {
@@ -62,26 +33,41 @@ const AdminParametricas = () => {
         } finally {
             setLoading(false);
         }
+    }, [activeTab]);
+
+    useEffect(() => {
+        cargarDatos();
+        if (activeTab === 'servicios') {
+            cargarTiposExternos();
+        }
+    }, [activeTab, cargarDatos]);
+
+    const cargarTiposExternos = async () => {
+        try {
+            const tipos = await patientService.getTiposPaciente();
+            if (Array.isArray(tipos)) {
+                setTiposPacienteOptions(tipos.filter(t => t.activo));
+            }
+        } catch (e) {
+            console.error("Error cargando tipos de pacientes", e);
+        }
     };
 
-    // --- MANEJO DEL MODAL ---
     const openModal = (item = null) => {
         setIsEditing(!!item);
         setCurrentId(item ? item.id : null);
         
-        // Inicializar formulario según la pestaña
         if (activeTab === 'sedes') {
             setFormData(item || { nombre: '', direccion: '', ciudad: '', activo: true });
         } else if (activeTab === 'especialidades') {
             setFormData(item || { nombre: '', descripcion: '', activo: true });
         } else if (activeTab === 'servicios') {
-            // Para servicios, inicializamos tipos_paciente_ids como array vacío si es nuevo
             setFormData(item || { 
                 nombre: '', 
                 descripcion: '', 
                 duracion_minutos: 30, 
                 precio_base: 0, 
-                tipos_paciente_ids: [], // Array de IDs [1, 2, ...]
+                tipos_paciente_ids: [],
                 activo: true,
                 profesionales: [] 
             });
@@ -94,17 +80,14 @@ const AdminParametricas = () => {
         setFormData({ ...formData, [e.target.name]: value });
     };
 
-    // Handler especial para checkboxes múltiples (Tipos de Acceso)
     const handleTiposChange = (idTipo) => {
         const currentIds = formData.tipos_paciente_ids || [];
         if (currentIds.includes(idTipo)) {
-            // Quitar ID
             setFormData({ 
                 ...formData, 
                 tipos_paciente_ids: currentIds.filter(id => id !== idTipo) 
             });
         } else {
-            // Agregar ID
             setFormData({ 
                 ...formData, 
                 tipos_paciente_ids: [...currentIds, idTipo] 
@@ -131,7 +114,6 @@ const AdminParametricas = () => {
         }
     };
 
-    // --- LÓGICA DE BORRADO Y ESTADO ---
     const handleToggle = async (item) => {
         try {
             const newState = !item.activo;
@@ -145,15 +127,13 @@ const AdminParametricas = () => {
             const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
             Toast.fire({ icon: 'success', title: `Registro ${msg}` });
             cargarDatos();
-        } catch (error) {
+        } catch {
             Swal.fire('Error', 'No se pudo cambiar el estado', 'error');
         }
     };
 
-    // Helper para mostrar nombres de tipos en la tabla (cruce de IDs con Nombres)
     const getNombresTipos = (idsArray) => {
         if (!idsArray || idsArray.length === 0) return null;
-        // Mapeamos los IDs guardados con los nombres del catálogo cargado
         return idsArray.map(id => {
             const tipo = tiposPacienteOptions.find(t => t.id === id);
             return tipo ? tipo.nombre : `ID: ${id}`;
@@ -166,7 +146,6 @@ const AdminParametricas = () => {
                 <FaCheck className="text-green-600"/> Paramétricas del Sistema
             </h1>
 
-            {/* TABS */}
             <div className="flex border-b border-gray-200 mb-6 overflow-x-auto">
                 <button onClick={() => setActiveTab('sedes')} className={`px-6 py-3 font-medium flex items-center gap-2 whitespace-nowrap ${activeTab === 'sedes' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-blue-500'}`}>
                     <FaHospital /> Sedes
@@ -185,7 +164,6 @@ const AdminParametricas = () => {
                 </button>
             </div>
 
-            {/* TABLA */}
             <div className="bg-white rounded shadow overflow-hidden border border-gray-200">
                 <div className="overflow-x-auto">
                     <table className="min-w-full leading-normal">
@@ -211,14 +189,12 @@ const AdminParametricas = () => {
                                             <div>
                                                 <div className="font-mono text-xs mb-1">{item.duracion_minutos} min | ${item.precio_base}</div>
                                                 
-                                                {/* RENDERING DE TIPOS DE ACCESO (BADGES) */}
                                                 <div className="flex flex-wrap gap-1">
                                                     {(!item.tipos_paciente_ids || item.tipos_paciente_ids.length === 0) ? (
                                                         <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded border border-green-200 flex items-center gap-1">
                                                             <FaUsers size={8}/> Todos
                                                         </span>
                                                     ) : (
-                                                        // Usamos el helper para mostrar nombres en lugar de IDs
                                                         getNombresTipos(item.tipos_paciente_ids)?.map((nombre, idx) => (
                                                             <span key={idx} className="text-[10px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded border border-purple-200">
                                                                 {nombre}
@@ -236,7 +212,6 @@ const AdminParametricas = () => {
                                     </td>
                                     <td className="px-5 py-4 text-right">
                                         <button onClick={() => openModal(item)} className="text-blue-600 mr-3"><FaEdit size={18}/></button>
-                                        {/* <button onClick={() => handleDelete(item)} className="text-red-400"><FaTrash size={16}/></button> */}
                                     </td>
                                 </tr>
                             ))}
@@ -245,7 +220,6 @@ const AdminParametricas = () => {
                 </div>
             </div>
 
-            {/* MODAL */}
             {isModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
                     <div className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden">
@@ -272,7 +246,6 @@ const AdminParametricas = () => {
                                         </div>
                                     </div>
 
-                                    {/* SELECTOR MÚLTIPLE DE TIPOS DE PACIENTE */}
                                     <div className="border p-3 rounded bg-gray-50">
                                         <label className="block text-sm font-bold mb-2 text-gray-700 flex items-center gap-2">
                                             <FaUsers className="text-blue-500"/> Disponible para:
@@ -300,7 +273,6 @@ const AdminParametricas = () => {
                                 </>
                             )}
                             
-                            {/* Campos comunes sedes/especialidades... */}
                             {activeTab === 'sedes' && (
                                 <>
                                     <div><label className="block text-sm font-bold mb-1">Ciudad</label><input name="ciudad" value={formData.ciudad} onChange={handleChange} className="w-full border p-2 rounded"/></div>

@@ -9,7 +9,7 @@ const DataUpdateEnforcer = ({ onValidated }) => {
     const { user } = useContext(AuthContext);
     const [checked, setChecked] = useState(false);
 
-    // 1. Definimos primero la función del Modal (porque es llamada por la de verificación)
+    // 1. Definimos primero la función del Modal
     const lanzarModalActualizacion = useCallback((datosActuales, dias) => {
         Swal.fire({
             title: 'Actualización Requerida',
@@ -80,17 +80,15 @@ const DataUpdateEnforcer = ({ onValidated }) => {
 
                 } catch (error) {
                     console.error(error);
-                    Swal.fire('Error', 'No se pudo actualizar. Inténtalo nuevamente.', 'error')
-                        // Nota: Recursión dentro de la promesa es segura aquí porque la const ya está definida al ejecutarse
-                        .then(() => lanzarModalActualizacion(datosActuales, dias)); 
+                    Swal.fire('Error', 'No se pudo actualizar. Inténtalo nuevamente.', 'error');
                 }
             }
         });
-    }, [onValidated]); // Dependencias de lanzarModalActualizacion
+    }, [onValidated]);
 
-    // 2. Definimos la función de verificación (usa lanzarModalActualizacion)
+    // 2. Definimos la función de verificación
     const verificarAntiguedadDatos = useCallback(async () => {
-        setChecked(true); // Marcamos como chequeado para no repetir
+        setChecked(true);
         try {
             // A. Obtenemos configuración y perfil en paralelo
             const [config, perfil] = await Promise.all([
@@ -98,13 +96,13 @@ const DataUpdateEnforcer = ({ onValidated }) => {
                 patientService.getPatientById(user.paciente_id)
             ]);
 
-            const diasLimite = config.dias_para_actualizar_datos || 180; // Default 6 meses
+            const diasLimite = config.dias_para_actualizar_datos || 180;
             if (diasLimite === 0) {
-                if (onValidated) onValidated(); // Si la regla está apagada, dejar pasar
+                if (onValidated) onValidated();
                 return; 
             }
 
-            // B. Calcular días transcurridos desde updated_at
+            // B. Calcular días transcurridos
             const ultimaActualizacion = new Date(perfil.updated_at);
             const hoy = new Date();
             const diferenciaTiempo = Math.abs(hoy - ultimaActualizacion);
@@ -114,24 +112,23 @@ const DataUpdateEnforcer = ({ onValidated }) => {
             if (diasTranscurridos > diasLimite) {
                 lanzarModalActualizacion(perfil, diasTranscurridos);
             } else {
-                if (onValidated) onValidated(); // Datos vigentes
+                if (onValidated) onValidated();
             }
 
         } catch (error) {
             console.error("Error verificando antiguedad de datos:", error);
-            if (onValidated) onValidated(); // En caso de error técnico, no bloqueamos al usuario
+            if (onValidated) onValidated();
         }
-    }, [user, onValidated, lanzarModalActualizacion]); // Dependencias de verificarAntiguedadDatos
+    }, [user, onValidated, lanzarModalActualizacion]);
 
-    // 3. Finalmente el useEffect, que ahora sí puede ver las funciones definidas arriba
+    // 3. useEffect
     useEffect(() => {
-        // Solo ejecutar si hay usuario, es paciente y no hemos chequeado ya en esta sesión de componente
         if (user && user.paciente_id && !checked) {
             verificarAntiguedadDatos();
         }
-    }, [user, checked, verificarAntiguedadDatos]); // ✅ Dependencias completas
+    }, [user, checked, verificarAntiguedadDatos]);
 
-    return null; // Componente lógico, no visual
+    return null;
 };
 
 export default DataUpdateEnforcer;

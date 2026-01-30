@@ -8,29 +8,23 @@ const ValidarUsuarios = () => {
     const [solicitudes, setSolicitudes] = useState([]);
     const [tiposPaciente, setTiposPaciente] = useState([]);
 
-    // 1. DEFINIR LA FUNCIÓN PRIMERO (Antes del useEffect)
-    // Usamos useCallback para que la referencia de la función no cambie en cada render
     const cargarDatos = useCallback(async () => {
         try {
-            // A. Cargas las solicitudes
             const dataSolicitudes = await patientService.getSolicitudesPendientes();
             setSolicitudes(dataSolicitudes);
 
-            // B. Cargas los tipos de paciente dinámicamente
             const dataTipos = await patientService.getTiposPaciente();
             setTiposPaciente(dataTipos);
         } catch (error) {
             console.error("Error cargando datos admin:", error);
         }
-    }, []); // No tiene dependencias externas que cambien
+    }, []);
 
-    // 2. EJECUTAR EL EFFECT DESPUÉS
     useEffect(() => {
         cargarDatos();
-    }, [cargarDatos]); // ✅ Ahora es seguro añadirla como dependencia
+    }, [cargarDatos]);
 
     const handleCrearPaciente = async (solicitud) => {
-        // Generamos las opciones del Select dinámicamente basado en la BD
         const opcionesHtml = tiposPaciente
             .filter(t => t.activo)
             .map(t => `<option value="${t.id}">${t.nombre}</option>`)
@@ -62,7 +56,6 @@ const ValidarUsuarios = () => {
 
         if (formValues) {
             try {
-                // 1. Crear el paciente
                 await patientService.create({
                     user_id: solicitud.user_id,
                     nombre: solicitud.nombre,
@@ -70,7 +63,6 @@ const ValidarUsuarios = () => {
                     email_contacto: solicitud.email,
                     tipo_usuario: formValues.tipo,
                     
-                    // Defaults obligatorios
                     tipo_documento: 'CC', 
                     fecha_nacimiento: '2000-01-01',
                     genero: 'O',
@@ -78,12 +70,10 @@ const ValidarUsuarios = () => {
                     activo: true
                 });
 
-                // 2. Marcar solicitud como procesada
                  await patientService.updateSolicitud(solicitud.id, { ...solicitud, procesado: true });
 
                 Swal.fire('Validado', 'El paciente ha sido creado y vinculado.', 'success');
                 
-                // Recargar tabla usando la función definida arriba
                 cargarDatos(); 
 
             } catch (error) {

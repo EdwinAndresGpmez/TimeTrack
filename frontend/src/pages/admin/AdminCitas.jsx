@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { citasService } from '../../services/citasService';
 import Swal from 'sweetalert2';
@@ -9,14 +9,12 @@ import {
 } from 'react-icons/fa';
 
 const AdminCitas = () => {
-    // --- ESTADOS ---
     const [activeTab, setActiveTab] = useState('PENDIENTE');
     const [citas, setCitas] = useState([]);
     const [loading, setLoading] = useState(true);
     const [filtroFecha, setFiltroFecha] = useState('');
     const [busqueda, setBusqueda] = useState('');
 
-    // --- CONFIGURACIÓN DE PESTAÑAS ---
     const tabs = [
         { id: 'PENDIENTE', label: 'Por Revisar', icon: <FaClock/>, color: 'text-yellow-600 border-yellow-600' },
         { id: 'ACEPTADA', label: 'Aceptadas', icon: <FaCheckCircle/>, color: 'text-green-600 border-green-600' },
@@ -26,11 +24,7 @@ const AdminCitas = () => {
         { id: 'NO_ASISTIO', label: 'No Asistió', icon: <FaUserClock/>, color: 'text-gray-600 border-gray-600' },
     ];
 
-    useEffect(() => {
-        cargarCitas();
-    }, [activeTab, filtroFecha]);
-
-    const cargarCitas = async () => {
+    const cargarCitas = useCallback(async () => {
         setLoading(true);
         try {
             const params = { estado: activeTab };
@@ -48,7 +42,11 @@ const AdminCitas = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [activeTab, filtroFecha]);
+
+    useEffect(() => {
+        cargarCitas();
+    }, [cargarCitas]);
 
     const cambiarEstado = async (cita, nuevoEstado) => {
         let accionTexto = `¿Cambiar estado a ${nuevoEstado}?`;
@@ -91,8 +89,6 @@ const AdminCitas = () => {
 
     return (
         <div className="max-w-7xl mx-auto p-4 relative">
-            
-            {/* --- CABECERA CON BOTÓN LLAMATIVO --- */}
             <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-6 bg-gradient-to-r from-gray-50 to-white p-6 rounded-3xl border border-gray-100 shadow-sm">
                 <div>
                     <h1 className="text-4xl font-black text-gray-800 tracking-tight">Administración de Citas</h1>
@@ -103,7 +99,6 @@ const AdminCitas = () => {
                     to="/dashboard/agendar-admin" 
                     className="group relative inline-flex items-center justify-center px-8 py-4 font-bold text-white transition-all duration-200 bg-indigo-600 rounded-2xl hover:bg-indigo-700 shadow-xl shadow-indigo-200 overflow-hidden active:scale-95"
                 >
-                    {/* Efecto de brillo animado */}
                     <div className="absolute inset-0 w-full h-full transition-all duration-300 scale-0 group-hover:scale-100 group-hover:bg-white/10 rounded-2xl"></div>
                     
                     <FaCalendarPlus className="mr-3 text-xl animate-bounce" />
@@ -114,7 +109,6 @@ const AdminCitas = () => {
                 </Link>
             </div>
 
-            {/* BARRA DE HERRAMIENTAS */}
             <div className="bg-white p-4 rounded-xl shadow-sm mb-6 flex flex-wrap gap-4 items-center justify-between border border-gray-100">
                 <div className="flex gap-4 items-center">
                     <div className="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
@@ -149,7 +143,6 @@ const AdminCitas = () => {
                 </div>
             </div>
 
-            {/* TABS (Pestañas de Estados) */}
             <div className="flex overflow-x-auto bg-gray-50 rounded-t-xl border-t border-x border-gray-200">
                 {tabs.map(tab => (
                     <button
@@ -167,7 +160,6 @@ const AdminCitas = () => {
                 ))}
             </div>
 
-            {/* TABLA DE RESULTADOS */}
             <div className="bg-white shadow-2xl rounded-b-xl overflow-hidden border border-gray-200 min-h-[450px]">
                 {loading ? (
                     <div className="p-24 text-center text-gray-400 flex flex-col items-center">
@@ -264,7 +256,6 @@ const AdminCitas = () => {
                 )}
             </div>
 
-            {/* --- BOTÓN FLOTANTE MÁGICO (FAB) --- */}
             <Link 
                 to="/dashboard/agendar-admin" 
                 className="fixed bottom-8 right-8 w-16 h-16 bg-gradient-to-tr from-indigo-600 to-purple-600 text-white rounded-full flex items-center justify-center shadow-2xl hover:scale-110 hover:rotate-12 transition-all duration-300 group z-50 border-4 border-white"
@@ -280,8 +271,6 @@ const AdminCitas = () => {
                 .btn-icon { width: 32px; height: 32px; border-radius: 8px; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); display: flex; align-items: center; justify-content: center; }
                 .btn-icon:hover { transform: translateY(-2px); box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
                 .btn-icon:active { transform: translateY(0); }
-                
-                /* Animación suave para la entrada de la tabla */
                 tbody tr { animation: fadeIn 0.3s ease-in-out; }
                 @keyframes fadeIn {
                     from { opacity: 0; transform: translateY(5px); }

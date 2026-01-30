@@ -10,10 +10,6 @@ const PatientOnboarding = () => {
     const navigate = useNavigate();
     const hasChecked = useRef(false);
 
-    // -----------------------------------------------------------------------
-    // 1. DEFINIR FUNCIONES AUXILIARES PRIMERO (Para evitar errores de Hoisting)
-    // -----------------------------------------------------------------------
-
     const checkPendingRedirect = useCallback(() => {
         const intencion = localStorage.getItem('intencionCita');
         if (intencion === 'PARTICULAR') {
@@ -31,7 +27,7 @@ const PatientOnboarding = () => {
                 fecha: new Date().toISOString()
             });
             await Swal.fire('Solicitud Enviada', 'Te notificaremos vía email cuando validemos tu EPS.', 'success');
-        } catch (error) {
+        } catch {
             Swal.fire('Aviso', 'Ya tienes una solicitud en proceso de revisión.', 'info');
         }
     }, [user]);
@@ -77,7 +73,6 @@ const PatientOnboarding = () => {
         if (formValues) {
             Swal.fire({ title: 'Creando perfil...', didOpen: () => Swal.showLoading() });
             try {
-                // 1. Crear Paciente
                 const nuevoPaciente = await patientService.create({
                     user_id: user.user_id || user.id,
                     nombre: user.nombre,
@@ -88,11 +83,10 @@ const PatientOnboarding = () => {
                     fecha_nacimiento: formValues.fecha,
                     genero: formValues.genero,
                     direccion: formValues.dir,
-                    tipo_usuario: 1, // ID 1 = Particular
+                    tipo_usuario: 1, 
                     activo: true
                 });
 
-                // 2. Vincular usuario
                 await authService.updateUser(user.user_id || user.id, { 
                     paciente_id: nuevoPaciente.id 
                 });
@@ -105,7 +99,6 @@ const PatientOnboarding = () => {
                     allowOutsideClick: false
                 });
 
-                // 3. LOGOUT FORZADO
                 authService.logout();
                 window.location.href = '/login';
 
@@ -116,7 +109,6 @@ const PatientOnboarding = () => {
         }
     }, [user]);
 
-    // Esta función usa las anteriores, por lo que debe definirse después de ellas
     const showRegistrationModal = useCallback(async () => {
         const { isConfirmed, isDenied, isDismissed } = await Swal.fire({
             title: 'Bienvenido a TimeTrack',
@@ -148,38 +140,28 @@ const PatientOnboarding = () => {
         }
     }, [abrirFormularioParticular, crearSolicitudValidacion]);
 
-    // -----------------------------------------------------------------------
-    // 2. USE EFFECT (Ahora sí puede ver las funciones de arriba)
-    // -----------------------------------------------------------------------
-
     useEffect(() => {
         if (!user || hasChecked.current) return;
         
         const verificarEstado = async () => {
             hasChecked.current = true;
 
-            // 1. Ignorar Staff
             if (user.profesional_id || user.is_staff) return;
 
-            // 2. Si ya es paciente, verificar redirección pendiente y salir
             if (user.paciente_id) {
                 checkPendingRedirect();
                 return;
             }
 
-            // 3. Si NO es paciente, intentamos buscarlo por documento (Self-Healing)
             try {
                 const syncResponse = await patientService.vincularExistente({
                     documento: user.documento,
                     user_id: user.user_id || user.id
                 });
 
-                // CASO A: El paciente EXISTÍA pero no estaba vinculado
                 if (syncResponse.status === 'found') {
                     console.log("Perfil recuperado. Vinculando...");
-                    
                     await authService.updateUser(user.user_id || user.id, { paciente_id: syncResponse.paciente_id });
-                    
                     if (setUser) {
                         setUser({ ...user, paciente_id: syncResponse.paciente_id });
                     }
@@ -187,7 +169,6 @@ const PatientOnboarding = () => {
                 }
 
             } catch (error) {
-                // CASO B: El paciente NO EXISTE (404) -> Es NUEVO -> Preguntar
                 if (error.response && error.response.status === 404) {
                     showRegistrationModal();
                 } else {
@@ -197,8 +178,6 @@ const PatientOnboarding = () => {
         };
 
         verificarEstado();
-    
-    // ✅ Agregamos las funciones al array de dependencias
     }, [user, setUser, checkPendingRedirect, showRegistrationModal]);
 
     return null; 

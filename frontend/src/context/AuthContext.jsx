@@ -10,7 +10,6 @@ export const AuthProvider = ({ children }) => {
     const [permisos, setPermisos] = useState([]); 
     const [loading, setLoading] = useState(true);
 
-    // 1. Definimos logout PRIMERO (usado en checkSession)
     const logout = useCallback(() => {
         authService.logout();
         setUser(null);
@@ -19,7 +18,6 @@ export const AuthProvider = ({ children }) => {
         window.location.href = '/login';
     }, []);
 
-    // 2. Definimos fetchRolesYPermisos SEGUNDO
     const fetchRolesYPermisos = useCallback(async () => {
         try {
             const data = await authService.getMisPermisos();
@@ -27,7 +25,6 @@ export const AuthProvider = ({ children }) => {
             setPermisos(Array.isArray(data.codenames) ? data.codenames : []); 
             setRoles(Array.isArray(data.roles) ? data.roles : []);        
             
-            // Usamos el callback del setter para asegurar que tenemos el estado más reciente
             setUser(prevUser => {
                 if (prevUser) {
                     return { 
@@ -43,19 +40,16 @@ export const AuthProvider = ({ children }) => {
         }
     }, []);
 
-    // 3. useEffect ahora puede ver las funciones de arriba
     useEffect(() => {
         const checkSession = async () => {
             const token = localStorage.getItem('token');
             if (token) {
                 try {
                     const decoded = jwtDecode(token);
-                    // Verificamos expiración
                     if (decoded.exp * 1000 < Date.now()) {
                         logout();
                     } else {
                         setUser(decoded);
-                        // Llamamos a la función estable
                         await fetchRolesYPermisos(); 
                     }
                 } catch (error) {
@@ -66,9 +60,8 @@ export const AuthProvider = ({ children }) => {
             setLoading(false);
         };
         checkSession();
-    }, [logout, fetchRolesYPermisos]); // ✅ Dependencias agregadas
+    }, [logout, fetchRolesYPermisos]); 
 
-    // 4. Función login simplificada (sin try/catch redundante)
     const login = async (credentials) => {
         const data = await authService.login(credentials);
         if (data.access) {
