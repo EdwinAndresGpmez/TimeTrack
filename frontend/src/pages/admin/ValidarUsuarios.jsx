@@ -21,7 +21,10 @@ const ValidarUsuarios = () => {
     }, []);
 
     useEffect(() => {
-        cargarDatos();
+        const timer = setTimeout(() => {
+            cargarDatos();
+        }, 0);
+        return () => clearTimeout(timer);
     }, [cargarDatos]);
 
     const handleCrearPaciente = async (solicitud) => {

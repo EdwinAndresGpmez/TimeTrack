@@ -9,7 +9,6 @@ const DataUpdateEnforcer = ({ onValidated }) => {
     const { user } = useContext(AuthContext);
     const [checked, setChecked] = useState(false);
 
-    // 1. Definimos primero la función del Modal
     const lanzarModalActualizacion = useCallback((datosActuales, dias) => {
         Swal.fire({
             title: 'Actualización Requerida',
@@ -53,14 +52,12 @@ const DataUpdateEnforcer = ({ onValidated }) => {
                 try {
                     Swal.fire({ title: 'Guardando...', didOpen: () => Swal.showLoading() });
 
-                    // A. Actualizar PACIENTE (Datos demográficos)
                     await patientService.update(datosActuales.id, {
                         telefono,
                         direccion,
                         email_contacto: email
                     });
 
-                    // B. Actualizar USUARIO (Datos de acceso/auth)
                     if (datosActuales.user_id) {
                         await authService.updateUser(datosActuales.user_id, {
                             telefono, 
@@ -86,11 +83,9 @@ const DataUpdateEnforcer = ({ onValidated }) => {
         });
     }, [onValidated]);
 
-    // 2. Definimos la función de verificación
     const verificarAntiguedadDatos = useCallback(async () => {
-        setChecked(true);
+        // Removed setChecked(true) from here to avoid direct sync update issues inside the function logic called by useEffect
         try {
-            // A. Obtenemos configuración y perfil en paralelo
             const [config, perfil] = await Promise.all([
                 configService.getConfig(),
                 patientService.getPatientById(user.paciente_id)
@@ -102,13 +97,11 @@ const DataUpdateEnforcer = ({ onValidated }) => {
                 return; 
             }
 
-            // B. Calcular días transcurridos
             const ultimaActualizacion = new Date(perfil.updated_at);
             const hoy = new Date();
             const diferenciaTiempo = Math.abs(hoy - ultimaActualizacion);
             const diasTranscurridos = Math.ceil(diferenciaTiempo / (1000 * 60 * 60 * 24));
 
-            // C. Validar
             if (diasTranscurridos > diasLimite) {
                 lanzarModalActualizacion(perfil, diasTranscurridos);
             } else {
@@ -121,10 +114,14 @@ const DataUpdateEnforcer = ({ onValidated }) => {
         }
     }, [user, onValidated, lanzarModalActualizacion]);
 
-    // 3. useEffect
     useEffect(() => {
         if (user && user.paciente_id && !checked) {
-            verificarAntiguedadDatos();
+            // Using setTimeout to defer the state update and avoid "setState in effect" warning
+            const timer = setTimeout(() => {
+                setChecked(true);
+                verificarAntiguedadDatos();
+            }, 0);
+            return () => clearTimeout(timer);
         }
     }, [user, checked, verificarAntiguedadDatos]);
 
