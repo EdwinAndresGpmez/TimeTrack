@@ -23,7 +23,7 @@ exclude = [
     "venv",
     "**/migrations/*.py"  # IMPORTANTE: Ignorar migraciones de Django
 ]
-line-length = 88
+line-length = 120
 
 [tool.ruff.lint]
 # E: Errores estilo, F: Pyflakes (bugs), I: Import sorting
