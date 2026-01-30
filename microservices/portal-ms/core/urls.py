@@ -14,6 +14,7 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
+
 from django.contrib import admin
 from django.urls import path
 from django.conf import settings
@@ -24,15 +25,15 @@ from content.views import BannerListView, VideoListView
 from forms.views import PQRSCreateView, HVCreateView
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
-
+    path("admin/", admin.site.urls),
     # --- Rutas de Contenido (GET) ---
-    path('api/v1/portal/banners/', BannerListView.as_view(), name='banner-list'),
-    path('api/v1/portal/videos/', VideoListView.as_view(), name='video-list'),
-
+    path("api/v1/portal/banners/", BannerListView.as_view(), name="banner-list"),
+    path("api/v1/portal/videos/", VideoListView.as_view(), name="video-list"),
     # --- Rutas de Formularios (POST) ---
-    path('api/v1/portal/pqrs/', PQRSCreateView.as_view(), name='pqrs-create'),
-    path('api/v1/portal/trabaje-con-nosotros/', HVCreateView.as_view(), name='hv-create'),
+    path("api/v1/portal/pqrs/", PQRSCreateView.as_view(), name="pqrs-create"),
+    path(
+        "api/v1/portal/trabaje-con-nosotros/", HVCreateView.as_view(), name="hv-create"
+    ),
 ]
 
 # Configuración para servir archivos multimedia (Imágenes/PDFs) en desarrollo

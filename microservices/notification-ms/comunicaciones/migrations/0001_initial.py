@@ -4,28 +4,39 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='Notificacion',
+            name="Notificacion",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('usuario_id', models.BigIntegerField(db_index=True)),
-                ('cita_id', models.BigIntegerField(blank=True, null=True)),
-                ('asunto', models.CharField(max_length=255)),
-                ('mensaje', models.TextField()),
-                ('leida', models.BooleanField(default=False)),
-                ('tipo', models.CharField(default='SISTEMA', max_length=50)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("usuario_id", models.BigIntegerField(db_index=True)),
+                ("cita_id", models.BigIntegerField(blank=True, null=True)),
+                ("asunto", models.CharField(max_length=255)),
+                ("mensaje", models.TextField()),
+                ("leida", models.BooleanField(default=False)),
+                ("tipo", models.CharField(default="SISTEMA", max_length=50)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
             ],
             options={
-                'ordering': ['-created_at'],
-                'indexes': [models.Index(fields=['usuario_id', 'leida'], name='comunicacio_usuario_577469_idx')],
+                "ordering": ["-created_at"],
+                "indexes": [
+                    models.Index(
+                        fields=["usuario_id", "leida"],
+                        name="comunicacio_usuario_577469_idx",
+                    )
+                ],
             },
         ),
     ]

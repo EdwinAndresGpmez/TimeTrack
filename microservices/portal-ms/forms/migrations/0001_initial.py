@@ -4,42 +4,91 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='ConvocatoriaHV',
+            name="ConvocatoriaHV",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('nombre_completo', models.CharField(max_length=255)),
-                ('correo', models.EmailField(max_length=254)),
-                ('telefono', models.CharField(max_length=50)),
-                ('perfil_profesional', models.CharField(help_text='Ej: Enfermera, Médico General, Contador', max_length=255)),
-                ('archivo_hv', models.FileField(upload_to='hojas_de_vida/')),
-                ('mensaje_adicional', models.TextField(blank=True, null=True)),
-                ('fecha_postulacion', models.DateTimeField(auto_now_add=True)),
-                ('leido', models.BooleanField(default=False)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("nombre_completo", models.CharField(max_length=255)),
+                ("correo", models.EmailField(max_length=254)),
+                ("telefono", models.CharField(max_length=50)),
+                (
+                    "perfil_profesional",
+                    models.CharField(
+                        help_text="Ej: Enfermera, Médico General, Contador",
+                        max_length=255,
+                    ),
+                ),
+                ("archivo_hv", models.FileField(upload_to="hojas_de_vida/")),
+                ("mensaje_adicional", models.TextField(blank=True, null=True)),
+                ("fecha_postulacion", models.DateTimeField(auto_now_add=True)),
+                ("leido", models.BooleanField(default=False)),
             ],
         ),
         migrations.CreateModel(
-            name='PQRS',
+            name="PQRS",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('tipo', models.CharField(choices=[('PETICION', 'Petición'), ('QUEJA', 'Queja'), ('RECLAMO', 'Reclamo'), ('SUGERENCIA', 'Sugerencia'), ('FELICITACION', 'Felicitación')], max_length=20)),
-                ('nombre_remitente', models.CharField(max_length=255)),
-                ('correo', models.EmailField(max_length=254)),
-                ('telefono', models.CharField(blank=True, max_length=50)),
-                ('asunto', models.CharField(max_length=200)),
-                ('mensaje', models.TextField()),
-                ('adjunto', models.FileField(blank=True, null=True, upload_to='pqrs_adjuntos/')),
-                ('estado', models.CharField(choices=[('RECIBIDO', 'Recibido'), ('EN_TRAMITE', 'En Trámite'), ('CERRADO', 'Cerrado/Resuelto')], default='RECIBIDO', max_length=20)),
-                ('respuesta_interna', models.TextField(blank=True, help_text='Uso administrativo')),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "tipo",
+                    models.CharField(
+                        choices=[
+                            ("PETICION", "Petición"),
+                            ("QUEJA", "Queja"),
+                            ("RECLAMO", "Reclamo"),
+                            ("SUGERENCIA", "Sugerencia"),
+                            ("FELICITACION", "Felicitación"),
+                        ],
+                        max_length=20,
+                    ),
+                ),
+                ("nombre_remitente", models.CharField(max_length=255)),
+                ("correo", models.EmailField(max_length=254)),
+                ("telefono", models.CharField(blank=True, max_length=50)),
+                ("asunto", models.CharField(max_length=200)),
+                ("mensaje", models.TextField()),
+                (
+                    "adjunto",
+                    models.FileField(blank=True, null=True, upload_to="pqrs_adjuntos/"),
+                ),
+                (
+                    "estado",
+                    models.CharField(
+                        choices=[
+                            ("RECIBIDO", "Recibido"),
+                            ("EN_TRAMITE", "En Trámite"),
+                            ("CERRADO", "Cerrado/Resuelto"),
+                        ],
+                        default="RECIBIDO",
+                        max_length=20,
+                    ),
+                ),
+                (
+                    "respuesta_interna",
+                    models.TextField(blank=True, help_text="Uso administrativo"),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
             ],
         ),
     ]

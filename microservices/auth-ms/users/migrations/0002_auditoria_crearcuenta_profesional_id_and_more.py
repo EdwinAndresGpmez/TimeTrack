@@ -4,58 +4,81 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('auth', '0012_alter_user_first_name_max_length'),
-        ('users', '0001_initial'),
+        ("auth", "0012_alter_user_first_name_max_length"),
+        ("users", "0001_initial"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='Auditoria',
+            name="Auditoria",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('descripcion', models.TextField()),
-                ('usuario_id', models.BigIntegerField(null=True)),
-                ('fecha', models.DateTimeField(auto_now_add=True)),
-                ('modulo', models.CharField(default='GENERAL', max_length=100)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("descripcion", models.TextField()),
+                ("usuario_id", models.BigIntegerField(null=True)),
+                ("fecha", models.DateTimeField(auto_now_add=True)),
+                ("modulo", models.CharField(default="GENERAL", max_length=100)),
             ],
         ),
         migrations.AddField(
-            model_name='crearcuenta',
-            name='profesional_id',
+            model_name="crearcuenta",
+            name="profesional_id",
             field=models.BigIntegerField(blank=True, db_index=True, null=True),
         ),
         migrations.AlterField(
-            model_name='crearcuenta',
-            name='cedula',
+            model_name="crearcuenta",
+            name="cedula",
             field=models.CharField(db_index=True, max_length=255, unique=True),
         ),
         migrations.AlterField(
-            model_name='crearcuenta',
-            name='paciente_id',
+            model_name="crearcuenta",
+            name="paciente_id",
             field=models.BigIntegerField(blank=True, db_index=True, null=True),
         ),
         migrations.CreateModel(
-            name='PermisoVista',
+            name="PermisoVista",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('nombre_vista', models.CharField(max_length=255, unique=True)),
-                ('roles_permitidos', models.ManyToManyField(to='auth.group')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("nombre_vista", models.CharField(max_length=255, unique=True)),
+                ("roles_permitidos", models.ManyToManyField(to="auth.group")),
             ],
         ),
         migrations.CreateModel(
-            name='MenuItem',
+            name="MenuItem",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('label', models.CharField(max_length=100)),
-                ('url', models.CharField(max_length=200)),
-                ('icon', models.CharField(blank=True, max_length=100, null=True)),
-                ('order', models.IntegerField(default=0)),
-                ('roles', models.ManyToManyField(blank=True, to='auth.group')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("label", models.CharField(max_length=100)),
+                ("url", models.CharField(max_length=200)),
+                ("icon", models.CharField(blank=True, max_length=100, null=True)),
+                ("order", models.IntegerField(default=0)),
+                ("roles", models.ManyToManyField(blank=True, to="auth.group")),
             ],
             options={
-                'ordering': ['order'],
+                "ordering": ["order"],
             },
         ),
     ]

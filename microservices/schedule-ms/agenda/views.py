@@ -247,7 +247,7 @@ class SlotGeneratorView(APIView):
                 for c in resp.json():
                     if c["estado"] not in ["CANCELADA", "RECHAZADA"]:
                         citas_ocupadas.append((c["hora_inicio"], c["hora_fin"]))
-        except Exception: 
+        except Exception:
             pass
 
         # 4. SLOTS

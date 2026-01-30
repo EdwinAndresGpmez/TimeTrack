@@ -4,35 +4,46 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('auth', '0012_alter_user_first_name_max_length'),
-        ('users', '0003_rename_cedula_crearcuenta_documento'),
+        ("auth", "0012_alter_user_first_name_max_length"),
+        ("users", "0003_rename_cedula_crearcuenta_documento"),
     ]
 
     operations = [
         migrations.RemoveField(
-            model_name='permisovista',
-            name='nombre_vista',
+            model_name="permisovista",
+            name="nombre_vista",
         ),
         migrations.RemoveField(
-            model_name='permisovista',
-            name='roles_permitidos',
+            model_name="permisovista",
+            name="roles_permitidos",
         ),
         migrations.AddField(
-            model_name='permisovista',
-            name='codename',
-            field=models.CharField(default='vista_legacy', help_text="ID único de la ruta en React (ej: '/dashboard/admin')", max_length=100, unique=True),
+            model_name="permisovista",
+            name="codename",
+            field=models.CharField(
+                default="vista_legacy",
+                help_text="ID único de la ruta en React (ej: '/dashboard/admin')",
+                max_length=100,
+                unique=True,
+            ),
             preserve_default=False,
         ),
         migrations.AddField(
-            model_name='permisovista',
-            name='descripcion',
-            field=models.CharField(blank=True, help_text='Descripción legible (ej: Pantalla de Validación de Usuarios)', max_length=255, null=True),
+            model_name="permisovista",
+            name="descripcion",
+            field=models.CharField(
+                blank=True,
+                help_text="Descripción legible (ej: Pantalla de Validación de Usuarios)",
+                max_length=255,
+                null=True,
+            ),
         ),
         migrations.AddField(
-            model_name='permisovista',
-            name='roles',
-            field=models.ManyToManyField(blank=True, related_name='vistas_permitidas', to='auth.group'),
+            model_name="permisovista",
+            name="roles",
+            field=models.ManyToManyField(
+                blank=True, related_name="vistas_permitidas", to="auth.group"
+            ),
         ),
     ]
