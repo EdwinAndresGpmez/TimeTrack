@@ -1,5 +1,6 @@
 from rest_framework import serializers
-from .models import Paciente, TipoPaciente, SolicitudValidacion
+
+from .models import Paciente, SolicitudValidacion, TipoPaciente
 
 
 class TipoPacienteSerializer(serializers.ModelSerializer):

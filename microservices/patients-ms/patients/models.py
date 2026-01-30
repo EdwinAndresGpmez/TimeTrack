@@ -27,16 +27,12 @@ class Paciente(models.Model):
     ]
 
     nombre = models.CharField(max_length=255)
-    apellido = models.CharField(
-        max_length=255, blank=True
-    )  # Legacy a veces tiene nombre completo en un campo
+    apellido = models.CharField(max_length=255, blank=True)  # Legacy a veces tiene nombre completo en un campo
     tipo_documento = models.CharField(max_length=10, choices=TIPO_DOC_CHOICES)
     numero_documento = models.CharField(max_length=50, unique=True, db_index=True)
 
     fecha_nacimiento = models.DateField()
-    genero = models.CharField(
-        max_length=20, choices=[("M", "Masculino"), ("F", "Femenino"), ("O", "Otro")]
-    )
+    genero = models.CharField(max_length=20, choices=[("M", "Masculino"), ("F", "Femenino"), ("O", "Otro")])
 
     direccion = models.CharField(max_length=255, blank=True, null=True)
     telefono = models.CharField(max_length=50, blank=True, null=True)

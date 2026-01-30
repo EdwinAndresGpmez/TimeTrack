@@ -1,14 +1,15 @@
-from rest_framework.views import APIView
+from django.utils import timezone
+from rest_framework import filters, permissions, status, viewsets
+from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework import viewsets, filters, status, permissions
-from .models import Paciente, TipoPaciente, SolicitudValidacion
+from rest_framework.views import APIView
+
+from .models import Paciente, SolicitudValidacion, TipoPaciente
 from .serializers import (
     PacienteSerializer,
-    TipoPacienteSerializer,
     SolicitudValidacionSerializer,
+    TipoPacienteSerializer,
 )
-from rest_framework.decorators import action
-from django.utils import timezone
 
 
 # 1. ViewSet para Tipos de Paciente (EPS, Prepagada, etc.)
@@ -126,9 +127,7 @@ class SyncPacienteUserView(APIView):
                 old_user = paciente.user_id
                 paciente.user_id = user_id
                 paciente.save()
-                cambios_realizados.append(
-                    f"Corregido user_id de {old_user} a {user_id}"
-                )
+                cambios_realizados.append(f"Corregido user_id de {old_user} a {user_id}")
 
             # C. Retornamos ÉXITO y el ID del paciente para que Auth se corrija
             return Response(

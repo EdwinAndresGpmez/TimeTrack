@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import CrearCuenta, MenuItem, PermisoVista, Auditoria
+
+from .models import Auditoria, CrearCuenta, MenuItem, PermisoVista
 
 
 # --- ADMINISTRACIÓN DE USUARIOS ---
@@ -126,11 +127,7 @@ class AuditoriaAdmin(admin.ModelAdmin):
     readonly_fields = ("fecha", "usuario_id", "modulo", "descripcion")
 
     def descripcion_corta(self, obj):
-        return (
-            obj.descripcion[:50] + "..."
-            if len(obj.descripcion) > 50
-            else obj.descripcion
-        )
+        return obj.descripcion[:50] + "..." if len(obj.descripcion) > 50 else obj.descripcion
 
     descripcion_corta.short_description = "Descripción"
 

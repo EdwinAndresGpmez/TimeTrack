@@ -18,15 +18,9 @@ class AIConfiguration(models.Model):
     proveedor = models.CharField(max_length=20, choices=PROVEEDORES, default="GITHUB")
 
     # Credenciales y Endpoints
-    api_key = models.CharField(
-        max_length=255, help_text="Token de GitHub, OpenAI Key, etc."
-    )
-    endpoint_url = models.CharField(
-        max_length=255, blank=True, null=True, help_text="Solo si usa Azure u Ollama"
-    )
-    model_name = models.CharField(
-        max_length=100, default="gpt-4o-mini", help_text="Ej: gpt-4o, llama-3"
-    )
+    api_key = models.CharField(max_length=255, help_text="Token de GitHub, OpenAI Key, etc.")
+    endpoint_url = models.CharField(max_length=255, blank=True, null=True, help_text="Solo si usa Azure u Ollama")
+    model_name = models.CharField(max_length=100, default="gpt-4o-mini", help_text="Ej: gpt-4o, llama-3")
 
     # El "Cerebro" (System Prompt)
     system_prompt = models.TextField(
@@ -69,9 +63,7 @@ class ChatMessage(models.Model):
         ("system", "Sistema"),
     ]
 
-    session = models.ForeignKey(
-        ChatSession, related_name="messages", on_delete=models.CASCADE
-    )
+    session = models.ForeignKey(ChatSession, related_name="messages", on_delete=models.CASCADE)
     role = models.CharField(max_length=10, choices=ROLES)
     content = models.TextField()
 

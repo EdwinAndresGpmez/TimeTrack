@@ -225,3 +225,53 @@ OJO REVISAR ADMINSTRAR CITAS.
 
 ahora continuemos con el codigo completo de GestionAgenda con el ajuste sobre esta version y esperas que lo copie para continuar con el otro 
 ahora continuemos con el codigo completo de AdminCitas con el ajuste sobre esta version 
+
+
+# 1. Auth MS
+docker compose run --rm -v ${PWD}/pyproject.toml:/app/pyproject.toml auth-ms ruff check --fix .
+
+# 2. Appointments MS
+docker compose run --rm -v ${PWD}/pyproject.toml:/app/pyproject.toml appointments-ms ruff check --fix .
+
+# 3. Patients MS
+docker compose run --rm -v ${PWD}/pyproject.toml:/app/pyproject.toml patients-ms ruff check --fix .
+
+# 4. Professionals MS
+docker compose run --rm -v ${PWD}/pyproject.toml:/app/pyproject.toml professionals-ms ruff check --fix .
+
+# 5. Schedule MS
+docker compose run --rm -v ${PWD}/pyproject.toml:/app/pyproject.toml schedule-ms ruff check --fix .
+
+# 6. Portal MS
+docker compose run --rm -v ${PWD}/pyproject.toml:/app/pyproject.toml portal-ms ruff check --fix .
+
+# 7. Notification MS
+docker compose run --rm -v ${PWD}/pyproject.toml:/app/pyproject.toml notification-ms ruff check --fix .
+
+# 8. IA MS
+docker compose run --rm -v ${PWD}/pyproject.toml:/app/pyproject.toml ia-ms ruff check --fix .
+
+
+# 1. Auth MS
+docker compose run --rm -v ${PWD}/pyproject.toml:/app/pyproject.toml auth-ms ruff format .
+
+# 2. Appointments MS
+docker compose run --rm -v ${PWD}/pyproject.toml:/app/pyproject.toml appointments-ms ruff format .
+
+# 3. Patients MS
+docker compose run --rm -v ${PWD}/pyproject.toml:/app/pyproject.toml patients-ms ruff format .
+
+# 4. Professionals MS
+docker compose run --rm -v ${PWD}/pyproject.toml:/app/pyproject.toml professionals-ms ruff format .
+
+# 5. Schedule MS
+docker compose run --rm -v ${PWD}/pyproject.toml:/app/pyproject.toml schedule-ms ruff format .
+
+# 6. Portal MS
+docker compose run --rm -v ${PWD}/pyproject.toml:/app/pyproject.toml portal-ms ruff format .
+
+# 7. Notification MS
+docker compose run --rm -v ${PWD}/pyproject.toml:/app/pyproject.toml notification-ms ruff format .
+
+# 8. IA MS
+docker compose run --rm -v ${PWD}/pyproject.toml:/app/pyproject.toml ia-ms ruff format .

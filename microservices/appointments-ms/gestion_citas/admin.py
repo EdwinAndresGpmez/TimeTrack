@@ -1,5 +1,6 @@
 from django.contrib import admin
-from .models import Cita, NotaMedica, HistoricoCita, ConfiguracionGlobal
+
+from .models import Cita, ConfiguracionGlobal, HistoricoCita, NotaMedica
 
 
 class NotaMedicaInline(admin.StackedInline):

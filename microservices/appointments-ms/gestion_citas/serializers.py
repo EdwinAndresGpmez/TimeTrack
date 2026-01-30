@@ -1,5 +1,6 @@
 from rest_framework import serializers
-from .models import Cita, NotaMedica, HistoricoCita, ConfiguracionGlobal
+
+from .models import Cita, ConfiguracionGlobal, HistoricoCita, NotaMedica
 
 
 class NotaMedicaSerializer(serializers.ModelSerializer):

@@ -1,9 +1,11 @@
-from django.db.models.signals import post_save
-from django.contrib.auth.models import Group  # <--- IMPORTANTE
-from django.dispatch import receiver
-from .models import CrearCuenta
-import requests
 import logging
+
+import requests
+from django.contrib.auth.models import Group  # <--- IMPORTANTE
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+
+from .models import CrearCuenta
 
 logger = logging.getLogger(__name__)
 
@@ -25,9 +27,7 @@ def sincronizar_paciente(sender, instance, created, **kwargs):
             # Si el usuario no está en el grupo, lo agregamos
             if not instance.groups.filter(name="Paciente").exists():
                 instance.groups.add(grupo_paciente)
-                logger.info(
-                    f"Usuario {instance.id} ({instance.nombre}) asignado al grupo 'Paciente' automáticamente."
-                )
+                logger.info(f"Usuario {instance.id} ({instance.nombre}) asignado al grupo 'Paciente' automáticamente.")
         except Exception as e:
             logger.error(f"Error asignando grupo 'Paciente': {e}")
 
@@ -43,16 +43,12 @@ def sincronizar_paciente(sender, instance, created, **kwargs):
             if response.status_code == 200:
                 data = response.json()
                 if data.get("status") == "found":
-                    CrearCuenta.objects.filter(id=instance.id).update(
-                        paciente_id=data["paciente_id"]
-                    )
+                    CrearCuenta.objects.filter(id=instance.id).update(paciente_id=data["paciente_id"])
                     logger.info(f"Usuario {instance.id} vinculado automáticamente.")
 
             elif response.status_code == 404:
                 # 2. Creamos solicitud
-                logger.info(
-                    f"Usuario {instance.documento} no es paciente. Creando solicitud..."
-                )
+                logger.info(f"Usuario {instance.documento} no es paciente. Creando solicitud...")
 
                 try:
                     payload_solicitud = {
@@ -62,16 +58,12 @@ def sincronizar_paciente(sender, instance, created, **kwargs):
                         "user_doc": instance.documento,
                         "procesado": False,
                     }
-                    resp_sol = requests.post(
-                        SOLICITUDES_URL, json=payload_solicitud, timeout=3
-                    )
+                    resp_sol = requests.post(SOLICITUDES_URL, json=payload_solicitud, timeout=3)
 
                     if resp_sol.status_code == 201:
                         logger.info("Solicitud creada exitosamente.")
                     else:
-                        logger.warning(
-                            f"Error creando solicitud: {resp_sol.status_code}"
-                        )
+                        logger.warning(f"Error creando solicitud: {resp_sol.status_code}")
                 except Exception as e_sol:
                     logger.error(f"Error secundario: {str(e_sol)}")
 

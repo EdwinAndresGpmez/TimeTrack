@@ -16,14 +16,12 @@ Including another URLconf
 """
 
 from django.contrib import admin
-from django.urls import path, include
 from django.http import JsonResponse
+from django.urls import include, path
 
 
 def home_view(request):
-    return JsonResponse(
-        {"service": "TimeTrack IA Microservice", "status": "Active", "version": "1.0.0"}
-    )
+    return JsonResponse({"service": "TimeTrack IA Microservice", "status": "Active", "version": "1.0.0"})
 
 
 urlpatterns = [

@@ -1,18 +1,19 @@
+from django.contrib.auth.models import Group
+from django.db import models
 from rest_framework import generics, permissions, status, viewsets
-from rest_framework.response import Response
+from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView
-from django.db import models
+
 from .models import CrearCuenta, MenuItem, PermisoVista
 from .serializers import (
-    UserSerializer,
     CustomTokenObtainPairSerializer,
     MenuItemSerializer,
     UserAdminSerializer,
+    UserSerializer,
 )
-from rest_framework.decorators import action
-from django.contrib.auth.models import Group
 
 
 # Vista de Registro
@@ -56,9 +57,7 @@ class DynamicMenuView(APIView):
         user_groups = request.user.groups.all()
         # Filtrar items que no tienen rol asignado (públicos) o coinciden con grupos del usuario
         items = (
-            MenuItem.objects.filter(
-                models.Q(roles__in=user_groups) | models.Q(roles__isnull=True)
-            )
+            MenuItem.objects.filter(models.Q(roles__in=user_groups) | models.Q(roles__isnull=True))
             .distinct()
             .order_by("order")
         )
@@ -85,15 +84,11 @@ class MisPermisosView(APIView):
 
         if request.user.is_superuser:
             # Si es Superusuario, tiene acceso a TODO
-            lista_codenames = list(
-                PermisoVista.objects.values_list("codename", flat=True)
-            )
+            lista_codenames = list(PermisoVista.objects.values_list("codename", flat=True))
         else:
             # Filtramos las vistas donde sus roles estén permitidos
             lista_codenames = list(
-                PermisoVista.objects.filter(roles__in=user_groups)
-                .values_list("codename", flat=True)
-                .distinct()
+                PermisoVista.objects.filter(roles__in=user_groups).values_list("codename", flat=True).distinct()
             )
 
         # --- NUEVA LÓGICA (Roles para el Frontend) ---
@@ -139,9 +134,7 @@ class UserAdminViewSet(viewsets.ModelViewSet):
         password = request.data.get("password")
 
         if not password:
-            return Response(
-                {"error": "Contraseña requerida"}, status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"error": "Contraseña requerida"}, status=status.HTTP_400_BAD_REQUEST)
 
         user.set_password(password)
         user.save()

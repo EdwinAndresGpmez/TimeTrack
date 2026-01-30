@@ -1,14 +1,15 @@
-from django.urls import path, include
+from django.urls import include, path
 from rest_framework.routers import DefaultRouter
+from rest_framework_simplejwt.views import TokenRefreshView
+
 from .views import (
-    RegistroView,
     CustomTokenObtainPairView,
-    UserDetailView,
     DynamicMenuView,
     MisPermisosView,
+    RegistroView,
     UserAdminViewSet,
+    UserDetailView,
 )
-from rest_framework_simplejwt.views import TokenRefreshView
 
 # Configuración del Router para el ViewSet de Admin
 router = DefaultRouter()

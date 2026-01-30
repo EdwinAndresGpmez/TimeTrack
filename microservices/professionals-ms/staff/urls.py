@@ -1,13 +1,14 @@
-from django.urls import path, include
+from django.urls import include, path
 from rest_framework.routers import DefaultRouter
+
 from .views import (
+    BulkLugarView,
+    BulkProfesionalView,
+    BulkServicioView,
     EspecialidadViewSet,
     LugarViewSet,
     ProfesionalViewSet,
     ServicioViewSet,
-    BulkProfesionalView,
-    BulkServicioView,
-    BulkLugarView,
 )
 
 router = DefaultRouter()
@@ -17,9 +18,7 @@ router.register(r"profesionales", ProfesionalViewSet, basename="profesional")
 router.register(r"servicios", ServicioViewSet, basename="servicio")
 
 urlpatterns = [
-    path(
-        "internal/bulk-info/", BulkProfesionalView.as_view(), name="bulk_profesionales"
-    ),
+    path("internal/bulk-info/", BulkProfesionalView.as_view(), name="bulk_profesionales"),
     path(
         "servicios/internal/bulk-info/",
         BulkServicioView.as_view(),

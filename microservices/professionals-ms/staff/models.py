@@ -74,9 +74,7 @@ class Servicio(models.Model):
     duracion_minutos = models.IntegerField()
     precio_base = models.DecimalField(max_digits=10, decimal_places=2)
 
-    profesionales = models.ManyToManyField(
-        Profesional, related_name="servicios_habilitados", blank=True
-    )
+    profesionales = models.ManyToManyField(Profesional, related_name="servicios_habilitados", blank=True)
 
     tipos_paciente_ids = models.JSONField(default=list, blank=True)
 
@@ -92,8 +90,6 @@ class Servicio(models.Model):
     def delete(self, *args, **kwargs):
         if self.profesionales.exists():
             raise ValidationError(
-                {
-                    "detail": f"No se puede borrar '{self.nombre}' porque tiene profesionales. Desactívelo."
-                }
+                {"detail": f"No se puede borrar '{self.nombre}' porque tiene profesionales. Desactívelo."}
             )
         super().delete(*args, **kwargs)

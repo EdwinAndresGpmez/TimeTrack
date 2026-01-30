@@ -1,5 +1,6 @@
 from rest_framework import serializers
-from .models import AIConfiguration, ChatSession, ChatMessage
+
+from .models import AIConfiguration, ChatMessage, ChatSession
 
 
 class AIConfigurationSerializer(serializers.ModelSerializer):

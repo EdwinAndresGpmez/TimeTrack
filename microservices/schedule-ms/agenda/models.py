@@ -1,5 +1,5 @@
-from django.db import models
 from django.core.exceptions import ValidationError
+from django.db import models
 
 
 class Disponibilidad(models.Model):
@@ -32,9 +32,7 @@ class Disponibilidad(models.Model):
     # --- VIGENCIA RECURRENTE (Nuevo) ---
     # Si fecha es NULL, esto define hasta cuándo se repite.
     # NULL = Infinito.
-    fecha_fin_vigencia = models.DateField(
-        null=True, blank=True, verbose_name="Vigente hasta"
-    )
+    fecha_fin_vigencia = models.DateField(null=True, blank=True, verbose_name="Vigente hasta")
 
     activo = models.BooleanField(default=True)
 

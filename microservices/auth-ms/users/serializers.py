@@ -1,7 +1,8 @@
+from django.contrib.auth.models import Group
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+
 from .models import CrearCuenta, MenuItem, PermisoVista
-from django.contrib.auth.models import Group
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -76,9 +77,7 @@ class PermisoVistaSerializer(serializers.ModelSerializer):
 
 
 class UserAdminSerializer(serializers.ModelSerializer):
-    groups = serializers.SlugRelatedField(
-        many=True, queryset=Group.objects.all(), slug_field="name"
-    )
+    groups = serializers.SlugRelatedField(many=True, queryset=Group.objects.all(), slug_field="name")
 
     class Meta:
         model = CrearCuenta

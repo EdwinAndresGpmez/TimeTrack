@@ -9,9 +9,7 @@ class ConvocatoriaHV(models.Model):
     nombre_completo = models.CharField(max_length=255)
     correo = models.EmailField()
     telefono = models.CharField(max_length=50)
-    perfil_profesional = models.CharField(
-        max_length=255, help_text="Ej: Enfermera, Médico General, Contador"
-    )
+    perfil_profesional = models.CharField(max_length=255, help_text="Ej: Enfermera, Médico General, Contador")
 
     # El archivo de la Hoja de Vida (PDF preferiblemente)
     archivo_hv = models.FileField(upload_to="hojas_de_vida/")

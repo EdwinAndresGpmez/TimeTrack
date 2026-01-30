@@ -1,8 +1,8 @@
-from rest_framework import viewsets
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import filters
 from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import filters, viewsets
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
 from .models import Especialidad, Lugar, Profesional, Servicio
 from .serializers import (
     EspecialidadSerializer,
@@ -67,11 +67,7 @@ class BulkProfesionalView(APIView):
         data = {}
         for p in objs:
             # Obtenemos la primera especialidad como string, o 'General' si no tiene
-            especialidad_str = (
-                str(p.especialidades.first())
-                if p.especialidades.exists()
-                else "General"
-            )
+            especialidad_str = str(p.especialidades.first()) if p.especialidades.exists() else "General"
 
             data[str(p.id)] = {
                 # CORRECCIÓN: Usamos solo p.nombre, ya que tu modelo no tiene 'apellido'

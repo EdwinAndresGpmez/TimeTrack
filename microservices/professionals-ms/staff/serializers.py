@@ -1,4 +1,5 @@
 from rest_framework import serializers
+
 from .models import Especialidad, Lugar, Profesional, Servicio
 
 
@@ -16,9 +17,7 @@ class LugarSerializer(serializers.ModelSerializer):
 
 class ProfesionalSerializer(serializers.ModelSerializer):
     # Campo calculado para leer nombres
-    especialidades_nombres = serializers.StringRelatedField(
-        many=True, source="especialidades", read_only=True
-    )
+    especialidades_nombres = serializers.StringRelatedField(many=True, source="especialidades", read_only=True)
 
     # IMPORTANTE: Definimos la relación inversa para poder escribirla
     # 'servicios_habilitados' es el related_name que pusimos en el modelo Servicio

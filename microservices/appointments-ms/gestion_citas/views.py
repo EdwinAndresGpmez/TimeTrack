@@ -1,31 +1,30 @@
-import requests
 import logging
-from django.utils import timezone
 from datetime import datetime, timedelta
+
+import requests
 from django.db import transaction
-from rest_framework import viewsets, status, filters
-from rest_framework.response import Response
-from rest_framework.decorators import action
-from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Count, Max
+from django.utils import timezone
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import filters, status, viewsets
+from rest_framework.decorators import action
+from rest_framework.response import Response
 
 # Importación de Modelos
-from .models import Cita, NotaMedica, HistoricoCita, ConfiguracionGlobal
+from .models import Cita, ConfiguracionGlobal, HistoricoCita, NotaMedica
 
 # Importación de Serializadores
 from .serializers import (
     CitaSerializer,
-    NotaMedicaSerializer,
-    HistoricoCitaSerializer,
     ConfiguracionGlobalSerializer,
+    HistoricoCitaSerializer,
+    NotaMedicaSerializer,
 )
 
 # URLs de Microservicios
 PATIENTS_MS_URL = "http://patients-ms:8001/api/v1/pacientes/internal/bulk-info/"
 STAFF_MS_URL = "http://professionals-ms:8002/api/v1/staff/internal/bulk-info/"
-SERVICES_MS_URL = (
-    "http://professionals-ms:8002/api/v1/staff/servicios/internal/bulk-info/"
-)
+SERVICES_MS_URL = "http://professionals-ms:8002/api/v1/staff/servicios/internal/bulk-info/"
 LUGARES_MS_URL = "http://professionals-ms:8002/api/v1/staff/lugares/internal/bulk-info/"
 
 logger = logging.getLogger(__name__)
@@ -117,9 +116,7 @@ class CitaViewSet(viewsets.ModelViewSet):
                     try:
                         # Consultamos fecha de desbloqueo al MS de Pacientes
                         url = f"http://patients-ms:8001/api/v1/pacientes/listado/{paciente_id}/"
-                        resp = requests.get(
-                            url, timeout=2
-                        )  # Timeout corto para no bloquear la transacción
+                        resp = requests.get(url, timeout=2)  # Timeout corto para no bloquear la transacción
 
                         if resp.status_code == 200:
                             p_data = resp.json()
@@ -132,16 +129,12 @@ class CitaViewSet(viewsets.ModelViewSet):
                         logger.error(f"Error consultando pacientes: {e}")
 
                     # Contamos faltas
-                    query_inasistencias = Cita.objects.filter(
-                        paciente_id=paciente_id, estado="NO_ASISTIO"
-                    )
+                    query_inasistencias = Cita.objects.filter(paciente_id=paciente_id, estado="NO_ASISTIO")
 
                     if fecha_corte:
                         # TRUCO: Filtro estricto (Mayor que). Perdonamos el día exacto del desbloqueo.
                         fecha_filtro = fecha_corte.date()
-                        query_inasistencias = query_inasistencias.filter(
-                            fecha__gt=fecha_filtro
-                        )
+                        query_inasistencias = query_inasistencias.filter(fecha__gt=fecha_filtro)
 
                     if query_inasistencias.count() >= config.limite_inasistencias:
                         return Response(
@@ -156,9 +149,7 @@ class CitaViewSet(viewsets.ModelViewSet):
                     # Construimos el objeto datetime completo de la cita solicitada
                     fmt = "%H:%M:%S" if len(hora_inicio_str) > 5 else "%H:%M"
                     hora_parseada = datetime.strptime(hora_inicio_str, fmt).time()
-                    fecha_parseada = datetime.strptime(
-                        fecha_solicitada, "%Y-%m-%d"
-                    ).date()
+                    fecha_parseada = datetime.strptime(fecha_solicitada, "%Y-%m-%d").date()
 
                     cita_dt = datetime.combine(fecha_parseada, hora_parseada)
                     if timezone.is_naive(cita_dt):
@@ -171,9 +162,7 @@ class CitaViewSet(viewsets.ModelViewSet):
 
                     if cita_dt < (ahora + margen_antelacion):
                         return Response(
-                            {
-                                "detalle": "Las citas deben agendarse con al menos 1 hora de antelación."
-                            },
+                            {"detalle": "Las citas deben agendarse con al menos 1 hora de antelación."},
                             status=status.HTTP_400_BAD_REQUEST,
                         )
                 except ValueError:
@@ -239,9 +228,7 @@ class CitaViewSet(viewsets.ModelViewSet):
                 if cruce_medico:
                     # Lanzamos respuesta directa (el return hace rollback implícito al salir del atomic)
                     return Response(
-                        {
-                            "detalle": "El horario seleccionado ya no está disponible (Cruce con otra cita)."
-                        },
+                        {"detalle": "El horario seleccionado ya no está disponible (Cruce con otra cita)."},
                         status=status.HTTP_409_CONFLICT,
                     )
 
@@ -258,18 +245,16 @@ class CitaViewSet(viewsets.ModelViewSet):
 
                 if cruce_paciente:
                     return Response(
-                        {
-                            "detalle": "El paciente ya tiene otra cita médica agendada en este horario."
-                        },
+                        {"detalle": "El paciente ya tiene otra cita médica agendada en este horario."},
                         status=status.HTTP_400_BAD_REQUEST,
                     )
 
                 # ---------------------------------------------------------------------
                 # 3. LÍMITES DIARIOS
                 # ---------------------------------------------------------------------
-                citas_dia = Cita.objects.filter(
-                    paciente_id=paciente_id, fecha=fecha_solicitada
-                ).exclude(estado__in=["CANCELADA", "NO_ASISTIO", "RECHAZADA"])
+                citas_dia = Cita.objects.filter(paciente_id=paciente_id, fecha=fecha_solicitada).exclude(
+                    estado__in=["CANCELADA", "NO_ASISTIO", "RECHAZADA"]
+                )
 
                 if citas_dia.count() >= config.max_citas_dia_paciente:
                     return Response(
@@ -293,9 +278,7 @@ class CitaViewSet(viewsets.ModelViewSet):
                 headers = self.get_success_headers(serializer.data)
 
                 print("🟢 CITA CREADA EXITOSAMENTE")
-                return Response(
-                    serializer.data, status=status.HTTP_201_CREATED, headers=headers
-                )
+                return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
         except Exception as e:
             # Captura errores inesperados para no romper el servidor con 500 feos
@@ -327,9 +310,7 @@ class CitaViewSet(viewsets.ModelViewSet):
         estados_finales = ["CANCELADA", "NO_ASISTIO", "REALIZADA"]
         if instance.estado in estados_finales and nuevo_estado != instance.estado:
             return Response(
-                {
-                    "detalle": f"No se puede modificar una cita que ya está en estado final: {instance.estado}."
-                },
+                {"detalle": f"No se puede modificar una cita que ya está en estado final: {instance.estado}."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -351,9 +332,7 @@ class CitaViewSet(viewsets.ModelViewSet):
             margen = ahora + timedelta(minutes=15)
             if fecha_cita > margen:
                 return Response(
-                    {
-                        "detalle": "No puedes finalizar una cita que aún no ha comenzado."
-                    },
+                    {"detalle": "No puedes finalizar una cita que aún no ha comenzado."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
@@ -365,9 +344,7 @@ class CitaViewSet(viewsets.ModelViewSet):
             # Si la cita ya pasó, no se cancela, se marca como No Asistió o Realizada
             if ahora > fecha_cita:
                 return Response(
-                    {
-                        "detalle": "La cita ya pasó. No se puede cancelar, marque como Realizada o No Asistió."
-                    },
+                    {"detalle": "La cita ya pasó. No se puede cancelar, marque como Realizada o No Asistió."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
@@ -378,8 +355,7 @@ class CitaViewSet(viewsets.ModelViewSet):
                 return Response(
                     {
                         "error": "Validación de negocio fallida",
-                        "detalle": config.mensaje_notificacion_cancelacion
-                        or f"Mínimo {horas_limite}h de antelación.",
+                        "detalle": config.mensaje_notificacion_cancelacion or f"Mínimo {horas_limite}h de antelación.",
                         "horas_faltantes": round(horas_restantes, 1),
                     },
                     status=status.HTTP_400_BAD_REQUEST,
@@ -445,27 +421,17 @@ class CitaViewSet(viewsets.ModelViewSet):
 
         for c in citas:
             p_id = str(c.get("paciente_id"))
-            c["paciente_nombre"] = info_pacientes.get(p_id, {}).get(
-                "nombre_completo", "Desconocido"
-            )
-            c["paciente_doc"] = info_pacientes.get(p_id, {}).get(
-                "numero_documento", "N/A"
-            )
+            c["paciente_nombre"] = info_pacientes.get(p_id, {}).get("nombre_completo", "Desconocido")
+            c["paciente_doc"] = info_pacientes.get(p_id, {}).get("numero_documento", "N/A")
 
             prof_id = str(c.get("profesional_id"))
-            c["profesional_nombre"] = info_profesionales.get(prof_id, {}).get(
-                "nombre", "No asignado"
-            )
+            c["profesional_nombre"] = info_profesionales.get(prof_id, {}).get("nombre", "No asignado")
 
             srv_id = str(c.get("servicio_id"))
-            c["servicio_nombre"] = info_servicios.get(srv_id, {}).get(
-                "nombre", "No especificado"
-            )
+            c["servicio_nombre"] = info_servicios.get(srv_id, {}).get("nombre", "No especificado")
 
             lug_id = str(c.get("lugar_id"))
-            c["lugar_nombre"] = info_lugares.get(lug_id, {}).get(
-                "nombre", "Sede Principal"
-            )
+            c["lugar_nombre"] = info_lugares.get(lug_id, {}).get("nombre", "Sede Principal")
 
         return citas
 

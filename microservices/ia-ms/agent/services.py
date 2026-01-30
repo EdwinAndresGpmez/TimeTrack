@@ -1,5 +1,6 @@
 import requests
-from .models import AIConfiguration, ChatSession, ChatMessage
+
+from .models import AIConfiguration, ChatMessage, ChatSession
 
 
 class AIService:
@@ -10,9 +11,7 @@ class AIService:
 
         if not self.config:
             # Si no hay configuración en el Admin, lanzamos error
-            raise Exception(
-                "No hay configuración de IA activa. Por favor crea una en el Admin."
-            )
+            raise Exception("No hay configuración de IA activa. Por favor crea una en el Admin.")
 
     def get_response(self, session_id, user_message):
         """
@@ -33,9 +32,7 @@ class AIService:
 
         # C. Construir el historial (Contexto) para enviarlo a la IA
         # Tomamos los últimos 10 mensajes para dar contexto sin gastar demasiados tokens
-        history = ChatMessage.objects.filter(session=session).order_by("-timestamp")[
-            :10
-        ]
+        history = ChatMessage.objects.filter(session=session).order_by("-timestamp")[:10]
 
         # El primer mensaje siempre es el System Prompt (la personalidad del bot)
         messages_payload = [{"role": "system", "content": self.config.system_prompt}]
@@ -48,9 +45,7 @@ class AIService:
         ai_response_text = self._call_provider(messages_payload)
 
         # E. Guardar la respuesta del ASISTENTE en la BD
-        ChatMessage.objects.create(
-            session=session, role="assistant", content=ai_response_text
-        )
+        ChatMessage.objects.create(session=session, role="assistant", content=ai_response_text)
 
         return ai_response_text
 

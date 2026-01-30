@@ -15,14 +15,14 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 
-from django.contrib import admin
-from django.urls import path
 from django.conf import settings
 from django.conf.urls.static import static
+from django.contrib import admin
+from django.urls import path
 
 # Importamos las vistas directamente
 from content.views import BannerListView, VideoListView
-from forms.views import PQRSCreateView, HVCreateView
+from forms.views import HVCreateView, PQRSCreateView
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -31,9 +31,7 @@ urlpatterns = [
     path("api/v1/portal/videos/", VideoListView.as_view(), name="video-list"),
     # --- Rutas de Formularios (POST) ---
     path("api/v1/portal/pqrs/", PQRSCreateView.as_view(), name="pqrs-create"),
-    path(
-        "api/v1/portal/trabaje-con-nosotros/", HVCreateView.as_view(), name="hv-create"
-    ),
+    path("api/v1/portal/trabaje-con-nosotros/", HVCreateView.as_view(), name="hv-create"),
 ]
 
 # Configuración para servir archivos multimedia (Imágenes/PDFs) en desarrollo

@@ -1,13 +1,15 @@
-import requests
 import logging
-from rest_framework import viewsets, filters, status
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from django_filters.rest_framework import DjangoFilterBackend
-from datetime import datetime, timedelta, date
+from datetime import date, datetime, timedelta
+
+import requests
 from django.db import models
-from .models import Disponibilidad, BloqueoAgenda
-from .serializers import DisponibilidadSerializer, BloqueoAgendaSerializer
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import filters, status, viewsets
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from .models import BloqueoAgenda, Disponibilidad
+from .serializers import BloqueoAgendaSerializer, DisponibilidadSerializer
 
 logger = logging.getLogger(__name__)
 
@@ -25,9 +27,7 @@ class DisponibilidadViewSet(viewsets.ModelViewSet):
     def _obtener_citas_activas(self, profesional_id, fecha_inicio, fecha_fin=None):
         try:
             f_ini_str = (
-                fecha_inicio.strftime("%Y-%m-%d")
-                if isinstance(fecha_inicio, (date, datetime))
-                else fecha_inicio
+                fecha_inicio.strftime("%Y-%m-%d") if isinstance(fecha_inicio, (date, datetime)) else fecha_inicio
             )
             params = {
                 "profesional_id": profesional_id,
@@ -35,11 +35,7 @@ class DisponibilidadViewSet(viewsets.ModelViewSet):
                 "estado_ne": "CANCELADA",
             }
             if fecha_fin:
-                f_fin_str = (
-                    fecha_fin.strftime("%Y-%m-%d")
-                    if isinstance(fecha_fin, (date, datetime))
-                    else fecha_fin
-                )
+                f_fin_str = fecha_fin.strftime("%Y-%m-%d") if isinstance(fecha_fin, (date, datetime)) else fecha_fin
                 params["fecha_fin"] = f_fin_str
 
             response = requests.get(APPOINTMENTS_API_URL, params=params, timeout=5)
@@ -62,9 +58,7 @@ class DisponibilidadViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
-        return Response(
-            serializer.data, status=status.HTTP_201_CREATED, headers=headers
-        )
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
     def destroy(self, request, *args, **kwargs):
         try:
@@ -74,9 +68,7 @@ class DisponibilidadViewSet(viewsets.ModelViewSet):
             # --- CASO A: Es una regla RECURRENTE (Semanal) ---
             if instance.fecha is None:
                 # 1. Validar Citas Futuras
-                citas_futuras = self._obtener_citas_activas(
-                    instance.profesional_id, hoy
-                )
+                citas_futuras = self._obtener_citas_activas(instance.profesional_id, hoy)
                 conflictos = []
 
                 for c in citas_futuras:
@@ -86,18 +78,10 @@ class DisponibilidadViewSet(viewsets.ModelViewSet):
 
                         # Si coincide día semana y hora
                         if c_date.weekday() == instance.dia_semana:
-                            if (
-                                c_time >= instance.hora_inicio
-                                and c_time < instance.hora_fin
-                            ):
+                            if c_time >= instance.hora_inicio and c_time < instance.hora_fin:
                                 # Y está dentro de la vigencia actual
-                                if (
-                                    instance.fecha_fin_vigencia is None
-                                    or c_date <= instance.fecha_fin_vigencia
-                                ):
-                                    conflictos.append(
-                                        f"{c['fecha']} {c['hora_inicio']}"
-                                    )
+                                if instance.fecha_fin_vigencia is None or c_date <= instance.fecha_fin_vigencia:
+                                    conflictos.append(f"{c['fecha']} {c['hora_inicio']}")
                     except Exception:
                         continue
 
@@ -110,10 +94,6 @@ class DisponibilidadViewSet(viewsets.ModelViewSet):
                         status=409,
                     )
 
-                # 2. LIMPIEZA PROFUNDA DE BLOQUEOS (CRÍTICO)
-                # Si borramos la agenda de "Los Lunes", debemos borrar todos los bloqueos futuros de "Los Lunes" en ese horario.
-                # Como SQL no sabe de "Lunes", iteramos o filtramos.
-
                 bloqueos_futuros = BloqueoAgenda.objects.filter(
                     profesional_id=instance.profesional_id,
                     fecha_inicio__date__gt=hoy,  # Solo bloqueos del futuro
@@ -125,10 +105,7 @@ class DisponibilidadViewSet(viewsets.ModelViewSet):
                     if b.fecha_inicio.weekday() == instance.dia_semana:
                         # Coincide el rango horario? (Si el bloqueo está DENTRO del horario que borramos)
                         b_hora = b.fecha_inicio.time()
-                        if (
-                            b_hora >= instance.hora_inicio
-                            and b_hora < instance.hora_fin
-                        ):
+                        if b_hora >= instance.hora_inicio and b_hora < instance.hora_fin:
                             b.delete()
                             count_bloqueos += 1
 
@@ -138,34 +115,24 @@ class DisponibilidadViewSet(viewsets.ModelViewSet):
                 instance.save()
 
                 return Response(
-                    {
-                        "mensaje": f"Serie finalizada. Se limpiaron {count_bloqueos} bloqueos futuros huérfanos."
-                    },
+                    {"mensaje": f"Serie finalizada. Se limpiaron {count_bloqueos} bloqueos futuros huérfanos."},
                     status=200,
                 )
 
             # --- CASO B: Es una fecha ESPECÍFICA (Override) ---
             else:
                 if instance.fecha < hoy:
-                    return Response(
-                        {"error": "No se puede borrar historial pasado."}, status=400
-                    )
+                    return Response({"error": "No se puede borrar historial pasado."}, status=400)
 
                 # 1. Validar Citas
-                citas = self._obtener_citas_activas(
-                    instance.profesional_id, instance.fecha, instance.fecha
-                )
+                citas = self._obtener_citas_activas(instance.profesional_id, instance.fecha, instance.fecha)
                 ocupado = any(
-                    instance.hora_inicio
-                    <= datetime.strptime(c["hora_inicio"], "%H:%M:%S").time()
-                    < instance.hora_fin
+                    instance.hora_inicio <= datetime.strptime(c["hora_inicio"], "%H:%M:%S").time() < instance.hora_fin
                     for c in citas
                 )
 
                 if ocupado:
-                    return Response(
-                        {"error": "Hay pacientes citados en este horario."}, status=409
-                    )
+                    return Response({"error": "Hay pacientes citados en este horario."}, status=409)
 
                 # 2. LIMPIEZA DE BLOQUEOS (CRÍTICO)
                 # Aquí borramos cualquier bloqueo que caiga DENTRO de este horario específico que estamos eliminando.
@@ -224,22 +191,15 @@ class SlotGeneratorView(APIView):
             models.Q(fecha=fecha_obj)
             | (
                 models.Q(fecha__isnull=True)
-                & (
-                    models.Q(fecha_fin_vigencia__isnull=True)
-                    | models.Q(fecha_fin_vigencia__gte=fecha_obj)
-                )
+                & (models.Q(fecha_fin_vigencia__isnull=True) | models.Q(fecha_fin_vigencia__gte=fecha_obj))
             )
         )
 
         if servicio_id:
-            horarios = horarios.filter(
-                models.Q(servicio_id__isnull=True) | models.Q(servicio_id=servicio_id)
-            )
+            horarios = horarios.filter(models.Q(servicio_id__isnull=True) | models.Q(servicio_id=servicio_id))
 
         # 3. CITAS
-        url_citas = (
-            f"{APPOINTMENTS_API_URL}?profesional_id={profesional_id}&fecha={fecha_str}"
-        )
+        url_citas = f"{APPOINTMENTS_API_URL}?profesional_id={profesional_id}&fecha={fecha_str}"
         citas_ocupadas = []
         try:
             resp = requests.get(url_citas, timeout=3)
@@ -261,10 +221,7 @@ class SlotGeneratorView(APIView):
                 s_ini = cursor.strftime("%H:%M")
                 s_fin = (cursor + timedelta(minutes=duracion)).strftime("%H:%M")
 
-                ocupado = any(
-                    (s_ini < oc_fin and s_fin > oc_ini)
-                    for oc_ini, oc_fin in citas_ocupadas
-                )
+                ocupado = any((s_ini < oc_fin and s_fin > oc_ini) for oc_ini, oc_fin in citas_ocupadas)
                 if not ocupado:
                     slots_disponibles.append(s_ini)
                 cursor += timedelta(minutes=duracion)

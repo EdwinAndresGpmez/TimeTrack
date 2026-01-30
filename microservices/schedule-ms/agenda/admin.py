@@ -1,5 +1,6 @@
 from django.contrib import admin
-from .models import Disponibilidad, BloqueoAgenda
+
+from .models import BloqueoAgenda, Disponibilidad
 
 
 @admin.register(Disponibilidad)

@@ -1,7 +1,7 @@
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
 from django.shortcuts import get_object_or_404
+from rest_framework import status
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
 # Importamos nuestros modelos, serializadores y la lógica del servicio
 from .models import ChatSession
@@ -20,9 +20,7 @@ class ChatView(APIView):
         # 1. Extraer datos de la petición
         usuario_id = request.data.get("usuario_id")
         message = request.data.get("message")
-        session_id = request.data.get(
-            "session_id"
-        )  # Opcional: si ya existe una conversación
+        session_id = request.data.get("session_id")  # Opcional: si ya existe una conversación
 
         # 2. Validaciones básicas
         if not usuario_id or not message:
@@ -34,15 +32,11 @@ class ChatView(APIView):
         # 3. Gestión de la Sesión (Recuperar o Crear)
         if session_id:
             # Si envían ID, buscamos esa sesión específica de ese usuario
-            session = get_object_or_404(
-                ChatSession, id=session_id, usuario_id=usuario_id
-            )
+            session = get_object_or_404(ChatSession, id=session_id, usuario_id=usuario_id)
         else:
             # Si no hay ID, creamos una sesión nueva.
             # El título lo generamos con los primeros 30 caracteres del mensaje.
-            session = ChatSession.objects.create(
-                usuario_id=usuario_id, titulo=message[:30] + "..."
-            )
+            session = ChatSession.objects.create(usuario_id=usuario_id, titulo=message[:30] + "...")
 
         # 4. Llamar al Cerebro de la IA (Service Layer)
         try:
@@ -64,9 +58,7 @@ class ChatView(APIView):
         except Exception as e:
             # Capturamos errores (ej: sin internet, api key inválida, etc.)
             print(f"Error en ChatView: {str(e)}")
-            return Response(
-                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class HistoryView(APIView):
@@ -78,9 +70,9 @@ class HistoryView(APIView):
 
     def get(self, request, usuario_id):
         # Buscamos todas las sesiones activas de ese usuario
-        sessions = ChatSession.objects.filter(
-            usuario_id=usuario_id, activo=True
-        ).order_by("-updated_at")  # Las más recientes primero
+        sessions = ChatSession.objects.filter(usuario_id=usuario_id, activo=True).order_by(
+            "-updated_at"
+        )  # Las más recientes primero
 
         # Serializamos los datos (convertimos objetos Python a JSON)
         serializer = ChatSessionSerializer(sessions, many=True)

@@ -32,10 +32,12 @@ jobs:
 
       - name: Analizar Backend con Ruff
         run: |
-          # Escanea todos los microservicios
-          ruff check ./microservices
-          # Verifica formato (Black compatible)
-          ruff format --check ./microservices
+          # IMPORTANTE: Usamos --config para forzar la lectura de pyproject.toml
+          # Esto asegura que GitHub respete el límite de 120 caracteres y no falle por E501
+          ruff check ./microservices --config pyproject.toml
+          
+          # Verifica formato (Black compatible) usando la misma config
+          ruff format --check ./microservices --config pyproject.toml
 
       # --- FRONTEND (ESLINT) ---
       - name: Set up Node.js

@@ -1,5 +1,6 @@
 from django.contrib import admin
-from .models import Paciente, TipoPaciente, SolicitudValidacion
+
+from .models import Paciente, SolicitudValidacion, TipoPaciente
 
 
 @admin.register(TipoPaciente)

@@ -1,8 +1,10 @@
-import re
 import os
+import re
+
 from django.core.management.base import BaseCommand
-from users.models import MenuItem, PermisoVista
 from django.db import transaction
+
+from users.models import MenuItem, PermisoVista
 
 
 class Command(BaseCommand):
@@ -14,9 +16,7 @@ class Command(BaseCommand):
 
         if not os.path.exists(file_path):
             self.stdout.write(
-                self.style.ERROR(
-                    f"No se encontró App.jsx en {file_path}. Verifica el volumen en docker-compose."
-                )
+                self.style.ERROR(f"No se encontró App.jsx en {file_path}. Verifica el volumen en docker-compose.")
             )
             return
 
@@ -31,9 +31,7 @@ class Command(BaseCommand):
             # re.DOTALL permite que el .*? salte líneas (multilínea)
             # Grupo 1: La URL (path)
             # Grupo 2: El Permiso (requiredPermission)
-            regex_pattern = (
-                r'path=["\']([^"\']+)["\'].*?requiredPermission=["\']([^"\']+)["\']'
-            )
+            regex_pattern = r'path=["\']([^"\']+)["\'].*?requiredPermission=["\']([^"\']+)["\']'
 
             # Encontramos todas las coincidencias (Tuplas: url, permiso)
             rutas_protegidas = re.findall(regex_pattern, content, re.DOTALL)
@@ -80,26 +78,16 @@ class Command(BaseCommand):
 
                     if created_p or created_m:
                         self.stdout.write(
-                            self.style.SUCCESS(
-                                f" + Sincronizado: {label_text} -> Permiso: {permission_name}"
-                            )
+                            self.style.SUCCESS(f" + Sincronizado: {label_text} -> Permiso: {permission_name}")
                         )
                         nuevos += 1
                     else:
                         existentes += 1
 
             if nuevos == 0:
-                self.stdout.write(
-                    self.style.WARNING(
-                        f"No hay cambios. {existentes} rutas ya existían."
-                    )
-                )
+                self.stdout.write(self.style.WARNING(f"No hay cambios. {existentes} rutas ya existían."))
             else:
-                self.stdout.write(
-                    self.style.SUCCESS(
-                        f"Proceso finalizado. {nuevos} nuevos elementos creados."
-                    )
-                )
+                self.stdout.write(self.style.SUCCESS(f"Proceso finalizado. {nuevos} nuevos elementos creados."))
 
         except Exception as e:
             self.stdout.write(self.style.ERROR(f"Error procesando archivo: {e}"))

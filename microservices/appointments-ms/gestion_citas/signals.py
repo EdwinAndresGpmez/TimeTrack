@@ -1,5 +1,6 @@
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+
 from .models import Cita, HistoricoCita
 
 
@@ -12,13 +13,9 @@ def registrar_historico(sender, instance, created, **kwargs):
     try:
         HistoricoCita.objects.create(
             cita=instance,
-            estado_anterior="N/A"
-            if created
-            else "DESCONOCIDO",  # Podríamos mejorar esto con pre_save si fuera crítico
+            estado_anterior="N/A" if created else "DESCONOCIDO",  # Podríamos mejorar esto con pre_save si fuera crítico
             estado_nuevo=instance.estado,
-            fecha_cambio=instance.updated_at
-            if hasattr(instance, "updated_at")
-            else instance.created_at,
+            fecha_cambio=instance.updated_at if hasattr(instance, "updated_at") else instance.created_at,
             observacion=f"Registro automático: {'Creación' if created else 'Actualización'} de cita.",
         )
     except Exception as e:

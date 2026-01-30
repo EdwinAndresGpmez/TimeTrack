@@ -25,19 +25,13 @@ class Cita(models.Model):
     hora_fin = models.TimeField()
 
     # Nota que escribe el PACIENTE al pedir la cita
-    nota = models.TextField(
-        blank=True, null=True, verbose_name="Nota inicial del paciente"
-    )
+    nota = models.TextField(blank=True, null=True, verbose_name="Nota inicial del paciente")
 
     # --- NUEVO CAMPO ---
     # Nota que escribe la SECRETARIA/RECEPCIÓN (Signos vitales, copago, alertas)
-    nota_interna = models.TextField(
-        blank=True, null=True, verbose_name="Nota de Recepción/Administrativa"
-    )
+    nota_interna = models.TextField(blank=True, null=True, verbose_name="Nota de Recepción/Administrativa")
 
-    estado = models.CharField(
-        max_length=20, choices=ESTADOS, default="PENDIENTE", db_index=True
-    )
+    estado = models.CharField(max_length=20, choices=ESTADOS, default="PENDIENTE", db_index=True)
 
     activo = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -58,9 +52,7 @@ class NotaMedica(models.Model):
     Equivale al modelo 'Consultorio' del Legacy.
     """
 
-    cita = models.OneToOneField(
-        Cita, on_delete=models.CASCADE, related_name="nota_medica"
-    )
+    cita = models.OneToOneField(Cita, on_delete=models.CASCADE, related_name="nota_medica")
     contenido = models.TextField(verbose_name="Evolución / Nota Médica")
     diagnostico = models.TextField(blank=True, null=True)
 
@@ -85,9 +77,7 @@ class HistoricoCita(models.Model):
     profesional_id = models.IntegerField(null=True)
     paciente_id = models.IntegerField(null=True)
     servicio_id = models.IntegerField(null=True)
-    lugar_id = models.IntegerField(
-        null=True
-    )  # Faltaba agregar este campo en tu modelo anterior
+    lugar_id = models.IntegerField(null=True)  # Faltaba agregar este campo en tu modelo anterior
 
     # SNAPSHOTS DE TEXTO: Esto es vital en microservicios.
     # Si borran al médico en el otro microservicio, aquí conservamos su nombre para el reporte.
@@ -102,14 +92,10 @@ class HistoricoCita(models.Model):
 
     estado = models.CharField(max_length=50)
     fecha_registro = models.DateTimeField(auto_now_add=True)
-    usuario_responsable = models.CharField(
-        max_length=100, null=True, blank=True
-    )  # Quién hizo el cambio
+    usuario_responsable = models.CharField(max_length=100, null=True, blank=True)  # Quién hizo el cambio
 
     def __str__(self):
-        return (
-            f"Histórico {self.cita_original_id} - {self.estado} ({self.fecha_registro})"
-        )
+        return f"Histórico {self.cita_original_id} - {self.estado} ({self.fecha_registro})"
 
 
 class ConfiguracionGlobal(models.Model):
@@ -117,9 +103,7 @@ class ConfiguracionGlobal(models.Model):
     Tabla Singleton (Solo 1 registro) para reglas de negocio parametrizables.
     """
 
-    horas_antelacion_cancelar = models.IntegerField(
-        default=24, verbose_name="Horas mínimas para cancelar"
-    )
+    horas_antelacion_cancelar = models.IntegerField(default=24, verbose_name="Horas mínimas para cancelar")
     dias_para_actualizar_datos = models.IntegerField(
         default=180,
         help_text="Cada cuántos días se le pedirá al paciente validar sus datos (0 para desactivar)",
@@ -129,9 +113,7 @@ class ConfiguracionGlobal(models.Model):
         default="Su cita ha sido cancelada.", verbose_name="Mensaje default al cancelar"
     )
 
-    max_citas_dia_paciente = models.IntegerField(
-        default=1, verbose_name="Máximo de citas por día por paciente"
-    )
+    max_citas_dia_paciente = models.IntegerField(default=1, verbose_name="Máximo de citas por día por paciente")
     permitir_mismo_servicio_dia = models.BooleanField(
         default=False, verbose_name="¿Permitir repetir servicio el mismo día?"
     )
