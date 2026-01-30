@@ -17,11 +17,12 @@ class Especialidad(models.Model):
     # --- PROTECCIÓN DE BORRADO ---
     def delete(self, *args, **kwargs):
         if self.profesional_set.exists():
-            raise ValidationError(
-                {
-                    "detail": f"No se puede borrar '{self.nombre}' porque hay profesionales con esta especialidad. Desactívelo en su lugar."
-                }
-            )
+            raise ValidationError({
+                "detail": (
+                    f"No se puede borrar '{self.nombre}' porque hay profesionales "
+                    f"con esta especialidad. Desactívelo en su lugar."
+                )
+            })
         super().delete(*args, **kwargs)
 
 
