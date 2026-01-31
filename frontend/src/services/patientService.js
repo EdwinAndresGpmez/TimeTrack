@@ -3,8 +3,6 @@ import api from '../api/axiosConfig';
 export const patientService = {
     // 1. Obtener TODOS los pacientes (Para AdminUsuarios)
     getAll: async (params = {}) => {
-        // Al pasar { params }, Axios construye la URL así: 
-        // /pacientes/listado/?search=texto&admin_mode=true
         const response = await api.get('/pacientes/listado/', { params });
         return response.data;
     },
@@ -20,7 +18,7 @@ export const patientService = {
         return response.data;
     },
 
-    // 3. Obtener Mi Perfil (Lógica existente)
+    // 3. Obtener Mi Perfil
     getMyProfile: async (userId) => {
         try {
             const response = await api.get(`/pacientes/listado/?user_id=${userId}`);
@@ -34,19 +32,31 @@ export const patientService = {
         }
     },
 
-    // 4. Actualizar Perfil (Unificado)
+    // 4. Actualizar Perfil
     update: async (id, data) => {
         const response = await api.patch(`/pacientes/listado/${id}/`, data);
         return response.data;
     },
 
-    // 5. Obtener Tipos de Paciente (EPS, Particular, etc.)
+    // 5. Obtener Tipos de Paciente
     getTiposPaciente: async () => {
         const response = await api.get('/pacientes/tipos/');
         return response.data;
     },
 
-    // 6. Buscar perfil por ID de Usuario (Para AdminUsuarios)
+    // --- NUEVOS MÉTODOS PARA GESTIÓN DE TIPOS (ADMIN PARAMÉTRICAS) ---
+    createTipoPaciente: async (data) => {
+        const response = await api.post('/pacientes/tipos/', data);
+        return response.data;
+    },
+
+    updateTipoPaciente: async (id, data) => {
+        const response = await api.patch(`/pacientes/tipos/${id}/`, data); // Usamos PATCH para flexibilidad
+        return response.data;
+    },
+    // ------------------------------------------------------------------
+
+    // 6. Buscar perfil por ID de Usuario
     getProfileByUserId: async (userId) => {
         try {
             const response = await api.get(`/pacientes/listado/?user_id=${userId}`);
@@ -60,14 +70,13 @@ export const patientService = {
         }
     },
 
-    // 7. Vincular Usuario Existente (Sync)
+    // 7. Vincular Usuario Existente
     vincularExistente: async (data) => {
         const response = await api.post('/pacientes/internal/sync-user/', data);
         return response.data;
     },
 
     // --- FUNCIONES ADMINISTRATIVAS ---
-    
     crearSolicitudValidacion: async (data) => {
         const response = await api.post('/pacientes/solicitudes/', data);
         return response.data;
@@ -78,20 +87,17 @@ export const patientService = {
         return response.data;
     },
 
-    // Actualizar una solicitud (marcar procesada, corregir campos, etc.)
     updateSolicitud: async (id, data) => {
         const response = await api.patch(`/pacientes/solicitudes/${id}/`, data);
         return response.data;
     },
 
-    // Borrar una solicitud si lo deseas
     deleteSolicitud: async (id) => {
         const response = await api.delete(`/pacientes/solicitudes/${id}/`);
         return response.data;
     },
 
-    // 8. NUEVO: Resetear Inasistencias (Fecha de Corte)
-    // Este es el método que faltaba para el botón de desbloqueo
+    // 8. Resetear Inasistencias
     resetInasistencias: async (id) => {
         const response = await api.post(`/pacientes/listado/${id}/reset-inasistencias/`);
         return response.data;

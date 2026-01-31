@@ -53,7 +53,7 @@ function App() {
                  } />
                  
                  <Route path="/dashboard/citas/nueva" element={
-                    <ProtectedRoute requiredPermission="acceso_mis_citas">
+                    <ProtectedRoute requiredPermission="nuevas_citas">
                         <NuevaCita />
                     </ProtectedRoute>
                  } />

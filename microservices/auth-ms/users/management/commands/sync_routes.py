@@ -1,93 +1,91 @@
 import os
 import re
-
 from django.core.management.base import BaseCommand
 from django.db import transaction
-
+from django.contrib.auth.models import Group  # <--- IMPORTANTE
 from users.models import MenuItem, PermisoVista
 
-
 class Command(BaseCommand):
-    help = "Sincroniza rutas protegidas de React (App.jsx) a la BD usando requiredPermission"
+    help = "Sincroniza rutas protegidas de React a la BD y asigna permisos iniciales"
 
     def handle(self, *args, **options):
-        # Esta ruta debe coincidir con el volumen en docker-compose
         file_path = "/app/source_feed/App.jsx"
 
         if not os.path.exists(file_path):
-            self.stdout.write(
-                self.style.ERROR(f"No se encontró App.jsx en {file_path}. Verifica el volumen en docker-compose.")
-            )
+            self.stdout.write(self.style.ERROR(f"No se encontró App.jsx"))
             return
 
-        self.stdout.write(f"Leyendo rutas protegidas de: {file_path}...")
+        self.stdout.write(f"Leyendo rutas de: {file_path}...")
 
         try:
             with open(file_path, "r", encoding="utf-8") as file:
                 content = file.read()
 
-            # --- 1. REGEX AVANZADO ---
-            # Buscamos bloques que contengan 'path="..."' Y LUEGO 'requiredPermission="..."'
-            # re.DOTALL permite que el .*? salte líneas (multilínea)
-            # Grupo 1: La URL (path)
-            # Grupo 2: El Permiso (requiredPermission)
             regex_pattern = r'path=["\']([^"\']+)["\'].*?requiredPermission=["\']([^"\']+)["\']'
-
-            # Encontramos todas las coincidencias (Tuplas: url, permiso)
             rutas_protegidas = re.findall(regex_pattern, content, re.DOTALL)
-
-            # Rutas explícitas a ignorar (por si acaso alguna se cuela)
-            rutas_ignoradas = ["/", "/login", "/register", "/olvido-password", "*"]
+            rutas_ignoradas = ["/", "/login", "/register", "*"]
 
             nuevos = 0
-            existentes = 0
 
             with transaction.atomic():
+                # 1. Asegurar que existan los Grupos Base
+                grupo_admin, _ = Group.objects.get_or_create(name="Administrador")
+                grupo_paciente, _ = Group.objects.get_or_create(name="Paciente")
+                
+                # Opcional: Grupo Staff/Profesional
+                grupo_profesional, _ = Group.objects.get_or_create(name="Profesional")
+
                 for url, permission_name in rutas_protegidas:
-                    # Filtro de seguridad: Si la ruta está en la lista negra, saltar
                     if url in rutas_ignoradas:
                         continue
 
-                    # Generamos un Label bonito para el menú (ej: /dashboard/citas -> Citas)
-                    # Tomamos la última parte de la URL y la capitalizamos
                     label_text = url.split("/")[-1].replace("-", " ").title()
-                    if not label_text:
-                        label_text = "Item"
+                    if not label_text: label_text = "Item"
 
-                    # --- A. PERMISOS VISTA ---
-                    # Usamos 'permission_name' (ej: 'acceso_mis_citas') como el ID único
+                    # --- A. CREAR/OBTENER PERMISO ---
                     permiso, created_p = PermisoVista.objects.get_or_create(
                         codename=permission_name,
-                        defaults={
-                            "descripcion": f"Acceso a pantalla: {label_text}"
-                            # roles: queda vacío por defecto
-                        },
+                        defaults={"descripcion": f"Acceso a pantalla: {label_text}"}
                     )
 
-                    # --- B. MENU ITEMS ---
-                    # Solo creamos menú si es una ruta protegida válida.
-                    # get_or_create busca por 'url'. Si ya existe, NO lo toca.
+                    # --- B. CREAR/OBTENER MENU ---
                     menu, created_m = MenuItem.objects.get_or_create(
                         url=url,
                         defaults={
                             "label": label_text,
-                            "icon": "fa-circle",  # Icono genérico (se cambia en admin)
-                            "order": 99,  # Orden genérico (se cambia en admin)
+                            "icon": "FaCircle",
+                            "order": 99,
                         },
                     )
 
+                    # --- C. LÓGICA DE AUTO-ASIGNACIÓN (HEURÍSTICA) ---
+                    # Esto solo aplica si se acaba de crear, para no sobrescribir cambios manuales del admin
                     if created_p or created_m:
-                        self.stdout.write(
-                            self.style.SUCCESS(f" + Sincronizado: {label_text} -> Permiso: {permission_name}")
-                        )
-                        nuevos += 1
-                    else:
-                        existentes += 1
+                        self.stdout.write(f" + Configurando: {label_text}")
+                        
+                        # 1. El Administrador SIEMPRE recibe acceso a todo lo nuevo por defecto
+                        permiso.roles.add(grupo_admin)
+                        menu.roles.add(grupo_admin)
 
-            if nuevos == 0:
-                self.stdout.write(self.style.WARNING(f"No hay cambios. {existentes} rutas ya existían."))
-            else:
-                self.stdout.write(self.style.SUCCESS(f"Proceso finalizado. {nuevos} nuevos elementos creados."))
+                        # 2. Lógica para PACIENTES
+                        # Si la URL contiene 'citas', 'perfil' o 'dashboard' (pero no admin)
+                        es_admin = '/admin' in url
+                        es_paciente = '/citas' in url or '/perfil' in url
+                        
+                        if es_paciente and not es_admin:
+                            permiso.roles.add(grupo_paciente)
+                            menu.roles.add(grupo_paciente)
+                            self.stdout.write(f"   -> Asignado a Grupo Paciente")
+
+                        # 3. Lógica para PROFESIONALES (Ejemplo)
+                        es_agenda = '/agenda' in url or '/recepcion' in url
+                        if es_agenda or es_admin: # Asumimos que profesional ve admin o agenda
+                             permiso.roles.add(grupo_profesional)
+                             menu.roles.add(grupo_profesional)
+
+                        nuevos += 1
+
+            self.stdout.write(self.style.SUCCESS(f"Sincronización completa. {nuevos} rutas procesadas."))
 
         except Exception as e:
-            self.stdout.write(self.style.ERROR(f"Error procesando archivo: {e}"))
+            self.stdout.write(self.style.ERROR(f"Error: {e}"))
