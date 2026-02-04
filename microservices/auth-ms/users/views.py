@@ -25,17 +25,14 @@ class RegistroView(generics.CreateAPIView):
 
     def create(self, request, *args, **kwargs):
         # --- LÓGICA DE AUTOCURACIÓN (SELF-HEALING) ---
-        documento = request.data.get('documento')
+        documento = request.data.get("documento")
         # Obtenemos el valor del correo (puede venir como 'email' o 'correo' desde el front)
-        email_val = request.data.get('email') or request.data.get('correo')
+        email_val = request.data.get("email") or request.data.get("correo")
 
         if documento or email_val:
             # Buscamos usuarios inactivos que coincidan
             # CORRECCIÓN AQUÍ: Usamos 'correo=' porque así se llama en tu BD
-            zombies = CrearCuenta.objects.filter(
-                Q(documento=documento) | Q(correo=email_val),
-                is_active=False
-            )
+            zombies = CrearCuenta.objects.filter(Q(documento=documento) | Q(correo=email_val), is_active=False)
 
             if zombies.exists():
                 count = zombies.count()
@@ -85,6 +82,7 @@ class UserDetailView(generics.RetrieveUpdateAPIView):
             except Exception:
                 pass
 
+
 # --- VISTAS DE MENÚ ---
 
 
@@ -111,18 +109,19 @@ class MisPermisosView(APIView):
             lista_codenames = list(PermisoVista.objects.values_list("codename", flat=True))
         else:
             lista_codenames = list(
-                PermisoVista.objects.filter(roles__in=user_groups)
-                .values_list("codename", flat=True)
-                .distinct()
+                PermisoVista.objects.filter(roles__in=user_groups).values_list("codename", flat=True).distinct()
             )
 
         lista_roles = list(user_groups.values_list("name", flat=True))
-        return Response({
-            "codenames": lista_codenames,
-            "roles": lista_roles,
-            "is_superuser": request.user.is_superuser,
-            "is_staff": request.user.is_staff,
-        })
+        return Response(
+            {
+                "codenames": lista_codenames,
+                "roles": lista_roles,
+                "is_superuser": request.user.is_superuser,
+                "is_staff": request.user.is_staff,
+            }
+        )
+
 
 # --- VISTAS ADMINISTRATIVAS ---
 
@@ -132,6 +131,7 @@ class UserAdminViewSet(viewsets.ModelViewSet):
     CRUD completo de usuarios SOLO para Administradores.
     Permite editar documento, is_active y asignar roles.
     """
+
     queryset = CrearCuenta.objects.all().order_by("-id")
     serializer_class = UserAdminSerializer
     permission_classes = [permissions.IsAdminUser]
@@ -173,4 +173,3 @@ class UserAdminViewSet(viewsets.ModelViewSet):
     def groups(self, request):
         grupos = Group.objects.values_list("name", flat=True)
         return Response(grupos)
-

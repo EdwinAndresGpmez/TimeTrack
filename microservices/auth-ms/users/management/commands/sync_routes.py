@@ -48,8 +48,7 @@ class Command(BaseCommand):
 
                     # --- A. CREAR/OBTENER PERMISO ---
                     permiso, created_p = PermisoVista.objects.get_or_create(
-                        codename=permission_name,
-                        defaults={"descripcion": f"Acceso a pantalla: {label_text}"}
+                        codename=permission_name, defaults={"descripcion": f"Acceso a pantalla: {label_text}"}
                     )
 
                     # --- B. CREAR/OBTENER MENU ---
@@ -73,8 +72,8 @@ class Command(BaseCommand):
 
                         # 2. Lógica para PACIENTES
                         # Si la URL contiene 'citas', 'perfil' o 'dashboard' (pero no admin)
-                        es_admin = '/admin' in url
-                        es_paciente = '/citas' in url or '/perfil' in url
+                        es_admin = "/admin" in url
+                        es_paciente = "/citas" in url or "/perfil" in url
 
                         if es_paciente and not es_admin:
                             permiso.roles.add(grupo_paciente)
@@ -82,7 +81,7 @@ class Command(BaseCommand):
                             self.stdout.write("   -> Asignado a Grupo Paciente")
 
                         # 3. Lógica para PROFESIONALES (Ejemplo)
-                        es_agenda = '/agenda' in url or '/recepcion' in url
+                        es_agenda = "/agenda" in url or "/recepcion" in url
                         if es_agenda or es_admin:  # Asumimos que profesional ve admin o agenda
                             permiso.roles.add(grupo_profesional)
                             menu.roles.add(grupo_profesional)
