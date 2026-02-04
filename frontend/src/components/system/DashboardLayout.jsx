@@ -6,32 +6,41 @@ import { FaBars, FaBell } from 'react-icons/fa';
 import DataUpdateEnforcer from './DataUpdateEnforcer'; 
 import { patientService } from '../../services/patientService';
 
-// --- COMPONENTE INTERNO DE CAMPANA ---
+// --- COMPONENTE INTERNO DE CAMPANA (CORREGIDO) ---
 const NotificationBell = () => {
     const [count, setCount] = useState(0);
     const [animate, setAnimate] = useState(false);
 
-    const checkNotifications = async () => {
-        try {
-            const pendientes = await patientService.getSolicitudesPendientes();
-            // Filtramos o contamos todo lo que venga (EPS o Particular)
-            const nuevos = Array.isArray(pendientes) ? pendientes.length : 0;
-            
-            if (nuevos > count) {
-                setAnimate(true);
-                setTimeout(() => setAnimate(false), 1000); 
-            }
-            setCount(nuevos);
-        } catch (error) {
-            console.error("Error check notificaciones", error);
-        }
-    };
-
     useEffect(() => {
+        // Definimos la función DENTRO del efecto para evitar advertencias de dependencias
+        const checkNotifications = async () => {
+            try {
+                const pendientes = await patientService.getSolicitudesPendientes();
+                const nuevos = Array.isArray(pendientes) ? pendientes.length : 0;
+                
+                // Usamos el callback (prevCount) para tener siempre el valor real
+                // y evitar el problema de "stale closure" dentro del setInterval
+                setCount(prevCount => {
+                    if (nuevos > prevCount) {
+                        setAnimate(true);
+                        setTimeout(() => setAnimate(false), 1000); 
+                    }
+                    return nuevos;
+                });
+            } catch (error) {
+                console.error("Error check notificaciones", error);
+            }
+        };
+
+        // 1. Llamada inicial
         checkNotifications();
-        const interval = setInterval(checkNotifications, 30000); // Check cada 30s
+
+        // 2. Intervalo (Polling)
+        const interval = setInterval(checkNotifications, 30000); 
+        
+        // 3. Limpieza
         return () => clearInterval(interval);
-    }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    }, []); // Array vacío correcto: no dependemos de nada externo
 
     return (
         <Link 
