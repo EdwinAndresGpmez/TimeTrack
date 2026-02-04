@@ -1,5 +1,4 @@
 from django.contrib.auth.models import Group
-from django.db import models
 from django.db.models import Q
 from rest_framework import generics, permissions, status, viewsets
 from rest_framework.decorators import action
@@ -18,6 +17,7 @@ from .serializers import (
 
 # --- VISTAS PÚBLICAS Y DE USUARIO ---
 
+
 class RegistroView(generics.CreateAPIView):
     queryset = CrearCuenta.objects.all()
     serializer_class = UserSerializer
@@ -33,13 +33,13 @@ class RegistroView(generics.CreateAPIView):
             # Buscamos usuarios inactivos que coincidan
             # CORRECCIÓN AQUÍ: Usamos 'correo=' porque así se llama en tu BD
             zombies = CrearCuenta.objects.filter(
-                Q(documento=documento) | Q(correo=email_val), 
+                Q(documento=documento) | Q(correo=email_val),
                 is_active=False
             )
-            
+
             if zombies.exists():
                 count = zombies.count()
-                zombies.delete() 
+                zombies.delete()
                 print(f"♻️ [Auto-Healing] Se eliminaron {count} usuarios inactivos.")
 
         # --- FIN LÓGICA BLINDAJE ---
@@ -53,8 +53,10 @@ class RegistroView(generics.CreateAPIView):
             )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
+
 
 class UserDetailView(generics.RetrieveUpdateAPIView):
     queryset = CrearCuenta.objects.all()
@@ -85,6 +87,7 @@ class UserDetailView(generics.RetrieveUpdateAPIView):
 
 # --- VISTAS DE MENÚ ---
 
+
 class DynamicMenuView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -97,6 +100,7 @@ class DynamicMenuView(APIView):
         serializer = MenuItemSerializer(items, many=True)
         return Response(serializer.data)
 
+
 class MisPermisosView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -106,8 +110,12 @@ class MisPermisosView(APIView):
         if request.user.is_superuser:
             lista_codenames = list(PermisoVista.objects.values_list("codename", flat=True))
         else:
-            lista_codenames = list(PermisoVista.objects.filter(roles__in=user_groups).values_list("codename", flat=True).distinct())
-        
+            lista_codenames = list(
+                PermisoVista.objects.filter(roles__in=user_groups)
+                .values_list("codename", flat=True)
+                .distinct()
+            )
+
         lista_roles = list(user_groups.values_list("name", flat=True))
         return Response({
             "codenames": lista_codenames,
@@ -117,6 +125,7 @@ class MisPermisosView(APIView):
         })
 
 # --- VISTAS ADMINISTRATIVAS ---
+
 
 class UserAdminViewSet(viewsets.ModelViewSet):
     """
@@ -128,11 +137,13 @@ class UserAdminViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAdminUser]
 
     def get_authenticators(self):
-        if self.request.method == "OPTIONS": return []
+        if self.request.method == "OPTIONS":
+            return []
         return super().get_authenticators()
 
     def get_permissions(self):
-        if self.request.method == "OPTIONS": return [AllowAny()]
+        if self.request.method == "OPTIONS":
+            return [AllowAny()]
         return super().get_permissions()
 
     # Lógica de asignación de roles manual por Admin
@@ -142,7 +153,7 @@ class UserAdminViewSet(viewsets.ModelViewSet):
             grp, _ = Group.objects.get_or_create(name="Paciente")
             if not user.groups.filter(name="Paciente").exists():
                 user.groups.add(grp)
-        
+
         if user.profesional_id:
             grp, _ = Group.objects.get_or_create(name="Profesional")
             if not user.groups.filter(name="Profesional").exists():

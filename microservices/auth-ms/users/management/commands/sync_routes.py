@@ -1,9 +1,12 @@
 import os
 import re
+
+from django.contrib.auth.models import Group  # <--- IMPORTANTE
 from django.core.management.base import BaseCommand
 from django.db import transaction
-from django.contrib.auth.models import Group  # <--- IMPORTANTE
+
 from users.models import MenuItem, PermisoVista
+
 
 class Command(BaseCommand):
     help = "Sincroniza rutas protegidas de React a la BD y asigna permisos iniciales"
@@ -12,7 +15,7 @@ class Command(BaseCommand):
         file_path = "/app/source_feed/App.jsx"
 
         if not os.path.exists(file_path):
-            self.stdout.write(self.style.ERROR(f"No se encontró App.jsx"))
+            self.stdout.write(self.style.ERROR("No se encontró App.jsx"))
             return
 
         self.stdout.write(f"Leyendo rutas de: {file_path}...")
@@ -31,7 +34,7 @@ class Command(BaseCommand):
                 # 1. Asegurar que existan los Grupos Base
                 grupo_admin, _ = Group.objects.get_or_create(name="Administrador")
                 grupo_paciente, _ = Group.objects.get_or_create(name="Paciente")
-                
+
                 # Opcional: Grupo Staff/Profesional
                 grupo_profesional, _ = Group.objects.get_or_create(name="Profesional")
 
@@ -40,7 +43,8 @@ class Command(BaseCommand):
                         continue
 
                     label_text = url.split("/")[-1].replace("-", " ").title()
-                    if not label_text: label_text = "Item"
+                    if not label_text:
+                        label_text = "Item"
 
                     # --- A. CREAR/OBTENER PERMISO ---
                     permiso, created_p = PermisoVista.objects.get_or_create(
@@ -62,7 +66,7 @@ class Command(BaseCommand):
                     # Esto solo aplica si se acaba de crear, para no sobrescribir cambios manuales del admin
                     if created_p or created_m:
                         self.stdout.write(f" + Configurando: {label_text}")
-                        
+
                         # 1. El Administrador SIEMPRE recibe acceso a todo lo nuevo por defecto
                         permiso.roles.add(grupo_admin)
                         menu.roles.add(grupo_admin)
@@ -71,17 +75,17 @@ class Command(BaseCommand):
                         # Si la URL contiene 'citas', 'perfil' o 'dashboard' (pero no admin)
                         es_admin = '/admin' in url
                         es_paciente = '/citas' in url or '/perfil' in url
-                        
+
                         if es_paciente and not es_admin:
                             permiso.roles.add(grupo_paciente)
                             menu.roles.add(grupo_paciente)
-                            self.stdout.write(f"   -> Asignado a Grupo Paciente")
+                            self.stdout.write("   -> Asignado a Grupo Paciente")
 
                         # 3. Lógica para PROFESIONALES (Ejemplo)
                         es_agenda = '/agenda' in url or '/recepcion' in url
-                        if es_agenda or es_admin: # Asumimos que profesional ve admin o agenda
-                             permiso.roles.add(grupo_profesional)
-                             menu.roles.add(grupo_profesional)
+                        if es_agenda or es_admin:  # Asumimos que profesional ve admin o agenda
+                            permiso.roles.add(grupo_profesional)
+                            menu.roles.add(grupo_profesional)
 
                         nuevos += 1
 
