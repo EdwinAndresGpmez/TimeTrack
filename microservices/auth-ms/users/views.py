@@ -173,3 +173,4 @@ class UserAdminViewSet(viewsets.ModelViewSet):
     def groups(self, request):
         grupos = Group.objects.values_list("name", flat=True)
         return Response(grupos)
+
