@@ -3,6 +3,25 @@
 
 Este documento identifica los modelos de cada microservicio y su uso real en backend y frontend, proponiendo mejoras donde se detecta subutilización.
 
+# FALTA EN RESUME:
+- Auditoria para todos las acciones de la aplicación.
+- Notificaciones, alertas por correo electronico y mensajes de texto.
+- asignación de Profesional como usuario de la aplicación.
+- Vista para el profesional para ver sus citas asignadas y los comentarios de los pacientes y la funcionarias de la clinica.
+- Chatbot interno entre funcionarios de la empresa.
+- Terminar desarrollo del portal.
+- Crear vistas para el administrador relacionado con el portal y su administración.
+- Crear vista para el administrador relacionado con el envio de correos y notificaciones.
+- Crear chatbot con el modelo de inteligencia artifical para solicitud de citas, cancelacion, y demas componentes.
+- Crear la integracion con whatsapp de meta para la interacion con la ia y la aplicación. 
+- Crear pantalla de gestion de pacientes para activar el turno en sala de espera y ser mas precisos durante la atención.
+- Crear API para integración con otras aplicaciones para que consuman los datos basicos relacionado con la citas.
+- Mejorar los archivos .py para la creación automatica de las vistas y permisos por vista segun los grupos y roles y tambien cambiar los iconos para que tengan mejor diseño.
+- validar las vulnerabilidades al final y corregirlas todas.
+- Crear un flujo de ayuda con IA para los administradores de la aplicación. 
+- Validar el uso de memoria y optimización de los recursos.
+- Implementar modo oscuro para los usuarios.
+
 ---
 
 ## 1. auth-ms (users/models.py)
