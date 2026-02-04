@@ -62,34 +62,43 @@ export const authService = {
         return response.data;
     },
 
-    // 6. Obtener Roles y Permisos (CORREGIDO EL NOMBRE)
+    // 6. Obtener Roles y Permisos
     getMisPermisos: async () => {
         const response = await api.get('/auth/me/permisos/');
         return response.data;
     },
 
-    // --- FUNCIONES DE ADMINISTRADOR ---
 
-    getAllUsers: async () => {
-        const response = await api.get('/users/admin/users/');
+    // Obtener todos los usuarios (para gestión)
+    getAllUsers: async (search = '') => {
+        const response = await api.get(`/users/admin/users/?search=${search}`);
         return response.data;
     },
 
-    // CORREGIDO: Renombrado para evitar conflicto con la función de arriba
-    adminUpdateUser: async (id, data) => {
+    // Actualizar usuario desde Admin (Sirve para ValidarUsuarios y AdminUsuarios)
+    updateUserAdmin: async (id, data) => {
         const response = await api.patch(`/users/admin/users/${id}/`, data);
         return response.data;
     },
+    
+    // Bloquear/Desbloquear usuario (Rechazar solicitud)
+    toggleUserStatus: async (id, isActive) => {
+        const response = await api.patch(`/users/admin/users/${id}/`, { is_active: isActive });
+        return response.data;
+    },
 
+    // Eliminar usuario
     deleteUser: async (id) => {
         await api.delete(`/users/admin/users/${id}/`);
     },
 
+    // Cambiar contraseña de usuario (Admin)
     adminChangePassword: async (id, password) => {
         const response = await api.post(`/users/admin/users/${id}/change_password/`, { password });
         return response.data;
     },
 
+    // Obtener grupos disponibles
     getGroups: async () => {
         const response = await api.get('/users/admin/users/groups/');
         return response.data;

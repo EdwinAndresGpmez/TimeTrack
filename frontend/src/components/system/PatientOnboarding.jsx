@@ -18,13 +18,18 @@ const PatientOnboarding = () => {
         }
     }, [navigate]);
 
+    // --- CORRECCIÓN AQUÍ ---
     const crearSolicitudValidacion = useCallback(async () => {
         try {
             await patientService.crearSolicitudValidacion({
                 user_id: user.user_id || user.id,
                 nombre: user.nombre,
                 email: user.email || user.correo,
-                fecha: new Date().toISOString()
+                // AGREGAMOS ESTA LÍNEA QUE FALTABA:
+                user_doc: user.documento, 
+                fecha: new Date().toISOString(),
+                tipo_solicitud: 'REGISTRO_EPS', // Opcional: para diferenciar
+                procesado: false
             });
             await Swal.fire('Solicitud Enviada', 'Te notificaremos vía email cuando validemos tu EPS.', 'success');
         } catch {
@@ -93,16 +98,16 @@ const PatientOnboarding = () => {
                     paciente_id: nuevoPaciente.id 
                 });
 
-                // 3. NUEVO: Crear Notificación para Admin (Solicitud Autoprocesada)
-                // Esto permite que aparezca en la lista de validación como "Nuevo Ingreso"
+                // 3. Crear Notificación (Particular)
                 try {
                     await patientService.crearSolicitudValidacion({
                         user_id: user.user_id || user.id,
                         nombre: user.nombre,
                         email: user.email || user.correo,
                         fecha: new Date().toISOString(),
-                        user_doc: user.documento,
-                        procesado: false // Dejamos en false para que el Admin lo vea y valide
+                        user_doc: user.documento, // Este ya estaba bien
+                        tipo_solicitud: 'REGISTRO_PARTICULAR',
+                        procesado: false 
                     });
                 } catch (e) {
                     console.log("Nota: Notificación admin omitida (ya existe solicitud).", e);

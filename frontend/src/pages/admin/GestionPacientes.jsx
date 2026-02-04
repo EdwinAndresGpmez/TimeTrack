@@ -94,6 +94,7 @@ const GestionPacientes = () => {
             setLoading(false);
         }
     };
+
     const isAdmin = () => {
         if (user && (user.is_superuser || user.is_staff)) return true;
         const rn = roles.map(r => (r || '').toString().toLowerCase());
@@ -236,9 +237,24 @@ const GestionPacientes = () => {
         setModalOpen(true);
     };
 
+    // --- CORRECCIÓN 1: Manejo de Nulos en openEdit ---
     const openEdit = (p) => {
         setEditing(p);
-        setForm({ ...p, tipo_usuario: p.tipo_usuario || '' });
+        setForm({ 
+            ...p, 
+            nombre: p.nombre || '',
+            apellido: p.apellido || '',
+            tipo_documento: p.tipo_documento || 'CC',
+            numero_documento: p.numero_documento || '',
+            fecha_nacimiento: p.fecha_nacimiento || '',
+            genero: p.genero || 'O',
+            direccion: p.direccion || '',
+            telefono: p.telefono || '',
+            email_contacto: p.email_contacto || '',
+            tipo_usuario: p.tipo_usuario || '',
+            user_id: p.user_id 
+        });
+        
         setUserQuery(p.user_id ? `ID Actual: ${p.user_id}` : '');
         setUserResults([]);
         setModalOpen(true);
@@ -260,18 +276,41 @@ const GestionPacientes = () => {
         }
     };
 
+    // --- CORRECCIÓN 2: Sincronización Paciente/Usuario en handleSave ---
     const handleSave = async () => {
         const required = ['nombre', 'tipo_documento', 'numero_documento', 'fecha_nacimiento', 'genero'];
-        for (const f of required) { if (!form[f]) return Swal.fire('Validación', `El campo ${f} es obligatorio`, 'warning'); }
+        for (const f of required) { 
+            if (!form[f]) return Swal.fire('Validación', `El campo ${f} es obligatorio`, 'warning'); 
+        }
 
         try {
+            Swal.fire({ title: 'Guardando...', didOpen: () => Swal.showLoading() });
+
+            // 1. Guardar en Pacientes (Nombre y Apellido separados)
             if (editing) {
                 await patientService.update(editing.id, form);
-                Swal.fire('Guardado', 'Registro actualizado.', 'success');
             } else {
                 await patientService.create(form);
-                Swal.fire('Creado', 'Paciente registrado con éxito.', 'success');
             }
+
+            // 2. Sincronizar en Auth (Si tiene usuario)
+            if (form.user_id) {
+                // Concatenamos para Auth (que solo tiene campo 'nombre')
+                const nombreCompleto = `${form.nombre} ${form.apellido || ''}`.trim();
+                
+                try {
+                    await authService.updateUserAdmin(form.user_id, {
+                        nombre: nombreCompleto,
+                        documento: form.numero_documento,
+                        tipo_documento: form.tipo_documento,
+                        correo: form.email_contacto
+                    });
+                } catch (errAuth) {
+                    console.warn("Sincronización parcial de usuario:", errAuth);
+                }
+            }
+
+            Swal.fire('Guardado', 'Datos actualizados y sincronizados.', 'success');
             setModalOpen(false);
             cargarDatos();
         } catch (error) { 

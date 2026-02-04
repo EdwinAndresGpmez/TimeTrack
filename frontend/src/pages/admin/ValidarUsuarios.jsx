@@ -1,7 +1,16 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { patientService } from '../../services/patientService';
+import { authService } from '../../services/authService'; // Necesario para bloquear/corregir usuario
 import Swal from 'sweetalert2';
-import { FaUserPlus, FaUsers, FaCheckCircle, FaClock, FaIdCard } from 'react-icons/fa';
+import { 
+    FaUserPlus, 
+    FaUserTimes, 
+    FaClock, 
+    FaIdCard, 
+    FaExclamationTriangle, 
+    FaCheckCircle, 
+    FaUsers 
+} from 'react-icons/fa';
 import { Link } from 'react-router-dom';
 
 const ValidarUsuarios = () => {
@@ -26,14 +35,12 @@ const ValidarUsuarios = () => {
     }, []);
 
     useEffect(() => {
-        const timer = setTimeout(() => {
-            cargarDatos();
-        }, 0);
+        const timer = setTimeout(() => { cargarDatos(); }, 0);
         return () => clearTimeout(timer);
     }, [cargarDatos]);
 
+    // --- ACCIÓN 1: VALIDAR Y CORREGIR ---
     const handleValidar = async (solicitud) => {
-        // Generamos opciones para el select
         const opcionesHtml = tiposPaciente
             .filter(t => t.activo)
             .map(t => `<option value="${t.id}">${t.nombre}</option>`)
@@ -48,7 +55,12 @@ const ValidarUsuarios = () => {
                     <p class="text-xs text-gray-500 mt-1">ID Auth: ${solicitud.user_id}</p>
                 </div>
                 
-                <label class="block text-left text-xs font-bold text-gray-500 mb-1 ml-1">Documento de Identidad Real</label>
+                <div class="text-left mb-1 ml-1">
+                    <label class="text-xs font-bold text-gray-500">Documento Real (Corregir si es necesario)</label>
+                    <p class="text-[10px] text-orange-500 italic mb-1">
+                        * Si cambias este número, se actualizará también en la cuenta de usuario.
+                    </p>
+                </div>
                 <input id="val-doc" class="swal2-input m-0 w-full mb-4" placeholder="Ej: 10203040" value="${solicitud.user_doc || ''}">
                 
                 <label class="block text-left text-xs font-bold text-gray-500 mb-1 ml-1">Asignar Afiliación</label>
@@ -58,8 +70,8 @@ const ValidarUsuarios = () => {
                 </select>
             `,
             showCancelButton: true,
-            confirmButtonText: 'Confirmar Validación',
-            confirmButtonColor: '#2563eb', // Blue-600
+            confirmButtonText: 'Confirmar y Crear',
+            confirmButtonColor: '#2563eb',
             cancelButtonText: 'Cancelar',
             focusConfirm: false,
             preConfirm: () => {
@@ -76,128 +88,161 @@ const ValidarUsuarios = () => {
         if (formValues) {
             Swal.fire({ title: 'Procesando...', didOpen: () => Swal.showLoading() });
             try {
-                // 1. Crear el Paciente
+                // 1. (CRÍTICO) Si el admin corrigió el documento, actualizamos el Usuario Auth primero
+                if (formValues.doc !== solicitud.user_doc) {
+                    await authService.updateUserAdmin(solicitud.user_id, { documento: formValues.doc });
+                }
+
+                // 2. Crear el Paciente
                 await patientService.create({
                     user_id: solicitud.user_id,
                     nombre: solicitud.nombre,
-                    numero_documento: formValues.doc,
+                    numero_documento: formValues.doc, // Usamos el corregido
                     email_contacto: solicitud.email,
                     tipo_usuario: formValues.tipo,
-                    tipo_documento: 'CC', // Default, podrías pedirlo en el modal también
-                    fecha_nacimiento: '2000-01-01', // Default, el usuario lo actualiza luego
+                    tipo_documento: 'CC',
+                    fecha_nacimiento: '2000-01-01',
                     genero: 'O',
                     direccion: 'Validado por Admin',
                     activo: true
                 });
 
-                // 2. Marcar solicitud como procesada
+                // 3. Cerrar solicitud
                 await patientService.updateSolicitud(solicitud.id, { ...solicitud, procesado: true });
 
-                Swal.fire('¡Éxito!', 'Usuario validado y paciente creado.', 'success');
+                Swal.fire('¡Éxito!', 'Datos sincronizados y paciente creado.', 'success');
                 cargarDatos(); 
 
             } catch (error) {
-                // Si falla porque YA EXISTE (ej: particular que se registró solo), 
-                // solo actualizamos la solicitud para sacarla de la lista
+                // Manejo de duplicados (Paciente ya existe)
                 if (error.response && error.response.status === 400) {
-                     await patientService.updateSolicitud(solicitud.id, { ...solicitud, procesado: true });
-                     Swal.fire('Actualizado', 'El paciente ya existía. Solicitud archivada.', 'info');
-                     cargarDatos();
+                     // Si el paciente ya existe, intentamos VINCULARLO en vez de fallar
+                     try {
+                        const sync = await patientService.vincularExistente({
+                            documento: formValues.doc,
+                            user_id: solicitud.user_id
+                        });
+                        if (sync.status === 'found') {
+                            await authService.updateUserAdmin(solicitud.user_id, { paciente_id: sync.paciente_id });
+                            await patientService.updateSolicitud(solicitud.id, { ...solicitud, procesado: true });
+                            Swal.fire('Vinculado', 'El paciente ya existía. Se vinculó la cuenta exitosamente.', 'success');
+                            cargarDatos();
+                            return;
+                        }
+                     } catch (e) { console.log(e); }
+                     
+                     Swal.fire('Error', 'El documento ya pertenece a otro paciente y no se pudo vincular autom.', 'error');
                 } else {
                     console.error(error);
-                    Swal.fire('Error', 'No se pudo completar la validación.', 'error');
+                    Swal.fire('Error', 'No se pudo completar la operación.', 'error');
                 }
             }
         }
     };
 
+    // --- ACCIÓN 2: RECHAZAR / INACTIVAR ---
+    const handleRechazar = async (solicitud) => {
+        const { isConfirmed } = await Swal.fire({
+            title: '¿Rechazar y Eliminar?',
+            html: `
+                <p class="text-sm text-gray-600 mb-2">
+                    Esto marcará la solicitud como procesada y <b>ELIMINARÁ</b> la cuenta de usuario creada.
+                </p>
+                <p class="text-xs text-blue-500 italic">
+                    * Esto liberará el documento y correo para que pueda registrarse nuevamente.
+                </p>
+                <div class="bg-red-50 p-3 rounded text-xs text-red-800 font-bold border border-red-100 mt-2">
+                    <FaExclamationTriangle className="inline mr-1"/> Acción Destructiva.
+                </div>
+            `,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Sí, Rechazar y Eliminar',
+            confirmButtonColor: '#dc2626',
+            cancelButtonText: 'Cancelar'
+        });
+
+        if (isConfirmed) {
+            try {
+                await authService.deleteUser(solicitud.user_id); 
+            
+                await patientService.updateSolicitud(solicitud.id, { ...solicitud, procesado: true });
+
+                Swal.fire('Rechazado', 'El usuario ha sido eliminado y la solicitud cerrada.', 'success');
+                cargarDatos();
+            } catch (error) {
+                console.error(error);
+
+                if (error.response && error.response.status === 404) {
+                     await patientService.updateSolicitud(solicitud.id, { ...solicitud, procesado: true });
+                     Swal.fire('Listo', 'El usuario ya no existía, solicitud cerrada.', 'success');
+                     cargarDatos();
+                } else {
+                    Swal.fire('Error', 'No se pudo rechazar la solicitud.', 'error');
+                }
+            }
+        }
+    };
     return (
         <div className="max-w-7xl mx-auto p-6">
-            
-            {/* Header Moderno */}
             <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-6">
                 <div>
                     <h1 className="text-4xl font-black text-gray-800 tracking-tight flex items-center gap-3">
                         <FaCheckCircle className="text-blue-600"/> Centro de Validación
                     </h1>
-                    <p className="text-gray-500 font-medium mt-2">
-                        Gestiona las solicitudes de registro y nuevos ingresos.
-                    </p>
+                    <p className="text-gray-500 font-medium mt-2">Gestiona ingresos y correcciones de identidad.</p>
                 </div>
-                <Link to="/dashboard/admin/pacientes" className="group relative inline-flex items-center justify-center px-6 py-3 font-bold text-blue-600 transition-all duration-200 bg-blue-50 rounded-xl hover:bg-blue-100 border border-blue-200">
-                    <FaUsers className="mr-2"/> Ver Todos los Pacientes
+                <Link to="/dashboard/admin/pacientes" className="px-6 py-3 font-bold text-blue-600 bg-blue-50 rounded-xl hover:bg-blue-100 border border-blue-200">
+                    <FaUsers className="mr-2 inline"/> Ver Todos
                 </Link>
             </div>
             
-            {/* Tarjeta de Lista */}
             <div className="bg-white shadow-xl rounded-2xl overflow-hidden border border-gray-100">
                 <div className="p-6 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
                     <h3 className="font-bold text-gray-700 flex items-center gap-2">
-                        <FaClock className="text-orange-500"/> Pendientes de Revisión
-                        <span className="bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full text-xs font-black">
-                            {solicitudes.length}
-                        </span>
+                        <FaClock className="text-orange-500"/> Pendientes
+                        <span className="bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full text-xs font-black">{solicitudes.length}</span>
                     </h3>
                 </div>
 
                 {loading ? (
-                    <div className="p-20 text-center text-gray-400">
-                        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                        Cargando solicitudes...
-                    </div>
+                    <div className="p-20 text-center text-gray-400">Cargando...</div>
                 ) : solicitudes.length === 0 ? (
                     <div className="p-20 text-center flex flex-col items-center">
-                        <div className="bg-green-50 p-6 rounded-full mb-4">
-                            <FaCheckCircle className="text-4xl text-green-500" />
-                        </div>
+                        <div className="bg-green-50 p-6 rounded-full mb-4"><FaCheckCircle className="text-4xl text-green-500" /></div>
                         <h3 className="text-lg font-bold text-gray-800">¡Todo al día!</h3>
-                        <p className="text-gray-500">No hay solicitudes pendientes de validación.</p>
                     </div>
                 ) : (
                     <div className="overflow-x-auto">
                         <table className="min-w-full leading-normal text-left">
                             <thead className="bg-white text-gray-500 uppercase text-[10px] font-bold tracking-wider border-b border-gray-100">
                                 <tr>
-                                    <th className="px-6 py-4">Usuario Solicitante</th>
-                                    <th className="px-6 py-4">Datos de Contacto</th>
-                                    <th className="px-6 py-4">Fecha Solicitud</th>
-                                    <th className="px-6 py-4 text-center">Acción</th>
+                                    <th className="px-6 py-4">Usuario</th>
+                                    <th className="px-6 py-4">Documento (Reportado)</th>
+                                    <th className="px-6 py-4 text-center">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-50 text-sm">
                                 {solicitudes.map(s => (
-                                    <tr key={s.id} className="hover:bg-blue-50/30 transition duration-200 group">
+                                    <tr key={s.id} className="hover:bg-blue-50/30 transition duration-200">
                                         <td className="px-6 py-5">
-                                            <div className="flex items-center gap-4">
-                                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center font-bold text-lg shadow-md">
-                                                    {s.nombre.charAt(0).toUpperCase()}
-                                                </div>
-                                                <div>
-                                                    <div className="font-bold text-gray-900 text-base">{s.nombre}</div>
-                                                    <div className="text-xs text-gray-400 font-mono">ID Auth: {s.user_id}</div>
-                                                </div>
-                                            </div>
+                                            <div className="font-bold text-gray-900">{s.nombre}</div>
+                                            <div className="text-xs text-gray-400">{s.email}</div>
                                         </td>
                                         <td className="px-6 py-5">
-                                            <div className="text-gray-700 font-medium">{s.email}</div>
-                                            {s.user_doc && <div className="text-xs text-gray-500 mt-1 flex items-center gap-1"><FaIdCard/> Doc: {s.user_doc}</div>}
-                                        </td>
-                                        <td className="px-6 py-5">
-                                            <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-lg text-xs font-bold">
-                                                {new Date(s.fecha_solicitud || s.fecha).toLocaleDateString()}
-                                            </span>
-                                            <div className="text-[10px] text-gray-400 mt-1 ml-1">
-                                                {new Date(s.fecha_solicitud || s.fecha).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                            <div className="flex items-center gap-2 text-gray-700 font-mono bg-gray-100 px-2 py-1 rounded w-max">
+                                                <FaIdCard/> {s.user_doc || 'N/A'}
                                             </div>
                                         </td>
                                         <td className="px-6 py-5 text-center">
-                                            <button 
-                                                onClick={() => handleValidar(s)}
-                                                className="group/btn relative inline-flex items-center justify-center px-5 py-2.5 font-bold text-white transition-all duration-200 bg-indigo-600 rounded-xl hover:bg-indigo-700 shadow-md shadow-indigo-200 active:scale-95 overflow-hidden"
-                                            >
-                                                <div className="absolute inset-0 w-full h-full transition-all duration-300 scale-0 group-hover/btn:scale-100 group-hover/btn:bg-white/10 rounded-xl"></div>
-                                                <FaUserPlus className="mr-2 group-hover/btn:animate-bounce"/> Validar
-                                            </button>
+                                            <div className="flex justify-center gap-3">
+                                                <button onClick={() => handleValidar(s)} className="text-white bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-lg font-bold text-xs shadow-md transition-transform active:scale-95 flex items-center gap-2">
+                                                    <FaUserPlus/> Validar / Corregir
+                                                </button>
+                                                <button onClick={() => handleRechazar(s)} className="text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 px-3 py-2 rounded-lg font-bold text-xs transition-colors flex items-center gap-1">
+                                                    <FaUserTimes/> Rechazar
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}
