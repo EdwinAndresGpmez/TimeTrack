@@ -22,6 +22,12 @@ export const agendaService = {
         return response.data;
     },
 
+    duplicateSchedule: async (payload) => {
+        // payload: { profesional_id, lugar_id, fecha_origen, fecha_destino }
+        const response = await api.post(`/agenda/disponibilidad/duplicar_dia/`, payload);
+        return response.data;
+    },
+
     // --- BLOQUEOS (Excepciones / "Solo por hoy") ---
     getBloqueos: async (params = {}) => {
         const response = await api.get('/agenda/bloqueos/', { params });

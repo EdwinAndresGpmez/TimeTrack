@@ -18,6 +18,7 @@ class CitaSerializer(serializers.ModelSerializer):
     profesional_nombre = serializers.SerializerMethodField()
     servicio_nombre = serializers.SerializerMethodField()
     lugar_nombre = serializers.SerializerMethodField()
+    paciente_fecha_nacimiento = serializers.SerializerMethodField()
 
     class Meta:
         model = Cita
@@ -37,6 +38,9 @@ class CitaSerializer(serializers.ModelSerializer):
 
     def get_lugar_nombre(self, obj):
         return getattr(obj, "lugar_nombre", None)
+    
+    def get_paciente_fecha_nacimiento(self, obj):
+        return getattr(obj, "paciente_fecha_nacimiento", None)
 
 
 class HistoricoCitaSerializer(serializers.ModelSerializer):

@@ -164,5 +164,6 @@ class BulkPacienteView(APIView):
                 "nombre_completo": f"{p.nombre} {p.apellido}",
                 "numero_documento": p.numero_documento,
                 "tipo_doc": p.tipo_documento,
+                "fecha_nacimiento": p.fecha_nacimiento.isoformat() if p.fecha_nacimiento else None
             }
         return Response(data)

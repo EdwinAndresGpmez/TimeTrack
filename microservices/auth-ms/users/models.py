@@ -96,9 +96,23 @@ class MenuItem(models.Model):
     icon = models.CharField(max_length=100, blank=True, null=True)
     order = models.IntegerField(default=0)
     roles = models.ManyToManyField(Group, blank=True)
+    category_name = models.CharField(max_length=100, blank=True, null=True, help_text="Ej: GESTIÓN, REPORTES")
+    is_active_item = models.BooleanField(default=True)
 
     class Meta:
         ordering = ["order"]
 
     def __str__(self):
-        return self.label
+        return f"{self.category_name or 'Sin Cat'} - {self.label}"
+
+class SidebarBranding(models.Model):
+    empresa_nombre = models.CharField(max_length=100, default="TimeTrack")
+    # CAMBIO: De URLField a TextField para soportar Base64
+    logo_url = models.TextField(blank=True, null=True) 
+    bg_color = models.CharField(max_length=20, default="#0f172a")
+    accent_color = models.CharField(max_length=20, default="#34d399")
+    variant = models.CharField(max_length=20, default="floating")
+    border_radius = models.IntegerField(default=24)
+
+    def __str__(self): # Corregido de __clon__ a __str__
+        return self.empresa_nombre

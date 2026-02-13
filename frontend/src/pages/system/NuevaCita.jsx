@@ -12,10 +12,10 @@ import {
 } from 'react-icons/fa';
 
 /**
- * @param {Number} adminSelectedPatientId - Opcional. Si se provee, el wizard agendará para este paciente 
- * en lugar del usuario logueado. Útil para vistas administrativas/secretaría.
+ * @param {Number} adminSelectedPatientId - Opcional. Si se provee, el wizard agendará para este paciente.
+ * @param {Boolean} isAdminMode - Indica si el componente está siendo usado desde la administración.
  */
-const NuevaCita = ({ adminSelectedPatientId = null }) => {
+const NuevaCita = ({ adminSelectedPatientId = null, isAdminMode = false }) => {
     const navigate = useNavigate();
     const { user } = useContext(AuthContext);
 
@@ -39,7 +39,7 @@ const NuevaCita = ({ adminSelectedPatientId = null }) => {
     const [loading, setLoading] = useState(false);
     const [loadingSlots, setLoadingSlots] = useState(false);
     const [pacienteId, setPacienteId] = useState(null);
-    const [perfilPaciente, setPerfilPaciente] = useState(null); // Guardamos el perfil para filtrar servicios
+    const [perfilPaciente, setPerfilPaciente] = useState(null); 
     
     const [fechaInicioCarrusel, setFechaInicioCarrusel] = useState(() => {
         const d = new Date();
@@ -57,8 +57,6 @@ const NuevaCita = ({ adminSelectedPatientId = null }) => {
         const init = async () => {
             try {
                 let perfil;
-                // LÓGICA DINÁMICA: Si viene un ID por props (Admin), pedimos ese perfil.
-                // Si no, pedimos el perfil del usuario logueado.
                 if (adminSelectedPatientId) {
                     perfil = await patientService.getPatientById(adminSelectedPatientId);
                     setPacienteId(adminSelectedPatientId);
@@ -74,7 +72,6 @@ const NuevaCita = ({ adminSelectedPatientId = null }) => {
                     staffService.getLugares({ activo: true })
                 ]);
                 
-                // Filtrado por tipo de paciente (EPS, Particular, etc)
                 const tipoId = perfil.tipo_usuario?.id || perfil.tipo_usuario;
                 const serviciosFiltrados = allServicios.filter(s => {
                     const permitidos = s.tipos_paciente_ids?.map(Number) || [];
@@ -91,7 +88,6 @@ const NuevaCita = ({ adminSelectedPatientId = null }) => {
         init();
     }, [adminSelectedPatientId, user.user_id]);
 
-    // 2. DEFINIR FETCH SLOTS (Antes del useEffect)
     const fetchSlots = useCallback(async () => {
         setLoadingSlots(true);
         setSlots([]);
@@ -107,7 +103,7 @@ const NuevaCita = ({ adminSelectedPatientId = null }) => {
                 citasService.getAll({ 
                     profesional_id: selection.profesional.id, 
                     fecha: selection.fecha,
-                    estado_ne: 'CANCELADA' // Traer todas excepto canceladas
+                    estado_ne: 'CANCELADA'
                 })
             ]);
 
@@ -115,7 +111,8 @@ const NuevaCita = ({ adminSelectedPatientId = null }) => {
 
             const slotsLimpios = slotsBase.filter(hora => {
                 const slotStart = new Date(`${selection.fecha}T${hora}`);
-                if (slotStart < ahoraMismo) return false;
+                // Si es admin, permitimos ver horarios pasados del día de hoy
+                if (!isAdminMode && slotStart < ahoraMismo) return false;
 
                 const isBloqueado = bloqueosData.some(b => {
                     const bStart = new Date(b.fecha_inicio);
@@ -133,9 +130,8 @@ const NuevaCita = ({ adminSelectedPatientId = null }) => {
         } finally { 
             setLoadingSlots(false); 
         }
-    }, [selection.profesional, selection.fecha, selection.servicio]);
+    }, [selection.profesional, selection.fecha, selection.servicio, isAdminMode]);
 
-    // 3. EFFECT (Ahora incluye fetchSlots)
     useEffect(() => {
         if (selection.profesional && selection.sede && selection.fecha) {
             fetchSlots();
@@ -185,7 +181,7 @@ const NuevaCita = ({ adminSelectedPatientId = null }) => {
 
                         const slotLibre = slotsBase.find(hora => {
                             const slotStart = new Date(`${fechaStr}T${hora}`);
-                            if (slotStart < ahoraMismo) return false;
+                            if (!isAdminMode && slotStart < ahoraMismo) return false;
                             const isBloqueado = bloqueosData.some(b => new Date(b.fecha_inicio) <= slotStart && new Date(b.fecha_fin) > slotStart);
                             const isOcupado = citasDia.some(c => c.hora_inicio === hora);
                             return !isBloqueado && !isOcupado;
@@ -268,13 +264,13 @@ const NuevaCita = ({ adminSelectedPatientId = null }) => {
                 fecha: selection.fecha,
                 hora_inicio: selection.hora,
                 hora_fin: horaFinCalc,
+                is_admin_mode: isAdminMode, 
                 nota: adminSelectedPatientId 
                     ? `Agendado por Administrador/Secretaría para: ${perfilPaciente?.nombre}`
                     : 'Agendado vía Web Wizard'
             });
             await Swal.fire('¡Cita Confirmada!', 'La cita ha sido agendada con éxito.', 'success');
             
-            // Si es admin, volvemos al panel de gestión de citas
             navigate(adminSelectedPatientId ? '/dashboard/admin/citas' : '/dashboard/citas');
             
         } catch (error) {
@@ -310,7 +306,6 @@ const NuevaCita = ({ adminSelectedPatientId = null }) => {
 
     const esElInicio = fechaInicioCarrusel.getTime() === new Date().setHours(0,0,0,0);
 
-    // --- RENDERS ---
     const renderStep1 = () => (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-fadeIn">
             {servicios.map(s => (
@@ -436,7 +431,6 @@ const NuevaCita = ({ adminSelectedPatientId = null }) => {
 
     return (
         <div className="max-w-5xl mx-auto p-4">
-            {/* Si es Admin, mostramos un encabezado especial */}
             {adminSelectedPatientId && (
                 <div className="mb-6 p-4 bg-indigo-50 border border-indigo-100 rounded-2xl flex items-center justify-between">
                     <div>
@@ -469,7 +463,6 @@ const NuevaCita = ({ adminSelectedPatientId = null }) => {
             {step === 4 && renderStep4()}
             {step === 5 && renderStep5()}
 
-            {/* Modal Asistente (Sin cambios de lógica) */}
             {showAssistant && (
                 <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
                     <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
@@ -480,12 +473,14 @@ const NuevaCita = ({ adminSelectedPatientId = null }) => {
                         <div className="p-6 overflow-y-auto bg-gray-50 flex-1">
                             {assistantLoading && suggestions.length === 0 ? <div className="text-center py-10"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-purple-600 mx-auto mb-3"></div></div> : suggestions.length === 0 ? <div className="text-center py-10 text-gray-500"><p>No hay opciones.</p></div> : (
                                 <div className="space-y-3">
-                                    {suggestions.map((sug, idx) => (
-                                        <div key={idx} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between gap-4">
-                                            <div className="text-left"><h4 className="font-bold text-gray-800">{sug.profesional.nombre}</h4><p className="text-xs text-gray-500">{sug.fecha} | {sug.hora}</p></div>
-                                            <button onClick={() => seleccionarSugerencia(sug)} className="bg-purple-600 text-white px-4 py-2 rounded-lg font-bold text-sm">Seleccionar</button>
-                                        </div>
-                                    ))}
+                                    {suggestions.map((sug, idx) => {
+                                        return (
+                                            <div key={idx} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between gap-4">
+                                                <div className="text-left"><h4 className="font-bold text-gray-800">{sug.profesional.nombre}</h4><p className="text-xs text-gray-500">{sug.fecha} | {sug.hora}</p></div>
+                                                <button onClick={() => seleccionarSugerencia(sug)} className="bg-purple-600 text-white px-4 py-2 rounded-lg font-bold text-sm">Seleccionar</button>
+                                            </div>
+                                        );
+                                    })}
                                     <button onClick={() => buscarSugerencias(searchDateStart)} disabled={assistantLoading} className="w-full mt-4 py-3 text-sm text-gray-400 font-bold uppercase tracking-widest border-2 border-dashed border-gray-200 rounded-xl">Cargar más</button>
                                 </div>
                             )}

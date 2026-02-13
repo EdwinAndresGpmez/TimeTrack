@@ -2,7 +2,7 @@ from django.contrib.auth.models import Group
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
-from .models import CrearCuenta, MenuItem, PermisoVista
+from .models import CrearCuenta, MenuItem, PermisoVista, SidebarBranding
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -65,6 +65,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 
 
 class MenuItemSerializer(serializers.ModelSerializer):
+    roles = serializers.PrimaryKeyRelatedField(many=True, queryset=Group.objects.all())
     class Meta:
         model = MenuItem
         fields = "__all__"
@@ -92,3 +93,27 @@ class UserAdminSerializer(serializers.ModelSerializer):
             "paciente_id",
         ]
         read_only_fields = ["paciente_id"]
+
+class MenuItemAdminSerializer(serializers.ModelSerializer):
+    roles = serializers.PrimaryKeyRelatedField(many=True, queryset=Group.objects.all())
+
+    class Meta:
+        model = MenuItem
+        fields = ['id', 'label', 'url', 'icon', 'order', 'roles', 'category_name', 'is_active_item']
+
+class PermisoVistaAdminSerializer(serializers.ModelSerializer):
+    roles = serializers.PrimaryKeyRelatedField(many=True, queryset=Group.objects.all())
+
+    class Meta:
+        model = PermisoVista
+        fields = ['id', 'codename', 'descripcion', 'roles']
+        
+class GroupSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Group
+        fields = ['id', 'name']
+
+class SidebarBrandingSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SidebarBranding
+        fields = '__all__'

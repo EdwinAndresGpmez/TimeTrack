@@ -1,6 +1,8 @@
 import logging
 from datetime import date, datetime, timedelta
-
+from django.db import transaction
+from django.db.models import Q
+from rest_framework.decorators import action
 import requests
 from django.db import models
 from django_filters.rest_framework import DjangoFilterBackend
@@ -153,6 +155,87 @@ class DisponibilidadViewSet(viewsets.ModelViewSet):
         except Exception as e:
             logger.error(f"Error crítico destroy agenda: {e}")
             return Response({"error": "Error interno del servidor."}, status=500)
+        
+    @action(detail=False, methods=['post'], url_path='duplicar_dia')
+    def duplicar_dia(self, request):
+        """
+        Copia la estructura de horarios de una fecha origen a una fecha destino.
+        Crea registros con fecha específica (override) en el destino.
+        """
+        profesional_id = request.data.get('profesional_id')
+        fecha_origen_str = request.data.get('fecha_origen')
+        fecha_destino_str = request.data.get('fecha_destino')
+        lugar_id = request.data.get('lugar_id')
+
+        if not all([profesional_id, fecha_origen_str, fecha_destino_str]):
+            return Response({'error': 'Faltan datos requeridos.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            f_origen = datetime.strptime(fecha_origen_str, "%Y-%m-%d").date()
+            f_destino = datetime.strptime(fecha_destino_str, "%Y-%m-%d").date()
+            dia_semana_origen = f_origen.weekday()
+            dia_semana_destino = f_destino.weekday()
+
+            # 1. Validar que el destino esté vacío (para no duplicar sobre lo existente)
+            # Buscamos si ya hay horarios ESPECÍFICOS en esa fecha destino
+            ocupado = Disponibilidad.objects.filter(
+                profesional_id=profesional_id,
+                fecha=f_destino,
+                activo=True
+            ).exists()
+
+            if ocupado:
+                return Response(
+                    {'error': 'El día destino ya tiene horarios asignados manualmente. Borralos antes de pegar.'}, 
+                    status=status.HTTP_409_CONFLICT
+                )
+
+            # 2. Obtener horarios del ORIGEN
+            # Debemos traer:
+            # A) Horarios específicos de esa fecha (fecha=f_origen)
+            # B) Horarios recurrentes de ese día de semana (dia_semana=dia_origen, fecha=None) vigentes
+            
+            horarios_origen = Disponibilidad.objects.filter(
+                profesional_id=profesional_id,
+                activo=True
+            ).filter(
+                # Caso A: Fecha específica
+                Q(fecha=f_origen) |
+                # Caso B: Recurrente vigente
+                (
+                    Q(fecha__isnull=True) & 
+                    Q(dia_semana=dia_semana_origen) &
+                    (Q(fecha_fin_vigencia__isnull=True) | Q(fecha_fin_vigencia__gte=f_origen))
+                )
+            )
+
+            if not horarios_origen.exists():
+                return Response({'error': 'No hay horarios para copiar en el día origen.'}, status=404)
+
+            count_creados = 0
+
+            with transaction.atomic():
+                for h in horarios_origen:
+                    # Creamos una copia exacta pero asignada a la FECHA DESTINO ESPECÍFICA
+                    # Esto asegura que el día destino quede igual, sin importar si es lunes o domingo.
+                    Disponibilidad.objects.create(
+                        profesional_id=profesional_id,
+                        lugar_id=h.lugar_id, # O usar el lugar_id del request si quieres forzar sede
+                        servicio_id=h.servicio_id,
+                        dia_semana=dia_semana_destino, # Ajustamos al día de la semana del destino
+                        hora_inicio=h.hora_inicio,
+                        hora_fin=h.hora_fin,
+                        fecha=f_destino, # <--- CLAVE: Lo hacemos específico para ese día
+                        fecha_fin_vigencia=None, # Al ser fecha específica, no tiene vigencia
+                        activo=True
+                    )
+                    count_creados += 1
+
+            return Response({'mensaje': f'Se copiaron {count_creados} bloques horarios.'}, status=200)
+
+        except Exception as e:
+            logger.error(f"Error duplicando agenda: {e}")
+            return Response({'error': str(e)}, status=500)
 
 
 # --- VIEWSETS DE SOPORTE ---

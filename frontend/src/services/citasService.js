@@ -19,7 +19,6 @@ export const citasService = {
         return response.data;
     },
 
-  
     update: async (id, data) => {
         const response = await api.patch(`${BASE_URL}/${id}/`, data);
         return response.data;
@@ -50,14 +49,22 @@ export const citasService = {
         }
     },
 
-    // --- CORRECCIÓN AQUÍ ---
-    updateEstado: async (id, nuevoEstado) => {
-        // Construimos el objeto JSON aquí para asegurar que siempre sea correcto
-        const payload = { estado: nuevoEstado };
-        
-        const response = await api.patch(`${BASE_URL}/${id}/`, payload);
-        return response.data;
+    // --- CORRECCIÓN MEJORADA ---
+    updateEstado: async (id, data) => {
+        try {
+            // Lógica Inteligente:
+            // 1. Si 'data' es un STRING (ej: "EN_SALA"), lo envolvemos en un objeto JSON.
+            // 2. Si 'data' ya es un OBJETO (ej: { estado: "REALIZADA", nota_interna: "..." }), lo enviamos tal cual.
+            
+            const payload = typeof data === 'string' ? { estado: data } : data;
+            
+            const response = await api.patch(`${BASE_URL}/${id}/`, payload);
+            return response.data;
+        } catch (error) {
+            // Esto imprimirá en la consola del navegador la razón exacta del error 400
+            // Ej: "La cita ya pasó" o "El estado 'Finalizado' no es válido"
+            console.error("❌ Error en updateEstado:", error.response?.data);
+            throw error; // Re-lanzamos para que el componente (AdminCitas) pueda mostrar la alerta
+        }
     }
-
-    
 };

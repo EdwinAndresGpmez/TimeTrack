@@ -2,7 +2,10 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { staffService } from '../../../services/staffService';
 import { agendaService } from '../../../services/agendaService';
 import Swal from 'sweetalert2';
-import { FaCalendarAlt, FaChevronLeft, FaChevronRight, FaTimes, FaUsers, FaSearch, FaPlusCircle, FaCogs, FaHistory } from 'react-icons/fa';
+import { 
+    FaCalendarAlt, FaChevronLeft, FaChevronRight, FaTimes, 
+    FaUsers, FaSearch, FaPlusCircle, FaCogs, FaHistory, FaPaste 
+} from 'react-icons/fa';
 
 import ListaProfesionales from './ListaProfesionales';
 import GrillaSemanal from './GrillaSemanal';
@@ -33,6 +36,10 @@ const GestionAgenda = () => {
     const [isGridOpen, setIsGridOpen] = useState(false);
     const [footerSearch, setFooterSearch] = useState('');
     const [showFooterResults, setShowFooterResults] = useState(false);
+    
+    // --- NUEVO: ESTADO PARA CLONADO DE DÍAS ---
+    const [clipboardDay, setClipboardDay] = useState(null); // { date: Date, profId: int }
+
     const footerInputRef = useRef(null);
 
     // 1. CARGA INICIAL DE PARAMÉTRICAS
@@ -74,7 +81,6 @@ const GestionAgenda = () => {
         setShowFooterResults(false);
     };
 
-    // --- CORRECCIÓN: Definir función ANTES del useEffect y con useCallback ---
     const cargarMultiplesAgendas = useCallback(async () => {
         setLoadingAgenda(true);
         const nuevasAgendas = {};
@@ -95,16 +101,15 @@ const GestionAgenda = () => {
         } finally { 
             setLoadingAgenda(false); 
         }
-    }, [selectedProfs, sedeSeleccionada]); // Dependencias
+    }, [selectedProfs, sedeSeleccionada]);
 
-    // 2. REACCIÓN A CAMBIOS (Ahora sí ve la función)
     useEffect(() => {
         if (selectedProfs.length > 0 && sedeSeleccionada && viewMode === 'config') {
             cargarMultiplesAgendas();
         } else {
             setAgendasCombinadas({});
         }
-    }, [selectedProfs, sedeSeleccionada, viewMode, cargarMultiplesAgendas]); // ✅ Dependencia agregada
+    }, [selectedProfs, sedeSeleccionada, viewMode, cargarMultiplesAgendas]);
 
     const navegarCalendario = (direccion) => {
         const nuevaFecha = new Date(fechaReferencia);
@@ -116,12 +121,73 @@ const GestionAgenda = () => {
 
     const irAHoy = () => setFechaReferencia(new Date());
 
-    // --- GESTIÓN DE TURNOS (MODAL MEJORADO) ---
+    // --- NUEVO: LÓGICA DE COPIAR / PEGAR DÍAS ---
+    const handleCopySchedule = (fechaOrigen) => {
+        // Solo permitimos copiar si hay un solo médico seleccionado para evitar ambigüedades
+        if (selectedProfs.length !== 1) {
+            return Swal.fire('Atención', 'Selecciona un solo médico para usar la función de copiar/pegar.', 'warning');
+        }
+        
+        setClipboardDay({
+            date: fechaOrigen,
+            profId: selectedProfs[0].id,
+            profNombre: selectedProfs[0].nombre
+        });
 
+        const Toast = Swal.mixin({ toast: true, position: 'top', showConfirmButton: false, timer: 3000 });
+        Toast.fire({ icon: 'info', title: 'Día copiado. Haz clic en "Pegar" en otro día.' });
+    };
+
+    const handlePasteSchedule = async (fechaDestino) => {
+        if (!clipboardDay) return;
+
+        try {
+            const fechaOrigenStr = clipboardDay.date.toISOString().split('T')[0];
+            const fechaDestinoStr = fechaDestino.toISOString().split('T')[0];
+
+            // Confirmación
+            const { isConfirmed } = await Swal.fire({
+                title: '¿Pegar programación?',
+                html: `Se copiarán los turnos del <b>${fechaOrigenStr}</b> al <b>${fechaDestinoStr}</b> para el Dr/a. ${clipboardDay.profNombre}.`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, pegar',
+                confirmButtonColor: '#10B981'
+            });
+
+            if (isConfirmed) {
+                setLoadingAgenda(true);
+                // Llamada al servicio (Asegúrate de implementar duplicateSchedule en agendaService)
+                await agendaService.duplicateSchedule({
+                    profesional_id: clipboardDay.profId,
+                    lugar_id: sedeSeleccionada,
+                    fecha_origen: fechaOrigenStr,
+                    fecha_destino: fechaDestinoStr
+                });
+
+                setClipboardDay(null); // Limpiar portapapeles
+                cargarMultiplesAgendas(); // Recargar
+                
+                Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Programación duplicada con éxito', timer: 2000, showConfirmButton: false });
+            }
+        } catch (error) {
+            console.error(error);
+            Swal.fire('Error', 'No se pudo duplicar la agenda. Verifica que el destino esté libre.', 'error');
+        } finally {
+            setLoadingAgenda(false);
+        }
+    };
+
+    const handleCancelPaste = () => {
+        setClipboardDay(null);
+        const Toast = Swal.mixin({ toast: true, position: 'top', showConfirmButton: false, timer: 2000 });
+        Toast.fire({ icon: 'info', title: 'Copiado cancelado' });
+    };
+
+    // --- GESTIÓN DE TURNOS ---
     const handleCrearTurno = async (fechaColumnaObj, hora) => {
         let targetProfId = null;
         
-        // Helper para fecha local (YYYY-MM-DD)
         const formatLocalISO = (date) => {
             const y = date.getFullYear();
             const m = String(date.getMonth() + 1).padStart(2, '0');
@@ -210,11 +276,6 @@ const GestionAgenda = () => {
             confirmButtonText: 'Crear Horario',
             confirmButtonColor: '#2563EB',
             cancelButtonText: 'Cancelar',
-            customClass: {
-                popup: 'rounded-xl shadow-xl',
-                confirmButton: 'px-6 py-2 rounded-lg font-bold',
-                cancelButton: 'px-6 py-2 rounded-lg'
-            },
             width: '400px',
             focusConfirm: false,
             preConfirm: () => ({
@@ -227,7 +288,6 @@ const GestionAgenda = () => {
 
         if (formValues) {
             try {
-                // LÓGICA DE FECHAS
                 const fechaBase = new Date(fechaColumnaObj);
                 let fechaFinVigencia = null;
 
@@ -256,11 +316,8 @@ const GestionAgenda = () => {
                 };
 
                 await agendaService.createDisponibilidad(payload);
-                
-                const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, timerProgressBar: true });
-                Toast.fire({ icon: 'success', title: 'Horario creado correctamente' });
-                
                 cargarMultiplesAgendas();
+                Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Horario creado', showConfirmButton: false, timer: 1500 });
             } catch (e) { 
                 console.error(e);
                 Swal.fire('Error', 'No se pudo crear el horario.', 'error'); 
@@ -268,7 +325,7 @@ const GestionAgenda = () => {
         }
     };
 
-    // --- GESTIÓN DE SLOT ---
+    // --- GESTIÓN DE TURNOS (COMPLETA) ---
     const handleGestionarTurno = async (turno, fechaPreseleccionada) => {
         let duracion = duracionDefecto;
         let nombreServicio = "General / Mixto";
@@ -281,7 +338,7 @@ const GestionAgenda = () => {
         try { 
             bloqueosFrescos = await agendaService.getBloqueos({ profesional_id: turno.profesional_id }); 
         } catch(e) {
-            console.error(e); // ✅ Error impreso (Evita empty block)
+            console.error(e);
         }
 
         const slots = [];
@@ -337,12 +394,15 @@ const GestionAgenda = () => {
                 const { value: motivo } = await Swal.fire({ title: `Bloquear ${inicio}`, input: 'text', showCancelButton: true });
                 if (motivo) {
                     await agendaService.createBloqueo({ profesional_id: turno.profesional_id, fecha_inicio: `${fechaPreseleccionada}T${inicio}:00`, fecha_fin: `${fechaPreseleccionada}T${fin}:00`, motivo });
-                    await cargarMultiplesAgendas(); handleGestionarTurno(turno, fechaPreseleccionada);
+                    await cargarMultiplesAgendas(); 
+                    // Re-abrir modal para actualizar vista
+                    handleGestionarTurno(turno, fechaPreseleccionada);
                 }
             } 
             if (accion === 'DESBLOQUEAR') {
                 await agendaService.deleteBloqueo(bloqueoId);
-                await cargarMultiplesAgendas(); handleGestionarTurno(turno, fechaPreseleccionada);
+                await cargarMultiplesAgendas(); 
+                handleGestionarTurno(turno, fechaPreseleccionada);
             }
         };
 
@@ -361,7 +421,7 @@ const GestionAgenda = () => {
             });
 
             try {
-                if (opcion === true) { // Confirm (Toda la serie)
+                if (opcion === true) { 
                     const resp = await agendaService.deleteRecurrencia({
                         profesional_id: turno.profesional_id,
                         dia_semana: turno.dia_semana,
@@ -369,14 +429,13 @@ const GestionAgenda = () => {
                         hora_fin: turno.hora_fin
                     });
                     
-                    // Mostramos el mensaje detallado del backend
                     await Swal.fire({
                         title: 'Resultado de Eliminación',
                         text: resp.mensaje, 
                         icon: resp.conservados > 0 ? 'warning' : 'success'
                     });
 
-                } else if (opcion === false) { // Deny (Solo este día)
+                } else if (opcion === false) { 
                     await agendaService.deleteDisponibilidad(idTurno);
                     Swal.fire('Eliminado', 'Se ha borrado solo este día', 'success');
                 }
@@ -404,7 +463,15 @@ const GestionAgenda = () => {
     return (
         <div className="flex flex-col md:flex-row h-screen w-full bg-gray-100 overflow-hidden relative">
             <div className="flex-shrink-0 z-30 h-full shadow-lg">
-                <ListaProfesionales sedes={sedes} profesionales={profesionales} sedeSeleccionada={sedeSeleccionada} setSedeSeleccionada={setSedeSeleccionada} selectedProfs={selectedProfs} toggleProfesional={toggleProfesional} onOpenModal={() => setIsGridOpen(true)} />
+                <ListaProfesionales 
+                    sedes={sedes} 
+                    profesionales={profesionales} 
+                    sedeSeleccionada={sedeSeleccionada} 
+                    setSedeSeleccionada={setSedeSeleccionada} 
+                    selectedProfs={selectedProfs} 
+                    toggleProfesional={toggleProfesional} 
+                    onOpenModal={() => setIsGridOpen(true)} 
+                />
             </div>
             <div className="flex-1 flex flex-col h-full bg-gray-50 relative overflow-hidden min-w-0">
                 <div className="bg-white border-b px-6 py-3 flex justify-between items-center shrink-0 shadow-sm">
@@ -428,7 +495,18 @@ const GestionAgenda = () => {
             {isGridOpen && viewMode === 'config' && (
                 <div className="fixed inset-0 z-50 bg-white flex flex-col animate-fadeIn">
                     <div className="h-16 px-4 border-b flex items-center justify-between bg-white shadow-sm shrink-0 z-50">
-                        <div className="flex items-center gap-4"><button onClick={() => setIsGridOpen(false)} className="p-2 hover:bg-red-50 text-gray-500 hover:text-red-600 rounded-full transition"><FaTimes size={20}/></button><h2 className="text-lg font-bold text-gray-800 flex items-center gap-2"><FaCalendarAlt className="text-blue-600"/> Agenda Semanal</h2></div>
+                        <div className="flex items-center gap-4">
+                            <button onClick={() => setIsGridOpen(false)} className="p-2 hover:bg-red-50 text-gray-500 hover:text-red-600 rounded-full transition"><FaTimes size={20}/></button>
+                            <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2"><FaCalendarAlt className="text-blue-600"/> Agenda Semanal</h2>
+                            
+                            {/* --- INDICADOR DE PORTAPAPELES ACTIVO --- */}
+                            {clipboardDay && (
+                                <div className="flex items-center gap-2 bg-blue-50 text-blue-700 px-3 py-1 rounded-full border border-blue-200 text-xs font-bold animate-bounce">
+                                    <FaPaste/> Pegando día: {clipboardDay.date.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric' })}
+                                    <button onClick={handleCancelPaste} className="ml-2 hover:text-red-500"><FaTimes/></button>
+                                </div>
+                            )}
+                        </div>
                         <div className="flex items-center gap-2 md:gap-4">
                             <div className="hidden lg:flex items-center gap-2 bg-gray-50 p-1 px-3 rounded-lg border border-gray-200"><FaCogs className="text-gray-400"/><span className="text-xs font-bold text-gray-500">Intervalo Vista:</span><input type="number" value={duracionDefecto} onChange={(e) => setDuracionDefecto(parseInt(e.target.value) || 20)} className="w-12 text-center text-sm font-bold bg-white border rounded outline-none"/><span className="text-xs text-gray-500">min</span></div>
                             <div className="flex items-center bg-gray-100 rounded-lg p-1"><button onClick={() => navegarCalendario(-1)} className="p-1.5 hover:bg-white rounded text-gray-600"><FaChevronLeft/></button><button onClick={irAHoy} className="mx-1 px-3 py-1 text-sm font-bold text-gray-600 hover:bg-white rounded">Hoy</button><button onClick={() => navegarCalendario(1)} className="p-1.5 hover:bg-white rounded text-gray-600"><FaChevronRight/></button></div>
@@ -437,8 +515,28 @@ const GestionAgenda = () => {
                         </div>
                     </div>
                     <div className="flex-1 overflow-hidden relative bg-gray-50">
-                        {loadingAgenda ? <div className="h-full flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div> : <GrillaSemanal selectedProfs={selectedProfs} agendasCombinadas={agendasCombinadas} servicios={servicios} duracionDefecto={duracionDefecto} onCrearTurno={handleCrearTurno} onGestionarTurno={handleGestionarTurno} calendarView={calendarView} fechaReferencia={fechaReferencia} setCalendarView={setCalendarView} setFechaReferencia={setFechaReferencia} />}
+                        {loadingAgenda ? (
+                            <div className="h-full flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div>
+                        ) : (
+                            <GrillaSemanal 
+                                selectedProfs={selectedProfs} 
+                                agendasCombinadas={agendasCombinadas} 
+                                servicios={servicios} 
+                                duracionDefecto={duracionDefecto} 
+                                onCrearTurno={handleCrearTurno} 
+                                onGestionarTurno={handleGestionarTurno} 
+                                calendarView={calendarView} 
+                                fechaReferencia={fechaReferencia} 
+                                setCalendarView={setCalendarView} 
+                                // Props nuevas para Copiar/Pegar
+                                onCopyDay={handleCopySchedule} // <--- CORREGIDO AQUÍ
+                                onPasteDay={handlePasteSchedule}
+                                clipboardDay={clipboardDay}
+                                refreshAgenda={cargarMultiplesAgendas} 
+                            />
+                        )}
                     </div>
+                    {/* Footer de médicos seleccionados */}
                     <div className="h-14 border-t bg-white flex items-center shrink-0 z-50">
                         <div className="flex-1 flex gap-3 overflow-x-auto p-2 scrollbar-thin items-center">{selectedProfs.map(p => <div key={p.id} className={`px-2 py-1 rounded border flex items-center gap-2 shrink-0 ${p.colorInfo.clase} shadow-sm`}><div className="w-2 h-2 rounded-full bg-current opacity-50"></div><span className="font-bold truncate max-w-[150px] text-xs">{p.nombre}</span><button onClick={() => toggleProfesional(p)} className="hover:bg-white/50 rounded-full p-0.5"><FaTimes size={10}/></button></div>)}</div>
                         <div className="w-64 border-l pl-3 pr-3 py-2 bg-gray-50 relative h-full flex items-center group"><FaSearch className="text-gray-400 mr-2 text-xs"/><input ref={footerInputRef} type="text" placeholder="Agregar otro médico..." className="w-full bg-transparent text-sm outline-none placeholder-gray-400 text-gray-700" value={footerSearch} onChange={(e) => { setFooterSearch(e.target.value); setShowFooterResults(true); }} onFocus={() => setShowFooterResults(true)}/>{showFooterResults && footerSearch.length > 0 && <div className="absolute bottom-full right-0 left-0 mb-1 bg-white border border-gray-200 rounded-t-lg shadow-xl max-h-60 overflow-y-auto z-50">{resultadosFooter.map(p => <div key={p.id} className="p-2 hover:bg-blue-50 cursor-pointer border-b flex items-center justify-between group/item" onClick={() => toggleProfesional(p)}><div className="flex flex-col"><span className="text-sm font-bold text-gray-700">{p.nombre}</span><span className="text-[10px] text-gray-400">{p.especialidades_nombres?.[0]}</span></div><FaPlusCircle className="text-gray-300 group-hover/item:text-blue-500"/></div>)}</div>}{showFooterResults && <div className="fixed inset-0 z-40 bg-transparent" onClick={() => setShowFooterResults(false)}></div>}</div>

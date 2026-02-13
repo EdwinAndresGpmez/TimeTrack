@@ -9,11 +9,18 @@ from .views import (
     RegistroView,
     UserAdminViewSet,
     UserDetailView,
+    MenuItemAdminViewSet,
+    PermisoVistaAdminViewSet,
+    GroupViewSet,
+    SidebarBrandingView
 )
 
 # Configuración del Router para el ViewSet de Admin
 router = DefaultRouter()
 router.register(r"admin/users", UserAdminViewSet, basename="admin_users")
+router.register(r"admin/menu-items", MenuItemAdminViewSet, basename="admin_menu_items")
+router.register(r"admin/permisos-vista", PermisoVistaAdminViewSet, basename="admin_permisos_vista")
+router.register(r"admin/groups", GroupViewSet, basename="admin_groups")
 
 urlpatterns = [
     # Rutas manuales existentes
@@ -23,6 +30,7 @@ urlpatterns = [
     path("me/", UserDetailView.as_view(), name="user_me"),
     path("menu/", DynamicMenuView.as_view(), name="dynamic_menu"),
     path("me/permisos/", MisPermisosView.as_view(), name="user_permissions"),
+    path("admin/branding/", SidebarBrandingView.as_view(), name="admin_branding"),
     # Rutas generadas por el Router (para gestión de usuarios)
     path("", include(router.urls)),
 ]

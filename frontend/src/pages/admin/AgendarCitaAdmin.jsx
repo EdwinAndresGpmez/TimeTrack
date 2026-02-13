@@ -76,7 +76,8 @@ const AgendarCitaAdmin = () => {
                     </div>
                 </div>
                 
-                <NuevaCita adminSelectedPatientId={pacienteSeleccionado.id} />
+                {/* CORRECCIÓN: true en minúscula */}
+                <NuevaCita adminSelectedPatientId={pacienteSeleccionado.id} isAdminMode={true} />
             </div>
         );
     }

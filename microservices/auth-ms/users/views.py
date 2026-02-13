@@ -7,12 +7,16 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView
 
-from .models import CrearCuenta, MenuItem, PermisoVista
+from .models import CrearCuenta, MenuItem, PermisoVista, SidebarBranding
 from .serializers import (
     CustomTokenObtainPairSerializer,
     MenuItemSerializer,
     UserAdminSerializer,
     UserSerializer,
+    MenuItemAdminSerializer,
+    PermisoVistaAdminSerializer,
+    GroupSerializer,
+    SidebarBrandingSerializer,
 )
 
 # --- VISTAS PÚBLICAS Y DE USUARIO ---
@@ -91,10 +95,14 @@ class DynamicMenuView(APIView):
 
     def get(self, request):
         user_groups = request.user.groups.all()
+        # Filtramos para que solo traiga los que tienen is_active_item=True
+        queryset = MenuItem.objects.filter(is_active_item=True) 
+
         if request.user.is_superuser:
-            items = MenuItem.objects.all().distinct().order_by("order")
+            items = queryset.distinct().order_by("order")
         else:
-            items = MenuItem.objects.filter(roles__in=user_groups).distinct().order_by("order")
+            items = queryset.filter(roles__in=user_groups).distinct().order_by("order")
+            
         serializer = MenuItemSerializer(items, many=True)
         return Response(serializer.data)
 
@@ -171,5 +179,43 @@ class UserAdminViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"])
     def groups(self, request):
-        grupos = Group.objects.values_list("name", flat=True)
-        return Response(grupos)
+        grupos = Group.objects.all()
+        serializer = GroupSerializer(grupos, many=True) 
+        return Response(serializer.data)
+
+class MenuItemAdminViewSet(viewsets.ModelViewSet):
+    queryset = MenuItem.objects.all().order_by("order")
+    serializer_class = MenuItemAdminSerializer
+    permission_classes = [permissions.IsAdminUser]
+
+class PermisoVistaAdminViewSet(viewsets.ModelViewSet):
+    queryset = PermisoVista.objects.all().order_by("codename")
+    serializer_class = PermisoVistaAdminSerializer
+    permission_classes = [permissions.IsAdminUser]
+
+class GroupViewSet(viewsets.ReadOnlyModelViewSet):
+    """Para que el frontend pueda listar los grupos disponibles y asignarlos"""
+    queryset = Group.objects.all()
+    serializer_class = GroupSerializer
+    permission_classes = [permissions.IsAdminUser]
+
+class SidebarBrandingView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        # Intentamos obtener la configuración actual o devolvemos una por defecto
+        branding, created = SidebarBranding.objects.get_or_create(id=1)
+        serializer = SidebarBrandingSerializer(branding)
+        return Response(serializer.data)
+
+    def patch(self, request):
+        # Solo administradores pueden cambiar el diseño
+        if not request.user.is_staff:
+            return Response({"detail": "No autorizado"}, status=403)
+            
+        branding, _ = SidebarBranding.objects.get_or_create(id=1)
+        serializer = SidebarBrandingSerializer(branding, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=400)
