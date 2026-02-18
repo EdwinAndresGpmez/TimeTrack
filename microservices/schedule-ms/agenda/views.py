@@ -1,9 +1,9 @@
 import logging
-from datetime import date, datetime, timedelta
+import requests
+from datetime import datetime, timedelta, date
 from django.db import transaction
 from django.db.models import Q
 from rest_framework.decorators import action
-import requests
 from django.db import models
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, status, viewsets
@@ -15,7 +15,7 @@ from .serializers import BloqueoAgendaSerializer, DisponibilidadSerializer
 
 logger = logging.getLogger(__name__)
 
-# Ajusta la URL si tu docker-compose usa otro nombre
+# URL del microservicio de citas
 APPOINTMENTS_API_URL = "http://appointments-ms:8000/api/v1/citas/"
 
 
@@ -103,9 +103,7 @@ class DisponibilidadViewSet(viewsets.ModelViewSet):
 
                 count_bloqueos = 0
                 for b in bloqueos_futuros:
-                    # Coincide el día de la semana? (0=Lunes, etc)
                     if b.fecha_inicio.weekday() == instance.dia_semana:
-                        # Coincide el rango horario? (Si el bloqueo está DENTRO del horario que borramos)
                         b_hora = b.fecha_inicio.time()
                         if b_hora >= instance.hora_inicio and b_hora < instance.hora_fin:
                             b.delete()
@@ -136,20 +134,16 @@ class DisponibilidadViewSet(viewsets.ModelViewSet):
                 if ocupado:
                     return Response({"error": "Hay pacientes citados en este horario."}, status=409)
 
-                # 2. LIMPIEZA DE BLOQUEOS (CRÍTICO)
-                # Aquí borramos cualquier bloqueo que caiga DENTRO de este horario específico que estamos eliminando.
-                # Usamos __gte y __lt para atrapar cualquier bloqueo en ese rango.
-
+                # 2. LIMPIEZA DE BLOQUEOS
                 ini_dt = datetime.combine(instance.fecha, instance.hora_inicio)
                 fin_dt = datetime.combine(instance.fecha, instance.hora_fin)
 
                 deleted_blocks, _ = BloqueoAgenda.objects.filter(
                     profesional_id=instance.profesional_id,
-                    fecha_inicio__gte=ini_dt,  # Empieza después o igual al inicio del turno
-                    fecha_inicio__lt=fin_dt,  # Y empieza antes de que acabe el turno
+                    fecha_inicio__gte=ini_dt,
+                    fecha_inicio__lt=fin_dt,
                 ).delete()
 
-                # 3. Borrar el horario
                 return super().destroy(request, *args, **kwargs)
 
         except Exception as e:
@@ -176,8 +170,7 @@ class DisponibilidadViewSet(viewsets.ModelViewSet):
             dia_semana_origen = f_origen.weekday()
             dia_semana_destino = f_destino.weekday()
 
-            # 1. Validar que el destino esté vacío (para no duplicar sobre lo existente)
-            # Buscamos si ya hay horarios ESPECÍFICOS en esa fecha destino
+            # 1. Validar que el destino esté vacío
             ocupado = Disponibilidad.objects.filter(
                 profesional_id=profesional_id,
                 fecha=f_destino,
@@ -191,17 +184,11 @@ class DisponibilidadViewSet(viewsets.ModelViewSet):
                 )
 
             # 2. Obtener horarios del ORIGEN
-            # Debemos traer:
-            # A) Horarios específicos de esa fecha (fecha=f_origen)
-            # B) Horarios recurrentes de ese día de semana (dia_semana=dia_origen, fecha=None) vigentes
-            
             horarios_origen = Disponibilidad.objects.filter(
                 profesional_id=profesional_id,
                 activo=True
             ).filter(
-                # Caso A: Fecha específica
                 Q(fecha=f_origen) |
-                # Caso B: Recurrente vigente
                 (
                     Q(fecha__isnull=True) & 
                     Q(dia_semana=dia_semana_origen) &
@@ -216,17 +203,15 @@ class DisponibilidadViewSet(viewsets.ModelViewSet):
 
             with transaction.atomic():
                 for h in horarios_origen:
-                    # Creamos una copia exacta pero asignada a la FECHA DESTINO ESPECÍFICA
-                    # Esto asegura que el día destino quede igual, sin importar si es lunes o domingo.
                     Disponibilidad.objects.create(
                         profesional_id=profesional_id,
-                        lugar_id=h.lugar_id, # O usar el lugar_id del request si quieres forzar sede
+                        lugar_id=h.lugar_id,
                         servicio_id=h.servicio_id,
-                        dia_semana=dia_semana_destino, # Ajustamos al día de la semana del destino
+                        dia_semana=dia_semana_destino,
                         hora_inicio=h.hora_inicio,
                         hora_fin=h.hora_fin,
-                        fecha=f_destino, # <--- CLAVE: Lo hacemos específico para ese día
-                        fecha_fin_vigencia=None, # Al ser fecha específica, no tiene vigencia
+                        fecha=f_destino,
+                        fecha_fin_vigencia=None,
                         activo=True
                     )
                     count_creados += 1
@@ -247,11 +232,23 @@ class BloqueoAgendaViewSet(viewsets.ModelViewSet):
 
 
 class SlotGeneratorView(APIView):
+    """
+    Motor de Slots Inteligente.
+    Calcula disponibilidad real considerando:
+    - Duración Servicio + Buffer
+    - Granularidad (Intervalo)
+    - Citas existentes
+    - Bloqueos
+    """
     def get(self, request):
         profesional_id = request.query_params.get("profesional_id")
         fecha_str = request.query_params.get("fecha")
         servicio_id = request.query_params.get("servicio_id")
+        
+        # Parámetros enviados por el frontend (ya que schedule-ms no ve la tabla servicios)
         duracion = int(request.query_params.get("duracion_minutos", 20))
+        buffer = int(request.query_params.get("buffer_minutos", 0)) # Nuevo soporte para buffer
+        intervalo = int(request.query_params.get("intervalo", 15)) # Granularidad
 
         if not profesional_id or not fecha_str:
             return Response({"error": "Faltan parámetros"}, status=400)
@@ -259,54 +256,110 @@ class SlotGeneratorView(APIView):
         fecha_obj = datetime.strptime(fecha_str, "%Y-%m-%d").date()
         dia_semana = fecha_obj.weekday()
 
-        # 1. BLOQUEOS
-        if BloqueoAgenda.objects.filter(
+        # Tiempo total que ocupará la cita (Servicio + Limpieza)
+        tiempo_total_cita = duracion + buffer
+
+        # 1. OBTENER RANGOS OCUPADOS (Citas + Bloqueos)
+        rangos_ocupados = []
+
+        # A. Bloqueos
+        bloqueos = BloqueoAgenda.objects.filter(
             profesional_id=profesional_id,
-            fecha_inicio__lte=fecha_obj,
-            fecha_fin__gte=fecha_obj,
-        ).exists():
-            return Response([], status=200)
-
-        # 2. HORARIOS (Vigencia + Recurrencia)
-        horarios = Disponibilidad.objects.filter(
-            profesional_id=profesional_id, dia_semana=dia_semana, activo=True
-        ).filter(
-            models.Q(fecha=fecha_obj)
-            | (
-                models.Q(fecha__isnull=True)
-                & (models.Q(fecha_fin_vigencia__isnull=True) | models.Q(fecha_fin_vigencia__gte=fecha_obj))
-            )
+            fecha_inicio__date=fecha_obj
         )
+        for b in bloqueos:
+            rangos_ocupados.append({
+                'inicio': b.fecha_inicio.time(), 
+                'fin': b.fecha_fin.time()
+            })
 
-        if servicio_id:
-            horarios = horarios.filter(models.Q(servicio_id__isnull=True) | models.Q(servicio_id=servicio_id))
-
-        # 3. CITAS
-        url_citas = f"{APPOINTMENTS_API_URL}?profesional_id={profesional_id}&fecha={fecha_str}"
-        citas_ocupadas = []
+        # B. Citas (Desde Appointments MS)
+        url_citas = f"{APPOINTMENTS_API_URL}?profesional_id={profesional_id}&fecha={fecha_str}&estado_ne=CANCELADA"
         try:
             resp = requests.get(url_citas, timeout=3)
             if resp.status_code == 200:
                 for c in resp.json():
                     if c["estado"] not in ["CANCELADA", "RECHAZADA"]:
-                        citas_ocupadas.append((c["hora_inicio"], c["hora_fin"]))
-        except Exception:
-            pass
+                        c_ini = datetime.strptime(c["hora_inicio"], "%H:%M:%S").time()
+                        c_fin = datetime.strptime(c["hora_fin"], "%H:%M:%S").time()
+                        rangos_ocupados.append({'inicio': c_ini, 'fin': c_fin})
+        except Exception as e:
+            logger.error(f"Error obteniendo citas: {e}")
 
-        # 4. SLOTS
-        slots_disponibles = []
+        # 2. OBTENER HORARIOS DISPONIBLES (Base)
+        horarios = Disponibilidad.objects.filter(
+            profesional_id=profesional_id, dia_semana=dia_semana, activo=True
+        ).filter(
+            Q(fecha=fecha_obj)
+            | (
+                Q(fecha__isnull=True)
+                & (Q(fecha_fin_vigencia__isnull=True) | Q(fecha_fin_vigencia__gte=fecha_obj))
+            )
+        )
+
+        if servicio_id:
+            # Si el turno es específico para un servicio, filtrar. Si es NULL (General), sirve para todos.
+            horarios = horarios.filter(Q(servicio_id__isnull=True) | Q(servicio_id=servicio_id))
+
+        # 3. ALGORITMO DE BARRIDO (Calcula Slots)
+        slots_resultado = []
+
         for horario in horarios:
             inicio_turno = datetime.combine(fecha_obj, horario.hora_inicio)
             fin_turno = datetime.combine(fecha_obj, horario.hora_fin)
+            
+            # Cursor avanza según el INTERVALO (Granularidad), NO según la duración
             cursor = inicio_turno
 
-            while cursor + timedelta(minutes=duracion) <= fin_turno:
-                s_ini = cursor.strftime("%H:%M")
-                s_fin = (cursor + timedelta(minutes=duracion)).strftime("%H:%M")
+            while cursor < fin_turno:
+                # Calculamos el final de la cita (lo que ve el paciente)
+                fin_cita = cursor + timedelta(minutes=duracion)
+                # Calculamos el final real (incluyendo buffer de limpieza)
+                fin_bloqueo = cursor + timedelta(minutes=tiempo_total_cita)
 
-                ocupado = any((s_ini < oc_fin and s_fin > oc_ini) for oc_ini, oc_fin in citas_ocupadas)
-                if not ocupado:
-                    slots_disponibles.append(s_ini)
-                cursor += timedelta(minutes=duracion)
+                hora_str = cursor.strftime("%H:%M")
 
-        return Response(sorted(list(set(slots_disponibles))), status=200)
+                # A. Validación: ¿Cabe en el turno?
+                if fin_bloqueo > fin_turno:
+                    # Si no cabe con buffer, probamos si cabe ajustada (sin buffer al final del día)
+                    if fin_cita > fin_turno:
+                        # No cabe ni la cita sola -> TIEMPO HUÉRFANO
+                        slots_resultado.append({
+                            "hora": hora_str,
+                            "disponible": False,
+                            "motivo": "insuficiente", # Frontend debe pintar esto diferente
+                            "minutos_restantes": (fin_turno - cursor).seconds // 60
+                        })
+                        break # Rompemos este turno, no cabe nada más
+
+                # B. Validación: ¿Choca con ocupaciones?
+                colision = False
+                for ocupacion in rangos_ocupados:
+                    # Convertir a datetime para comparar
+                    occ_ini = datetime.combine(fecha_obj, ocupacion['inicio'])
+                    occ_fin = datetime.combine(fecha_obj, ocupacion['fin'])
+                    
+                    # Lógica de colisión: (StartA < EndB) and (EndA > StartB)
+                    # Usamos 'fin_bloqueo' para asegurar que el buffer tampoco choque
+                    if cursor < occ_fin and fin_bloqueo > occ_ini:
+                        colision = True
+                        break
+                
+                if not colision:
+                    slots_resultado.append({
+                        "hora": hora_str,
+                        "disponible": True,
+                        "motivo": "libre"
+                    })
+
+                # Avanzamos el cursor por la GRANULARIDAD (ej: 15 min)
+                # Esto permite ofrecer citas a las 8:00, 8:15, 8:30... aunque duren 40 min
+                cursor += timedelta(minutes=intervalo)
+
+        # 4. RESPUESTA ADAPTATIVA
+        # Si el cliente pide formato simple (lista de strings), lo mantenemos para compatibilidad
+        if request.query_params.get('simple') == 'true':
+            return Response(sorted(list(set([s['hora'] for s in slots_resultado if s['disponible']]))), status=200)
+
+        # Si no, devolvemos la estructura completa con metadatos
+        return Response(slots_resultado, status=200)

@@ -78,6 +78,10 @@ class Servicio(models.Model):
     descripcion = models.TextField(blank=True)
     duracion_minutos = models.IntegerField()
     precio_base = models.DecimalField(max_digits=10, decimal_places=2)
+    buffer_minutos = models.IntegerField(
+        default=0, 
+        help_text="Tiempo post-cita para limpieza/notas. Bloquea agenda pero no alarga la cita."
+    )
 
     profesionales = models.ManyToManyField(Profesional, related_name="servicios_habilitados", blank=True)
 
