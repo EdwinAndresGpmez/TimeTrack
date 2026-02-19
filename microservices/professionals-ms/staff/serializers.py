@@ -47,6 +47,17 @@ class ServicioSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Servicio
-        fields = '__all__'
+        fields = [
+            "id",
+            "nombre",
+            "descripcion",
+            "duracion_minutos",
+            "precio_base",
+            "activo",
+            "profesionales",
+            "total_profesionales",
+            "tipos_paciente_ids",
+        ]
+
     def get_total_profesionales(self, obj):
         return obj.profesionales.count()
