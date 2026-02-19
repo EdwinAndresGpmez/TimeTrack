@@ -77,12 +77,13 @@ class Servicio(models.Model):
     nombre = models.CharField(max_length=255)
     descripcion = models.TextField(blank=True)
     duracion_minutos = models.IntegerField()
+    
+    # --- NUEVO CAMPO (HU09 - Tiempo de Limpieza/Buffer) ---
+    buffer_minutos = models.IntegerField(default=0, help_text="Minutos de bloqueo automático post-cita")
+    
     precio_base = models.DecimalField(max_digits=10, decimal_places=2)
-
     profesionales = models.ManyToManyField(Profesional, related_name="servicios_habilitados", blank=True)
-
     tipos_paciente_ids = models.JSONField(default=list, blank=True)
-
     activo = models.BooleanField(default=True)
 
     class Meta:

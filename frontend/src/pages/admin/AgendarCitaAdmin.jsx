@@ -1,13 +1,19 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { patientService } from '../../services/patientService';
 import NuevaCita from '../system/NuevaCita'; 
-import { FaSearch, FaArrowLeft, FaUserCircle, FaIdCard, FaSpinner } from 'react-icons/fa';
+import { FaSearch, FaArrowLeft, FaUserCircle, FaIdCard, FaSpinner, FaBolt, FaTimes } from 'react-icons/fa';
 
 const AgendarCitaAdmin = () => {
     const [pacienteSeleccionado, setPacienteSeleccionado] = useState(null);
     const [search, setSearch] = useState('');
     const [resultados, setResultados] = useState([]);
     const [loading, setLoading] = useState(false);
+
+    // --- HOOKS PARA MODO EXPRESS (HU01) ---
+    const location = useLocation();
+    const navigate = useNavigate();
+    const slotPreseleccionado = location.state?.slotPreseleccionado;
 
     // --- LÓGICA DE BÚSQUEDA DINÁMICA (DEBOUNCE) ---
     useEffect(() => {
@@ -39,6 +45,11 @@ const AgendarCitaAdmin = () => {
         }
     };
 
+    const cancelarModoExpress = () => {
+        // Limpiamos el state del router para salir del modo express
+        navigate(location.pathname, { replace: true, state: {} });
+    };
+
     // VISTA 2: Wizard de Agendamiento
     if (pacienteSeleccionado) {
         return (
@@ -53,6 +64,21 @@ const AgendarCitaAdmin = () => {
                 >
                     <FaArrowLeft className="group-hover:-translate-x-1 transition-transform"/> Volver al buscador
                 </button>
+
+                {/* Banner de Modo Express en el Wizard */}
+                {slotPreseleccionado && (
+                    <div className="bg-gradient-to-r from-green-500 to-emerald-600 p-4 rounded-2xl shadow-lg mb-6 flex items-center justify-between text-white animate-pulse">
+                        <div className="flex items-center gap-3">
+                            <FaBolt className="text-2xl text-yellow-300"/>
+                            <div>
+                                <h3 className="font-black text-lg leading-tight">Agendamiento Express Activado</h3>
+                                <p className="text-sm font-medium text-green-100">
+                                    {slotPreseleccionado.profNombre} • {slotPreseleccionado.fecha} a las {slotPreseleccionado.inicio}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                )}
                 
                 <div className="bg-gradient-to-r from-indigo-600 to-blue-700 p-1 rounded-2xl shadow-lg mb-8">
                     <div className="bg-white p-5 rounded-[calc(1rem-1px)] flex flex-col md:flex-row justify-between items-center gap-4">
@@ -76,8 +102,12 @@ const AgendarCitaAdmin = () => {
                     </div>
                 </div>
                 
-                {/* CORRECCIÓN: true en minúscula */}
-                <NuevaCita adminSelectedPatientId={pacienteSeleccionado.id} isAdminMode={true} />
+                {/* Pasamos el preselectedSlot a NuevaCita */}
+                <NuevaCita 
+                    adminSelectedPatientId={pacienteSeleccionado.id} 
+                    isAdminMode={true} 
+                    preselectedSlot={slotPreseleccionado} 
+                />
             </div>
         );
     }
@@ -85,10 +115,34 @@ const AgendarCitaAdmin = () => {
     // VISTA 1: Buscador Dinámico
     return (
         <div className="max-w-4xl mx-auto p-6 min-h-[600px]">
-            <div className="text-center mb-12">
+            <div className="text-center mb-8">
                 <h1 className="text-4xl font-black text-gray-800 mb-3 tracking-tight">Agendamiento Administrativo</h1>
                 <p className="text-gray-500 text-lg font-medium">Encuentra pacientes al instante y gestiona sus citas.</p>
             </div>
+
+            {/* Banner de Modo Express en el Buscador */}
+            {slotPreseleccionado && (
+                <div className="bg-green-50 border-2 border-green-400 rounded-3xl p-4 mb-8 flex items-center justify-between shadow-sm animate-fadeIn">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-green-100 text-green-600 rounded-full flex items-center justify-center">
+                            <FaBolt />
+                        </div>
+                        <div>
+                            <p className="text-green-800 font-black text-sm uppercase tracking-wider">Modo Express Activo</p>
+                            <p className="text-green-600 text-sm font-medium">
+                                Selecciona un paciente para asignarle el turno del <b>{slotPreseleccionado.fecha}</b> a las <b>{slotPreseleccionado.inicio}</b>.
+                            </p>
+                        </div>
+                    </div>
+                    <button 
+                        onClick={cancelarModoExpress}
+                        className="p-2 text-green-400 hover:text-green-600 hover:bg-green-100 rounded-full transition-colors"
+                        title="Cancelar Modo Express"
+                    >
+                        <FaTimes size={20}/>
+                    </button>
+                </div>
+            )}
 
             {/* Barra de búsqueda Innovadora */}
             <div className="relative mb-12">
@@ -123,14 +177,22 @@ const AgendarCitaAdmin = () => {
                         <div 
                             key={p.id} 
                             onClick={() => setPacienteSeleccionado(p)}
-                            className="bg-white p-6 rounded-3xl border border-gray-100 flex justify-between items-center hover:shadow-2xl hover:border-indigo-200 cursor-pointer transition-all group"
+                            className={`p-6 rounded-3xl border flex justify-between items-center cursor-pointer transition-all group
+                                ${slotPreseleccionado 
+                                    ? 'bg-green-50 border-green-200 hover:shadow-green-100 hover:border-green-400 hover:shadow-xl' 
+                                    : 'bg-white border-gray-100 hover:shadow-2xl hover:border-indigo-200'}
+                            `}
                         >
                             <div className="flex items-center gap-5">
-                                <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center text-gray-300 group-hover:bg-indigo-50 group-hover:text-indigo-500 transition-colors">
-                                    <FaUserCircle size={40} />
+                                <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-3xl transition-colors
+                                    ${slotPreseleccionado ? 'bg-green-100 text-green-500 group-hover:bg-green-200 group-hover:text-green-600' : 'bg-gray-50 text-gray-300 group-hover:bg-indigo-50 group-hover:text-indigo-500'}
+                                `}>
+                                    <FaUserCircle />
                                 </div>
                                 <div>
-                                    <h4 className="font-black text-gray-800 text-xl group-hover:text-indigo-600 transition-colors uppercase leading-tight">
+                                    <h4 className={`font-black text-xl uppercase leading-tight transition-colors
+                                        ${slotPreseleccionado ? 'text-green-800 group-hover:text-green-600' : 'text-gray-800 group-hover:text-indigo-600'}
+                                    `}>
                                         {p.nombre} {p.apellido}
                                     </h4>
                                     <p className="text-gray-400 font-bold flex items-center gap-2 mt-1">
@@ -140,12 +202,16 @@ const AgendarCitaAdmin = () => {
                             </div>
                             <div className="flex flex-col items-end gap-2">
                                 {p.tipo_usuario_nombre && (
-                                    <span className="text-[10px] bg-blue-50 text-blue-600 px-3 py-1 rounded-full font-black uppercase tracking-tighter">
+                                    <span className={`text-[10px] px-3 py-1 rounded-full font-black uppercase tracking-tighter
+                                        ${slotPreseleccionado ? 'bg-green-100 text-green-700' : 'bg-blue-50 text-blue-600'}
+                                    `}>
                                         {p.tipo_usuario_nombre}
                                     </span>
                                 )}
-                                <span className="bg-indigo-600 text-white px-6 py-2 rounded-xl font-bold text-sm shadow-lg shadow-indigo-100 group-hover:scale-105 transition-transform">
-                                    Agendar
+                                <span className={`px-6 py-2 rounded-xl font-bold text-sm shadow-lg group-hover:scale-105 transition-transform text-white
+                                    ${slotPreseleccionado ? 'bg-green-500 shadow-green-200' : 'bg-indigo-600 shadow-indigo-100'}
+                                `}>
+                                    {slotPreseleccionado ? 'Asignar Turno' : 'Agendar'}
                                 </span>
                             </div>
                         </div>

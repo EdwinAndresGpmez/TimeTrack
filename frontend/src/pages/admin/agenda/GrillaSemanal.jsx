@@ -9,22 +9,20 @@ const GrillaSemanal = ({
     duracionDefecto, 
     onCrearTurno, 
     onGestionarTurno,
+    onAgendarCita, // <-- NUEVO: Para agendar express
     calendarView, 
     fechaReferencia,
     setCalendarView,
-    // Props nuevas para funcionalidades avanzadas
     onCopyDay,
     onPasteDay,
     clipboardDay,
     refreshAgenda
 }) => {
     
-    // --- ESTADOS PARA INTERACCIONES AVANZADAS ---
     const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, data: null });
-    const [dragSelection, setDragSelection] = useState(null); // { dayIndex: 0, startHour: 6, endHour: 7 }
+    const [dragSelection, setDragSelection] = useState(null); 
     const isDragging = useRef(false);
 
-    // --- ESTRATEGIA RESPONSIVA ---
     useEffect(() => {
         const handleResize = () => {
             if (window.innerWidth < 768 && calendarView === 'week') {
@@ -34,7 +32,6 @@ const GrillaSemanal = ({
         handleResize();
         window.addEventListener('resize', handleResize);
         
-        // Cerrar menú contextual al hacer clic fuera
         const handleClickOutside = () => setContextMenu({ ...contextMenu, visible: false });
         window.addEventListener('click', handleClickOutside);
 
@@ -46,7 +43,6 @@ const GrillaSemanal = ({
 
     const HORAS = Array.from({ length: 15 }, (_, i) => i + 6); // 6:00 a 20:00
 
-    // --- HELPERS ---
     const getDiasColumna = () => {
         const dias = [];
         const current = new Date(fechaReferencia);
@@ -72,12 +68,12 @@ const GrillaSemanal = ({
 
     const getServiceInfo = (id) => {
         const s = servicios.find(srv => srv.id === id);
-        return s ? { nombre: s.nombre, duracion: s.duracion_minutos } : { nombre: 'General', duracion: duracionDefecto };
+        return s 
+            ? { nombre: s.nombre, duracion: s.duracion_minutos, buffer: s.buffer_minutos || 0 } 
+            : { nombre: 'General', duracion: duracionDefecto, buffer: 0 };
     };
 
-    // --- MANEJO DE ARRASTRE (DRAG TO CREATE) ---
     const handleMouseDown = (dayIndex, hour) => {
-        // Solo iniciamos arrastre si no hay menú contextual y clic izquierdo
         if (contextMenu.visible) return;
         isDragging.current = true;
         setDragSelection({ dayIndex, startHour: hour, endHour: hour });
@@ -85,12 +81,8 @@ const GrillaSemanal = ({
 
     const handleMouseEnter = (dayIndex, hour) => {
         if (!isDragging.current || !dragSelection) return;
-        if (dayIndex !== dragSelection.dayIndex) return; // Solo permitir arrastre vertical (mismo día)
-        
-        setDragSelection(prev => ({
-            ...prev,
-            endHour: hour
-        }));
+        if (dayIndex !== dragSelection.dayIndex) return;
+        setDragSelection(prev => ({ ...prev, endHour: hour }));
     };
 
     const handleMouseUp = (fechaColumna) => {
@@ -100,56 +92,30 @@ const GrillaSemanal = ({
         }
         isDragging.current = false;
 
-        // Calcular rango final
         const start = Math.min(dragSelection.startHour, dragSelection.endHour);
         const end = Math.max(dragSelection.startHour, dragSelection.endHour);
         
-        // Llamar a crear turno pero pasando el rango completo
-        // Nota: onCrearTurno en el padre espera (fecha, horaInicio).
-        // Tendremos que adaptar el padre o enviar la lógica aquí. 
-        // Para no romper el padre, llamamos a onCrearTurno con el inicio, 
-        // y el padre usará sus defaults, PERO podemos pre-llenar el Swal si modificamos ligeramente el padre.
-        // Por ahora, simularemos llamadas individuales o pasaremos un objeto custom si el padre lo soporta.
-        
-        // TRUCO: Pasamos la hora de inicio y dejamos que el modal se abra.
-        // Idealmente el padre debería recibir {horaInicio, horaFin}
-        onCrearTurno(fechaColumna, start, end + 1); // end + 1 porque el bloque termina al final de esa hora
-        
+        onCrearTurno(fechaColumna, start, end + 1); 
         setDragSelection(null);
     };
 
-    // --- MANEJO DE MENÚ CONTEXTUAL ---
     const handleContextMenu = (e, slotData, fechaStr) => {
-        e.preventDefault(); // Evitar menú nativo del navegador
-        setContextMenu({
-            visible: true,
-            x: e.pageX,
-            y: e.pageY,
-            data: { slot: slotData, fecha: fechaStr }
-        });
+        e.preventDefault(); 
+        setContextMenu({ visible: true, x: e.pageX, y: e.pageY, data: { slot: slotData, fecha: fechaStr } });
     };
 
     const ejecutarAccionRapida = (accion) => {
         if (!contextMenu.data) return;
         const { slot, fecha } = contextMenu.data;
-        
-        if (accion === 'EDITAR') {
+        if (accion === 'EDITAR' || accion === 'ELIMINAR') {
             onGestionarTurno(slot.turno, fecha);
         } else if (accion === 'BLOQUEAR') {
-            // Lógica rápida de bloqueo (simulada via gestión global)
             window.gestionarSlot && window.gestionarSlot('BLOQUEAR', slot.inicio, slot.turno.hora_fin.slice(0,5), null); 
-            // Nota: Esto depende de que window.gestionarSlot esté disponible o recreamos la lógica.
-            // Mejor redireccionar a la gestión completa:
             onGestionarTurno(slot.turno, fecha);
-        } else if (accion === 'ELIMINAR') {
-            // Trigger eliminación
-             onGestionarTurno(slot.turno, fecha); // Por seguridad, abrimos el modal de gestión que ya tiene eliminar
         }
         setContextMenu({ ...contextMenu, visible: false });
     };
 
-
-    // --- RENDER DE CELDAS ---
     const renderCeldaTiempo = (fechaColumna, hora, colIndex) => {
         const jsDay = fechaColumna.getDay(); 
         const appDayIndex = jsDay === 0 ? 6 : jsDay - 1; 
@@ -172,7 +138,6 @@ const GrillaSemanal = ({
                 
                 const hInicio = parseInt(h.hora_inicio.split(':')[0]);
                 const hFin = parseInt(h.hora_fin.split(':')[0]);
-                // Ajuste para mostrar bloques que ocupan la hora completa
                 if (!(hInicio <= hora && hFin > hora)) return false;
 
                 if (h.fecha && h.fecha !== fechaColumnaStr) return false; 
@@ -184,12 +149,13 @@ const GrillaSemanal = ({
             turnos.forEach(turno => {
                 const infoServicio = getServiceInfo(turno.servicio_id);
                 const duracionReal = infoServicio.duracion > 0 ? infoServicio.duracion : duracionDefecto;
+                const bufferReal = infoServicio.buffer > 0 ? infoServicio.buffer : 0;
+                const tiempoTotal = duracionReal + bufferReal;
                 
                 const horaInicioTurno = parseInt(turno.hora_inicio.split(':')[0]);
                 const minInicioTurno = parseInt(turno.hora_inicio.split(':')[1]);
                 let minActual = (hora === horaInicioTurno) ? minInicioTurno : 0;
 
-                // Renderizamos "slots" visuales dentro de la hora
                 while (minActual < 60) {
                     const horaFinTurno = parseInt(turno.hora_fin.split(':')[0]);
                     const minFinTurno = parseInt(turno.hora_fin.split(':')[1]);
@@ -200,15 +166,29 @@ const GrillaSemanal = ({
                     
                     const slotStart = new Date(fechaColumna);
                     slotStart.setHours(hora, minActual, 0, 0);
+                    
+                    const slotEnd = new Date(slotStart);
+                    slotEnd.setMinutes(slotEnd.getMinutes() + duracionReal); // Solo evaluamos ocupación en el tiempo de cita
 
+                    // 1. Verificar Bloqueos
                     const bloqueoEncontrado = agendaProf.bloqueos?.find(b => {
                         const bStart = new Date(b.fecha_inicio);
                         const bEnd = new Date(b.fecha_fin);
                         return slotStart >= bStart && slotStart < bEnd;
                     });
 
+                    // 2. Verificar Citas (NUEVO: HU05 y HU01)
+                    const citaEncontrada = agendaProf.citas?.find(c => {
+                        if (c.fecha !== fechaColumnaStr || ['CANCELADA', 'RECHAZADA'].includes(c.estado)) return false;
+                        const cStart = new Date(`${fechaColumnaStr}T${c.hora_inicio}`);
+                        const cEnd = new Date(`${fechaColumnaStr}T${c.hora_fin}`);
+                        // Hay colisión si (A_Start < B_End) Y (A_End > B_Start)
+                        return (slotStart < cEnd && slotEnd > cStart);
+                    });
+
                     const isBloqueado = !!bloqueoEncontrado;
                     const isPasado = slotStart < ahora;
+                    const isAgendado = !!citaEncontrada;
 
                     allSlots.push({
                         profId: prof.id,
@@ -216,19 +196,21 @@ const GrillaSemanal = ({
                         profColor: prof.colorInfo,
                         inicio: inicioSlotStr,
                         duracion: duracionReal,
+                        buffer: bufferReal,
                         servicioNombre: infoServicio.nombre,
                         isPasado, 
                         isBloqueado, 
+                        isAgendado,
+                        cita: citaEncontrada,
                         motivoBloqueo: bloqueoEncontrado?.motivo, 
                         turno
                     });
                     
-                    minActual += duracionReal;
+                    minActual += tiempoTotal;
                 }
             });
         });
 
-        // --- RENDERIZADO DE DRAG PREVIEW ---
         const isSelectedByDrag = dragSelection && 
                                  dragSelection.dayIndex === colIndex && 
                                  hora >= Math.min(dragSelection.startHour, dragSelection.endHour) && 
@@ -267,27 +249,54 @@ const GrillaSemanal = ({
                 {allSlots.map((slot, idx) => {
                     let containerStyle = "";
                     let iconoEstado = null;
+                    let tooltipText = "";
 
+                    // APLICACIÓN ESTRICTA DE COLORES - HU05
                     if (slot.isBloqueado) {
-                        containerStyle = "bg-red-50 border-l-[3px] border-red-500 text-red-700";
+                        // ROJO: Bloqueado
+                        containerStyle = "bg-red-50 border-l-[3px] border-red-500 text-red-700 cursor-not-allowed";
                         iconoEstado = <FaLock size={8}/>;
+                        tooltipText = `Bloqueado: ${slot.motivoBloqueo}`;
                     } else if (slot.isPasado) {
-                        containerStyle = "bg-gray-100 border-l-[3px] border-gray-400 text-gray-400 opacity-60 grayscale";
+                        // GRIS: Pasado
+                        containerStyle = "bg-gray-100 border-l-[3px] border-gray-400 text-gray-400 opacity-60 grayscale cursor-not-allowed";
                         iconoEstado = <FaHistory size={8}/>;
-                    } else {
+                        tooltipText = "Horario finalizado";
+                    } else if (slot.isAgendado) {
+                        // COLOR DEL MÉDICO: Ocupado por paciente
                         let bgClass = slot.profColor?.clase.split(' ')[0] || 'bg-blue-50'; 
                         let borderClass = slot.profColor?.clase.split(' ')[2] || 'border-blue-300';
                         let textClass = slot.profColor?.clase.split(' ')[1] || 'text-blue-700';
                         containerStyle = `${bgClass} border-l-[3px] ${borderClass} ${textClass} hover:brightness-95 hover:shadow-md`;
+                        iconoEstado = <FaUser size={8}/>;
+                        tooltipText = `Cita ocupada - ${slot.cita?.paciente_nombre || 'Paciente'}`;
+                    } else {
+                        // VERDE: Disponible para Agendar (Express)
+                        containerStyle = "bg-green-50 border-l-[3px] border-green-500 text-green-700 hover:bg-green-100 hover:shadow-md";
+                        iconoEstado = <FaPlus size={8} className="opacity-50"/>;
+                        tooltipText = `Disponible para ${slot.servicioNombre} (${slot.duracion}m + ${slot.buffer}m buffer)`;
                     }
 
                     return (
                         <div 
                             key={`${slot.profId}-${idx}`}
-                            className={`flex-1 rounded-sm text-[10px] px-1.5 py-0.5 flex flex-col justify-center cursor-pointer transition-all overflow-hidden min-h-[32px] relative group ${containerStyle}`}
-                            onClick={(e) => { e.stopPropagation(); onGestionarTurno(slot.turno, fechaColumnaStr); }}
-                            onContextMenu={(e) => handleContextMenu(e, slot, fechaColumnaStr)} // <--- CLIC DERECHO
-                            title={slot.isBloqueado ? `Bloqueado: ${slot.motivoBloqueo}` : slot.servicioNombre}
+                            className={`flex-1 rounded-sm text-[10px] px-1.5 py-0.5 flex flex-col justify-center transition-all overflow-hidden min-h-[32px] relative group ${containerStyle}`}
+                            
+                            // NUEVO: LÓGICA DE CLIC CORREGIDA (HU01 vs HU04)
+                            onClick={(e) => { 
+                                e.stopPropagation(); 
+                                if (slot.isAgendado) {
+                                    Swal.fire('Espacio Ocupado', `Este horario ya fue reservado.`, 'info');
+                                } else if (!slot.isBloqueado && !slot.isPasado && onAgendarCita) {
+                                    // CLIC IZQUIERDO EN VERDE: Agendamiento Express
+                                    onAgendarCita(slot, fechaColumnaStr); 
+                                } else {
+                                    // CLIC EN ROJO/PASADO: Abre la gestión para poder DESBLOQUEAR o VER
+                                    onGestionarTurno(slot.turno, fechaColumnaStr);
+                                }
+                            }}
+                            onContextMenu={(e) => handleContextMenu(e, slot, fechaColumnaStr)}
+                            title={tooltipText}
                         >
                             <div className="flex items-center justify-between w-full leading-tight">
                                 <span className="font-mono font-bold">{slot.inicio}</span>
@@ -297,7 +306,7 @@ const GrillaSemanal = ({
                             {!slot.isBloqueado && !slot.isPasado && (
                                 <div className="flex items-center gap-1 mt-0.5">
                                     <span className="truncate font-medium w-full">
-                                        {selectedProfs.length > 1 ? slot.profNombre.split(' ')[0] : slot.servicioNombre}
+                                        {slot.isAgendado ? slot.cita?.paciente_nombre : slot.servicioNombre}
                                     </span>
                                 </div>
                             )}
@@ -320,31 +329,28 @@ const GrillaSemanal = ({
     return (
         <div className="h-full overflow-auto bg-white relative scrollbar-thin w-full" onMouseLeave={() => { isDragging.current = false; setDragSelection(null); }}>
             
-            {/* --- MENÚ CONTEXTUAL FLOTANTE --- */}
             {contextMenu.visible && (
                 <div 
                     className="fixed z-[9999] bg-white rounded-lg shadow-xl border border-gray-200 w-48 py-1 animate-fadeIn"
                     style={{ top: contextMenu.y, left: contextMenu.x }}
                 >
                     <div className="px-3 py-2 border-b bg-gray-50 text-xs font-bold text-gray-600">
-                        Opciones Rápidas
+                        Configurar Horario Base
                     </div>
                     <button onClick={() => ejecutarAccionRapida('EDITAR')} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2">
-                        <FaPencilAlt size={12}/> Gestionar / Detalles
+                        <FaPencilAlt size={12}/> Gestionar Bloques
                     </button>
                     <button onClick={() => ejecutarAccionRapida('BLOQUEAR')} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-600 flex items-center gap-2">
-                        <FaBan size={12}/> Bloquear Hora
+                        <FaBan size={12}/> Bloquear Rápido
                     </button>
                     <div className="border-t my-1"></div>
                     <button onClick={() => ejecutarAccionRapida('ELIMINAR')} className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 font-bold">
-                        <FaTrash size={12}/> Eliminar Turno
+                        <FaTrash size={12}/> Eliminar Horario Base
                     </button>
                 </div>
             )}
 
             <div className={`${calendarView === 'week' ? 'min-w-[800px] md:min-w-full' : 'w-full'} h-full flex flex-col`}>
-                
-                {/* HEADERS CON ACCIONES DE COPIADO */}
                 <div className="flex border-b bg-gray-50 sticky top-0 z-20 shadow-sm">
                     <div className="w-14 flex-shrink-0 p-2 text-center text-gray-500 text-[10px] border-r bg-white flex items-center justify-center font-bold">HORA</div>
                     {diasColumna.map((fecha, i) => {
@@ -354,28 +360,17 @@ const GrillaSemanal = ({
                         
                         return (
                             <div key={i} className={`flex-1 py-2 text-center border-r flex flex-col justify-center relative group transition-colors ${esHoy ? 'bg-blue-50 border-b-2 border-blue-500' : 'hover:bg-gray-100'} ${isClipboardSource ? 'bg-yellow-50 ring-inset ring-2 ring-yellow-300' : ''}`}>
-                                
-                                {/* TEXTO DÍA */}
                                 <span className={`text-[10px] font-bold uppercase ${esHoy ? 'text-blue-700' : 'text-gray-500'}`}>{diasSemanaStr[fecha.getDay()]}</span>
                                 <span className={`text-sm md:text-lg font-light leading-none mt-0.5 ${esHoy ? 'text-blue-900' : 'text-gray-800'}`}>{fecha.getDate()}</span>
 
-                                {/* BOTONES DE COPIAR/PEGAR FLOTANTES */}
                                 <div className="absolute top-1 right-1 flex gap-1 z-30 opacity-0 group-hover:opacity-100 transition-opacity">
                                     {!clipboardDay ? (
-                                        <button 
-                                            onClick={(e) => { e.stopPropagation(); onCopyDay(fecha); }}
-                                            className="p-1.5 bg-white shadow-sm border border-gray-200 rounded text-gray-400 hover:text-blue-600 hover:border-blue-400 transition transform hover:scale-110"
-                                            title="Copiar día completo"
-                                        >
+                                        <button onClick={(e) => { e.stopPropagation(); onCopyDay(fecha); }} className="p-1.5 bg-white shadow-sm border border-gray-200 rounded text-gray-400 hover:text-blue-600 hover:border-blue-400 transition transform hover:scale-110" title="Copiar día completo">
                                             <FaRegCopy size={10} />
                                         </button>
                                     ) : (
                                         !isClipboardSource && (
-                                            <button 
-                                                onClick={(e) => { e.stopPropagation(); onPasteDay(fecha); }}
-                                                className="p-1.5 bg-green-100 shadow-md border border-green-300 rounded text-green-700 hover:bg-green-200 transition animate-pulse"
-                                                title="Pegar horarios aquí"
-                                            >
+                                            <button onClick={(e) => { e.stopPropagation(); onPasteDay(fecha); }} className="p-1.5 bg-green-100 shadow-md border border-green-300 rounded text-green-700 hover:bg-green-200 transition animate-pulse" title="Pegar horarios aquí">
                                                 <FaPaste size={10} />
                                             </button>
                                         )
@@ -386,16 +381,13 @@ const GrillaSemanal = ({
                     })}
                 </div>
 
-                {/* BODY */}
                 <div className="flex-1 bg-white select-none"> 
                     {HORAS.map(hora => (
                         <div key={hora} className="flex border-b min-h-[60px] md:min-h-[70px]"> 
-                            {/* Columna Hora */}
                             <div className="w-14 flex-shrink-0 text-center text-gray-400 text-[10px] font-mono border-r bg-gray-50 flex items-center justify-center relative">
                                 <span className="-mt-14 block bg-white px-1 z-10 rounded shadow-sm border border-gray-100">{hora}:00</span>
                                 <div className="absolute w-full h-[1px] bg-gray-100 top-0 right-0"></div> 
                             </div>
-                            {/* Celdas */}
                             {diasColumna.map((fecha, i) => (
                                 <div key={i} className="flex-1 border-r p-[1px] relative">
                                     {renderCeldaTiempo(fecha, hora, i)}

@@ -52,6 +52,7 @@ class ServicioSerializer(serializers.ModelSerializer):
             "nombre",
             "descripcion",
             "duracion_minutos",
+            "buffer_minutos",
             "precio_base",
             "activo",
             "profesionales",

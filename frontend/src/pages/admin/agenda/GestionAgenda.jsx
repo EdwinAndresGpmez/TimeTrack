@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { staffService } from '../../../services/staffService';
 import { agendaService } from '../../../services/agendaService';
+import { citasService } from '../../../services/citasService';
 import Swal from 'sweetalert2';
 import { 
     FaCalendarAlt, FaChevronLeft, FaChevronRight, FaTimes, 
@@ -21,7 +23,6 @@ const PALETA_COLORES = [
 ];
 
 const GestionAgenda = () => {
-    // --- ESTADOS ---
     const [sedes, setSedes] = useState([]);
     const [profesionales, setProfesionales] = useState([]);
     const [servicios, setServicios] = useState([]); 
@@ -37,12 +38,11 @@ const GestionAgenda = () => {
     const [footerSearch, setFooterSearch] = useState('');
     const [showFooterResults, setShowFooterResults] = useState(false);
     
-    // --- NUEVO: ESTADO PARA CLONADO DE DÍAS ---
-    const [clipboardDay, setClipboardDay] = useState(null); // { date: Date, profId: int }
+    const [clipboardDay, setClipboardDay] = useState(null); 
 
     const footerInputRef = useRef(null);
+    const navigate = useNavigate();
 
-    // 1. CARGA INICIAL DE PARAMÉTRICAS
     useEffect(() => {
         const cargarDatos = async () => {
             try {
@@ -85,12 +85,22 @@ const GestionAgenda = () => {
         setLoadingAgenda(true);
         const nuevasAgendas = {};
         try {
+            const fIni = new Date(fechaReferencia);
+            fIni.setDate(fIni.getDate() - 7);
+            const fFin = new Date(fechaReferencia);
+            fFin.setDate(fFin.getDate() + 30);
+            
             const promesas = selectedProfs.map(async (prof) => {
-                const [h, b] = await Promise.all([
+                const [h, b, c] = await Promise.all([
                     agendaService.getDisponibilidades({ profesional_id: prof.id, lugar_id: sedeSeleccionada }),
-                    agendaService.getBloqueos({ profesional_id: prof.id })
+                    agendaService.getBloqueos({ profesional_id: prof.id }),
+                    citasService.getAll({ 
+                        profesional_id: prof.id, 
+                        fecha_inicio: fIni.toISOString().split('T')[0], 
+                        fecha_fin: fFin.toISOString().split('T')[0] 
+                    }).catch(() => []) 
                 ]);
-                return { id: prof.id, data: { horarios: h, bloqueos: b } };
+                return { id: prof.id, data: { horarios: h, bloqueos: b, citas: c } };
             });
 
             const resultados = await Promise.all(promesas);
@@ -101,7 +111,7 @@ const GestionAgenda = () => {
         } finally { 
             setLoadingAgenda(false); 
         }
-    }, [selectedProfs, sedeSeleccionada]);
+    }, [selectedProfs, sedeSeleccionada, fechaReferencia]);
 
     useEffect(() => {
         if (selectedProfs.length > 0 && sedeSeleccionada && viewMode === 'config') {
@@ -121,70 +131,63 @@ const GestionAgenda = () => {
 
     const irAHoy = () => setFechaReferencia(new Date());
 
-    // --- NUEVO: LÓGICA DE COPIAR / PEGAR DÍAS ---
     const handleCopySchedule = (fechaOrigen) => {
-        // Solo permitimos copiar si hay un solo médico seleccionado para evitar ambigüedades
         if (selectedProfs.length !== 1) {
             return Swal.fire('Atención', 'Selecciona un solo médico para usar la función de copiar/pegar.', 'warning');
         }
-        
-        setClipboardDay({
-            date: fechaOrigen,
-            profId: selectedProfs[0].id,
-            profNombre: selectedProfs[0].nombre
-        });
-
+        setClipboardDay({ date: fechaOrigen, profId: selectedProfs[0].id, profNombre: selectedProfs[0].nombre });
         const Toast = Swal.mixin({ toast: true, position: 'top', showConfirmButton: false, timer: 3000 });
         Toast.fire({ icon: 'info', title: 'Día copiado. Haz clic en "Pegar" en otro día.' });
     };
 
     const handlePasteSchedule = async (fechaDestino) => {
         if (!clipboardDay) return;
-
         try {
             const fechaOrigenStr = clipboardDay.date.toISOString().split('T')[0];
             const fechaDestinoStr = fechaDestino.toISOString().split('T')[0];
-
-            // Confirmación
             const { isConfirmed } = await Swal.fire({
                 title: '¿Pegar programación?',
                 html: `Se copiarán los turnos del <b>${fechaOrigenStr}</b> al <b>${fechaDestinoStr}</b> para el Dr/a. ${clipboardDay.profNombre}.`,
                 icon: 'question',
-                showCancelButton: true,
-                confirmButtonText: 'Sí, pegar',
-                confirmButtonColor: '#10B981'
+                showCancelButton: true, confirmButtonText: 'Sí, pegar', confirmButtonColor: '#10B981'
             });
 
             if (isConfirmed) {
                 setLoadingAgenda(true);
-                // Llamada al servicio (Asegúrate de implementar duplicateSchedule en agendaService)
                 await agendaService.duplicateSchedule({
-                    profesional_id: clipboardDay.profId,
-                    lugar_id: sedeSeleccionada,
-                    fecha_origen: fechaOrigenStr,
-                    fecha_destino: fechaDestinoStr
+                    profesional_id: clipboardDay.profId, lugar_id: sedeSeleccionada,
+                    fecha_origen: fechaOrigenStr, fecha_destino: fechaDestinoStr
                 });
-
-                setClipboardDay(null); // Limpiar portapapeles
-                cargarMultiplesAgendas(); // Recargar
-                
-                Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Programación duplicada con éxito', timer: 2000, showConfirmButton: false });
+                setClipboardDay(null); 
+                cargarMultiplesAgendas(); 
+                Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Duplicado con éxito', timer: 2000, showConfirmButton: false });
             }
         } catch (error) {
             console.error(error);
             Swal.fire('Error', 'No se pudo duplicar la agenda. Verifica que el destino esté libre.', 'error');
-        } finally {
-            setLoadingAgenda(false);
-        }
+        } finally { setLoadingAgenda(false); }
     };
 
     const handleCancelPaste = () => {
         setClipboardDay(null);
-        const Toast = Swal.mixin({ toast: true, position: 'top', showConfirmButton: false, timer: 2000 });
-        Toast.fire({ icon: 'info', title: 'Copiado cancelado' });
+        Swal.mixin({ toast: true, position: 'top', showConfirmButton: false, timer: 2000 }).fire({ icon: 'info', title: 'Copiado cancelado' });
     };
 
-    // --- GESTIÓN DE TURNOS ---
+    const handleAgendarExpress = (slot, fechaStr) => {
+        navigate('/dashboard/agendar-admin', {
+            state: {
+                slotPreseleccionado: {
+                    profId: slot.profId,
+                    profNombre: slot.profNombre,
+                    fecha: fechaStr,
+                    inicio: slot.inicio,
+                    servicioId: slot.turno.servicio_id, 
+                    lugarId: sedeSeleccionada 
+                }
+            }
+        });
+    };
+
     const handleCrearTurno = async (fechaColumnaObj, hora) => {
         let targetProfId = null;
         
@@ -325,7 +328,6 @@ const GestionAgenda = () => {
         }
     };
 
-    // --- GESTIÓN DE TURNOS (COMPLETA) ---
     const handleGestionarTurno = async (turno, fechaPreseleccionada) => {
         let duracion = duracionDefecto;
         let nombreServicio = "General / Mixto";
@@ -337,9 +339,7 @@ const GestionAgenda = () => {
         let bloqueosFrescos = [];
         try { 
             bloqueosFrescos = await agendaService.getBloqueos({ profesional_id: turno.profesional_id }); 
-        } catch(e) {
-            console.error(e);
-        }
+        } catch(e) { console.error(e); }
 
         const slots = [];
         let [h, m] = turno.hora_inicio.split(':').map(Number);
@@ -365,10 +365,8 @@ const GestionAgenda = () => {
 
             slots.push({
                 inicio: inicioStr, fin: finStr,
-                bloqueado: !!bloqueoMatch,
-                bloqueoId: bloqueoMatch?.id,
-                motivo: bloqueoMatch?.motivo,
-                esPasado: slotStart < ahora
+                bloqueado: !!bloqueoMatch, bloqueoId: bloqueoMatch?.id,
+                motivo: bloqueoMatch?.motivo, esPasado: slotStart < ahora
             });
             actualMin += duracion;
         }
@@ -395,7 +393,6 @@ const GestionAgenda = () => {
                 if (motivo) {
                     await agendaService.createBloqueo({ profesional_id: turno.profesional_id, fecha_inicio: `${fechaPreseleccionada}T${inicio}:00`, fecha_fin: `${fechaPreseleccionada}T${fin}:00`, motivo });
                     await cargarMultiplesAgendas(); 
-                    // Re-abrir modal para actualizar vista
                     handleGestionarTurno(turno, fechaPreseleccionada);
                 }
             } 
@@ -410,40 +407,25 @@ const GestionAgenda = () => {
             Swal.close();
             const { value: opcion } = await Swal.fire({
                 title: 'Eliminar Horario',
-                text: '¿Qué deseas eliminar?',
-                icon: 'question',
-                showDenyButton: true,
-                showCancelButton: true,
-                confirmButtonText: 'Toda la Serie',
-                denyButtonText: 'Solo este día',
-                confirmButtonColor: '#d33',
-                denyButtonColor: '#f59e0b'
+                text: '¿Qué deseas eliminar?', icon: 'question',
+                showDenyButton: true, showCancelButton: true,
+                confirmButtonText: 'Toda la Serie', denyButtonText: 'Solo este día',
+                confirmButtonColor: '#d33', denyButtonColor: '#f59e0b'
             });
 
             try {
                 if (opcion === true) { 
                     const resp = await agendaService.deleteRecurrencia({
-                        profesional_id: turno.profesional_id,
-                        dia_semana: turno.dia_semana,
-                        hora_inicio: turno.hora_inicio,
-                        hora_fin: turno.hora_fin
+                        profesional_id: turno.profesional_id, dia_semana: turno.dia_semana,
+                        hora_inicio: turno.hora_inicio, hora_fin: turno.hora_fin
                     });
-                    
-                    await Swal.fire({
-                        title: 'Resultado de Eliminación',
-                        text: resp.mensaje, 
-                        icon: resp.conservados > 0 ? 'warning' : 'success'
-                    });
-
+                    await Swal.fire({ title: 'Resultado de Eliminación', text: resp.mensaje, icon: resp.conservados > 0 ? 'warning' : 'success' });
                 } else if (opcion === false) { 
                     await agendaService.deleteDisponibilidad(idTurno);
                     Swal.fire('Eliminado', 'Se ha borrado solo este día', 'success');
                 }
                 cargarMultiplesAgendas();
-            } catch (e) {
-                console.error(e);
-                Swal.fire('Error', 'No se pudo eliminar. Verifica si hay pacientes.', 'error');
-            }
+            } catch (e) { Swal.fire('Error', 'No se pudo eliminar.', 'error'); }
         };
 
         Swal.fire({
@@ -464,12 +446,9 @@ const GestionAgenda = () => {
         <div className="flex flex-col md:flex-row h-screen w-full bg-gray-100 overflow-hidden relative">
             <div className="flex-shrink-0 z-30 h-full shadow-lg">
                 <ListaProfesionales 
-                    sedes={sedes} 
-                    profesionales={profesionales} 
-                    sedeSeleccionada={sedeSeleccionada} 
-                    setSedeSeleccionada={setSedeSeleccionada} 
-                    selectedProfs={selectedProfs} 
-                    toggleProfesional={toggleProfesional} 
+                    sedes={sedes} profesionales={profesionales} 
+                    sedeSeleccionada={sedeSeleccionada} setSedeSeleccionada={setSedeSeleccionada} 
+                    selectedProfs={selectedProfs} toggleProfesional={toggleProfesional} 
                     onOpenModal={() => setIsGridOpen(true)} 
                 />
             </div>
@@ -486,8 +465,8 @@ const GestionAgenda = () => {
                         <div className="bg-white p-8 rounded-2xl shadow-sm max-w-md border border-gray-100">
                             <FaUsers size={48} className="mx-auto mb-4 text-blue-200"/>
                             <h3 className="text-xl font-bold text-gray-700 mb-2">Gestión de Agendas</h3>
-                            <p className="mb-6 text-sm text-gray-500">{selectedProfs.length > 0 ? `Gestionando agenda de: ${selectedProfs.map(p => p.nombre).join(', ')}` : "Selecciona profesionales del menú izquierdo."}</p>
-                            {selectedProfs.length > 0 ? <button onClick={() => setIsGridOpen(true)} className="bg-blue-600 text-white px-6 py-3 rounded-xl shadow-lg hover:bg-blue-700 transition font-bold flex items-center gap-2 mx-auto animate-pulse"><FaCalendarAlt /> Abrir Calendario Semanal</button> : <div className="text-xs text-orange-400 bg-orange-50 p-2 rounded">← Selecciona un médico para empezar</div>}
+                            <p className="mb-6 text-sm text-gray-500">{selectedProfs.length > 0 ? `Gestionando agenda de: ${selectedProfs.map(p => p.nombre).join(', ')}` : "Selecciona profesionales."}</p>
+                            {selectedProfs.length > 0 ? <button onClick={() => setIsGridOpen(true)} className="bg-blue-600 text-white px-6 py-3 rounded-xl shadow-lg hover:bg-blue-700 transition font-bold flex items-center gap-2 mx-auto animate-pulse"><FaCalendarAlt /> Abrir Calendario Semanal</button> : <div className="text-xs text-orange-400 bg-orange-50 p-2 rounded">← Selecciona un médico</div>}
                         </div>
                     </div>
                 )}
@@ -498,17 +477,9 @@ const GestionAgenda = () => {
                         <div className="flex items-center gap-4">
                             <button onClick={() => setIsGridOpen(false)} className="p-2 hover:bg-red-50 text-gray-500 hover:text-red-600 rounded-full transition"><FaTimes size={20}/></button>
                             <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2"><FaCalendarAlt className="text-blue-600"/> Agenda Semanal</h2>
-                            
-                            {/* --- INDICADOR DE PORTAPAPELES ACTIVO --- */}
-                            {clipboardDay && (
-                                <div className="flex items-center gap-2 bg-blue-50 text-blue-700 px-3 py-1 rounded-full border border-blue-200 text-xs font-bold animate-bounce">
-                                    <FaPaste/> Pegando día: {clipboardDay.date.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric' })}
-                                    <button onClick={handleCancelPaste} className="ml-2 hover:text-red-500"><FaTimes/></button>
-                                </div>
-                            )}
                         </div>
                         <div className="flex items-center gap-2 md:gap-4">
-                            <div className="hidden lg:flex items-center gap-2 bg-gray-50 p-1 px-3 rounded-lg border border-gray-200"><FaCogs className="text-gray-400"/><span className="text-xs font-bold text-gray-500">Intervalo Vista:</span><input type="number" value={duracionDefecto} onChange={(e) => setDuracionDefecto(parseInt(e.target.value) || 20)} className="w-12 text-center text-sm font-bold bg-white border rounded outline-none"/><span className="text-xs text-gray-500">min</span></div>
+                            <div className="hidden lg:flex items-center gap-2 bg-gray-50 p-1 px-3 rounded-lg border border-gray-200"><FaCogs className="text-gray-400"/><span className="text-xs font-bold text-gray-500">Intervalo:</span><input type="number" value={duracionDefecto} onChange={(e) => setDuracionDefecto(parseInt(e.target.value) || 20)} className="w-12 text-center text-sm font-bold bg-white border rounded outline-none"/><span className="text-xs text-gray-500">min</span></div>
                             <div className="flex items-center bg-gray-100 rounded-lg p-1"><button onClick={() => navegarCalendario(-1)} className="p-1.5 hover:bg-white rounded text-gray-600"><FaChevronLeft/></button><button onClick={irAHoy} className="mx-1 px-3 py-1 text-sm font-bold text-gray-600 hover:bg-white rounded">Hoy</button><button onClick={() => navegarCalendario(1)} className="p-1.5 hover:bg-white rounded text-gray-600"><FaChevronRight/></button></div>
                             <span className="font-bold text-gray-700 capitalize w-32 text-center hidden md:block">{fechaReferencia.toLocaleString('es-ES', { month: 'long', year: 'numeric' })}</span>
                             <div className="flex bg-gray-100 p-1 rounded-lg">{['day','week','month'].map(v => <button key={v} onClick={() => setCalendarView(v)} className={`px-3 py-1 rounded text-xs font-bold ${calendarView === v ? 'bg-white shadow text-blue-600' : 'text-gray-500'}`}>{v === 'day' ? 'Día' : v === 'week' ? 'Semana' : 'Mes'}</button>)}</div>
@@ -525,18 +496,18 @@ const GestionAgenda = () => {
                                 duracionDefecto={duracionDefecto} 
                                 onCrearTurno={handleCrearTurno} 
                                 onGestionarTurno={handleGestionarTurno} 
+                                onAgendarCita={handleAgendarExpress} 
                                 calendarView={calendarView} 
                                 fechaReferencia={fechaReferencia} 
                                 setCalendarView={setCalendarView} 
-                                // Props nuevas para Copiar/Pegar
-                                onCopyDay={handleCopySchedule} // <--- CORREGIDO AQUÍ
+                                onCopyDay={handleCopySchedule}
                                 onPasteDay={handlePasteSchedule}
                                 clipboardDay={clipboardDay}
                                 refreshAgenda={cargarMultiplesAgendas} 
                             />
                         )}
                     </div>
-                    {/* Footer de médicos seleccionados */}
+                    {/* --- FOOTER RESTAURADO --- */}
                     <div className="h-14 border-t bg-white flex items-center shrink-0 z-50">
                         <div className="flex-1 flex gap-3 overflow-x-auto p-2 scrollbar-thin items-center">{selectedProfs.map(p => <div key={p.id} className={`px-2 py-1 rounded border flex items-center gap-2 shrink-0 ${p.colorInfo.clase} shadow-sm`}><div className="w-2 h-2 rounded-full bg-current opacity-50"></div><span className="font-bold truncate max-w-[150px] text-xs">{p.nombre}</span><button onClick={() => toggleProfesional(p)} className="hover:bg-white/50 rounded-full p-0.5"><FaTimes size={10}/></button></div>)}</div>
                         <div className="w-64 border-l pl-3 pr-3 py-2 bg-gray-50 relative h-full flex items-center group"><FaSearch className="text-gray-400 mr-2 text-xs"/><input ref={footerInputRef} type="text" placeholder="Agregar otro médico..." className="w-full bg-transparent text-sm outline-none placeholder-gray-400 text-gray-700" value={footerSearch} onChange={(e) => { setFooterSearch(e.target.value); setShowFooterResults(true); }} onFocus={() => setShowFooterResults(true)}/>{showFooterResults && footerSearch.length > 0 && <div className="absolute bottom-full right-0 left-0 mb-1 bg-white border border-gray-200 rounded-t-lg shadow-xl max-h-60 overflow-y-auto z-50">{resultadosFooter.map(p => <div key={p.id} className="p-2 hover:bg-blue-50 cursor-pointer border-b flex items-center justify-between group/item" onClick={() => toggleProfesional(p)}><div className="flex flex-col"><span className="text-sm font-bold text-gray-700">{p.nombre}</span><span className="text-[10px] text-gray-400">{p.especialidades_nombres?.[0]}</span></div><FaPlusCircle className="text-gray-300 group-hover/item:text-blue-500"/></div>)}</div>}{showFooterResults && <div className="fixed inset-0 z-40 bg-transparent" onClick={() => setShowFooterResults(false)}></div>}</div>

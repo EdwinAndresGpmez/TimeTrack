@@ -14,8 +14,9 @@ import {
 /**
  * @param {Number} adminSelectedPatientId - Opcional. Si se provee, el wizard agendará para este paciente.
  * @param {Boolean} isAdminMode - Indica si el componente está siendo usado desde la administración.
+ * @param {Object} preselectedSlot - Opcional. Datos del modo Express provenientes de la grilla.
  */
-const NuevaCita = ({ adminSelectedPatientId = null, isAdminMode = false }) => {
+const NuevaCita = ({ adminSelectedPatientId = null, isAdminMode = false, preselectedSlot = null }) => {
     const navigate = useNavigate();
     const { user } = useContext(AuthContext);
 
@@ -67,28 +68,64 @@ const NuevaCita = ({ adminSelectedPatientId = null, isAdminMode = false }) => {
                 
                 setPerfilPaciente(perfil);
 
-                const [allServicios, allSedes] = await Promise.all([
+                const [allServicios, allSedes, allProfesionales] = await Promise.all([
                     staffService.getServicios({ activo: true }),
-                    staffService.getLugares({ activo: true })
+                    staffService.getLugares({ activo: true }),
+                    staffService.getProfesionales({ activo: true })
                 ]);
                 
                 const tipoId = perfil.tipo_usuario?.id || perfil.tipo_usuario;
-                const serviciosFiltrados = allServicios.filter(s => {
+                let serviciosFiltrados = allServicios.filter(s => {
                     const permitidos = s.tipos_paciente_ids?.map(Number) || [];
                     return permitidos.length === 0 || (tipoId && permitidos.includes(Number(tipoId)));
                 });
 
+                // --- LÓGICA DE AUTOCOMPLETADO (MODO EXPRESS) ---
+                if (preselectedSlot) {
+                    // Usamos parseInt para evitar fallos comparando Strings vs Numbers
+                    const servicioMatch = preselectedSlot.servicioId ? allServicios.find(s => parseInt(s.id) === parseInt(preselectedSlot.servicioId)) : null;
+                    const profMatch = allProfesionales.find(p => parseInt(p.id) === parseInt(preselectedSlot.profId));
+                    const sedeMatch = allSedes.find(s => parseInt(s.id) === parseInt(preselectedSlot.lugarId));
+
+                    // Si NO viene un servicio específico desde la grilla, filtramos la lista para que el admin solo
+                    // vea los servicios que ese médico seleccionado tiene habilitados.
+                    if (!servicioMatch && profMatch && profMatch.servicios_habilitados) {
+                        serviciosFiltrados = serviciosFiltrados.filter(s => profMatch.servicios_habilitados.includes(s.id));
+                    }
+
+                    setSelection({
+                        servicio: servicioMatch, // Será null si era un slot "General"
+                        profesional: profMatch || { id: preselectedSlot.profId, nombre: preselectedSlot.profNombre },
+                        sede: sedeMatch || { id: preselectedSlot.lugarId, nombre: 'Sede no encontrada' },
+                        fecha: preselectedSlot.fecha,
+                        hora: preselectedSlot.inicio
+                    });
+                    
+                    if (servicioMatch) {
+                        // Si la grilla SÍ tenía un servicio específico, saltamos directo a confirmar
+                        setStep(5);
+                    } else {
+                        // Si era un horario General, nos quedamos en el paso 1 para elegir servicio
+                        setStep(1);
+                    }
+                }
+
                 setServicios(serviciosFiltrados);
                 setSedes(allSedes); 
+                setProfesionales(allProfesionales);
+
             } catch (e) { 
                 console.error("Error inicializando NuevaCita:", e);
                 Swal.fire('Error', 'No se pudo cargar la información del paciente.', 'error');
             }
         };
         init();
-    }, [adminSelectedPatientId, user.user_id]);
+    }, [adminSelectedPatientId, user.user_id, preselectedSlot]);
 
     const fetchSlots = useCallback(async () => {
+        // En modo express no buscamos slots porque la hora ya viene lista
+        if (preselectedSlot) return; 
+
         setLoadingSlots(true);
         setSlots([]);
         try {
@@ -111,7 +148,6 @@ const NuevaCita = ({ adminSelectedPatientId = null, isAdminMode = false }) => {
 
             const slotsLimpios = slotsBase.filter(hora => {
                 const slotStart = new Date(`${selection.fecha}T${hora}`);
-                // Si es admin, permitimos ver horarios pasados del día de hoy
                 if (!isAdminMode && slotStart < ahoraMismo) return false;
 
                 const isBloqueado = bloqueosData.some(b => {
@@ -130,13 +166,13 @@ const NuevaCita = ({ adminSelectedPatientId = null, isAdminMode = false }) => {
         } finally { 
             setLoadingSlots(false); 
         }
-    }, [selection.profesional, selection.fecha, selection.servicio, isAdminMode]);
+    }, [selection.profesional, selection.fecha, selection.servicio, isAdminMode, preselectedSlot]);
 
     useEffect(() => {
-        if (selection.profesional && selection.sede && selection.fecha) {
+        if (selection.profesional && selection.sede && selection.fecha && step === 4) {
             fetchSlots();
         }
-    }, [selection.fecha, selection.profesional, selection.sede, fetchSlots]);
+    }, [selection.fecha, selection.profesional, selection.sede, step, fetchSlots]);
 
     // --- ASISTENTE MÁGICO ---
     const abrirAsistente = () => {
@@ -227,13 +263,45 @@ const NuevaCita = ({ adminSelectedPatientId = null, isAdminMode = false }) => {
     };
 
     const nextStep = () => setStep(s => s + 1);
-    const prevStep = () => setStep(s => s - 1);
+
+    const prevStep = () => {
+        if (preselectedSlot) {
+            // Si vino preseleccionado y retrocedemos desde el paso 5 a elegir servicio (porque era general)
+            if (step === 5 && !preselectedSlot.servicioId) {
+                setSelection({ ...selection, servicio: null });
+                setStep(1);
+            } else {
+                // Cancelamos el flujo express completo
+                Swal.fire({
+                    title: '¿Cancelar modo Express?',
+                    text: "Volverás a la agenda de profesionales.",
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: 'Sí, volver',
+                    cancelButtonText: 'No'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        navigate('/dashboard/admin/agenda');
+                    }
+                });
+            }
+        } else {
+            setStep(s => s - 1);
+        }
+    };
 
     const selectServicio = async (srv) => {
-        setSelection({ ...selection, servicio: srv, profesional: null, sede: null });
-        const profs = await staffService.getProfesionales({ servicios_habilitados: srv.id, activo: true });
-        setProfesionales(profs);
-        nextStep();
+        if (preselectedSlot) {
+            // MODO EXPRESS (Desde general): Asignamos servicio y brincamos al final
+            setSelection({ ...selection, servicio: srv });
+            setStep(5);
+        } else {
+            // MODO NORMAL: Continuamos al paso 2 limpiando selecciones previas
+            setSelection({ ...selection, servicio: srv, profesional: null, sede: null });
+            const profs = await staffService.getProfesionales({ servicios_habilitados: srv.id, activo: true });
+            setProfesionales(profs);
+            nextStep();
+        }
     };
 
     const selectProfesional = (prof) => {
@@ -249,7 +317,7 @@ const NuevaCita = ({ adminSelectedPatientId = null, isAdminMode = false }) => {
     const confirmCita = async () => {
         setLoading(true);
         try {
-            const duracion = selection.servicio.duracion_minutos || 30;
+            const duracion = selection.servicio?.duracion_minutos || 30;
             const [horas, minutos] = selection.hora.split(':').map(Number);
             const fechaTemp = new Date();
             fechaTemp.setHours(horas, minutos, 0);
@@ -308,14 +376,14 @@ const NuevaCita = ({ adminSelectedPatientId = null, isAdminMode = false }) => {
 
     const renderStep1 = () => (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-fadeIn">
-            {servicios.map(s => (
+            {servicios.length > 0 ? servicios.map(s => (
                 <div key={s.id} onClick={() => selectServicio(s)} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 cursor-pointer hover:border-blue-500 hover:shadow-lg transition-all group text-center">
                     <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300">
                         <FaStethoscope size={28}/>
                     </div>
                     <h3 className="font-bold text-lg text-gray-800 group-hover:text-blue-700">{s.nombre}</h3>
                 </div>
-            ))}
+            )) : <div className="col-span-3 text-center text-red-500 py-8">No hay servicios disponibles para mostrar.</div>}
         </div>
     );
 
@@ -418,14 +486,29 @@ const NuevaCita = ({ adminSelectedPatientId = null, isAdminMode = false }) => {
             <h2 className="text-2xl font-black text-gray-800 mb-2">¡Casi listo!</h2>
             <div className="bg-gray-50 p-6 rounded-2xl mb-8 text-left space-y-4 border border-gray-100">
                 {adminSelectedPatientId && <div className="flex justify-between items-center"><span className="text-gray-500 text-sm">Paciente</span><span className="font-bold text-indigo-600">{perfilPaciente?.nombre}</span></div>}
-                <div className="flex justify-between items-center"><span className="text-gray-500 text-sm">Servicio</span><span className="font-bold text-gray-800">{selection.servicio?.nombre}</span></div>
+                
+                {/* Agregado para que muestre el servicio correctamente si es express */}
+                <div className="flex justify-between items-center">
+                    <span className="text-gray-500 text-sm">Servicio</span>
+                    <span className="font-bold text-gray-800">{selection.servicio?.nombre || 'General / Mixto'}</span>
+                </div>
+                
                 <div className="flex justify-between items-center"><span className="text-gray-500 text-sm">Profesional</span><span className="font-bold text-gray-800">{selection.profesional?.nombre}</span></div>
-                <div className="flex justify-between items-center"><span className="text-gray-500 text-sm">Sede</span><span className="font-bold text-gray-800 text-xs">{selection.sede?.nombre}</span></div>
+                <div className="flex justify-between items-center"><span className="text-gray-500 text-sm">Sede</span><span className="font-bold text-gray-800 text-xs text-right max-w-[150px] truncate" title={selection.sede?.nombre}>{selection.sede?.nombre}</span></div>
                 <div className="h-px bg-gray-200 my-2"></div>
                 <div className="flex justify-between items-center"><span className="text-gray-500 text-sm">Fecha y Hora</span><span className="font-bold text-blue-600 text-lg">{selection.fecha} | {selection.hora}</span></div>
             </div>
             <button onClick={confirmCita} disabled={loading} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl font-bold shadow-lg transition disabled:opacity-50">{loading ? 'Confirmando...' : 'Confirmar Agendamiento'}</button>
-            <button onClick={() => setStep(1)} className="mt-4 text-gray-400 text-sm hover:text-gray-600 underline">Empezar de nuevo</button>
+            <button onClick={() => {
+                if(preselectedSlot) {
+                     navigate('/dashboard/admin/agenda'); // Si viene de express, volver a la agenda
+                } else {
+                     setSelection({ servicio: null, profesional: null, sede: null, fecha: '', hora: '' });
+                     setStep(1);
+                }
+            }} className="mt-4 text-gray-400 text-sm hover:text-gray-600 underline">
+                {preselectedSlot ? 'Cancelar y volver a la agenda' : 'Empezar de nuevo'}
+            </button>
         </div>
     );
 
@@ -449,11 +532,14 @@ const NuevaCita = ({ adminSelectedPatientId = null, isAdminMode = false }) => {
                 <div className="flex justify-between items-center mb-8">
                     <div>
                         <h1 className="text-3xl font-black text-gray-800">
-                            {step === 1 && "Elige tu Servicio"} {step === 2 && "Selecciona Especialista"} {step === 3 && "Selecciona Sede"} {step === 4 && "¿Cuándo te atendemos?"}
+                            {step === 1 && (preselectedSlot ? "Elige el Servicio para este horario" : "Elige tu Servicio")} 
+                            {step === 2 && "Selecciona Especialista"} 
+                            {step === 3 && "Selecciona Sede"} 
+                            {step === 4 && "¿Cuándo te atendemos?"}
                         </h1>
                         <p className="text-gray-400 text-sm mt-1">Paso {step} de 5</p>
                     </div>
-                    {step > 1 && <button onClick={prevStep} className="text-gray-500 hover:text-blue-600 flex items-center gap-2 text-sm font-bold bg-white px-4 py-2 rounded-lg border transition shadow-sm"><FaArrowLeft/> Atrás</button>}
+                    <button onClick={prevStep} className="text-gray-500 hover:text-blue-600 flex items-center gap-2 text-sm font-bold bg-white px-4 py-2 rounded-lg border transition shadow-sm"><FaArrowLeft/> Atrás</button>
                 </div>
             )}
 

@@ -15,14 +15,22 @@ const ListaProfesionales = ({
     const [isOpen, setIsOpen] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
 
-    const profesionalesFiltrados = profesionales.filter(p => 
-        p.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (p.especialidades_nombres?.[0] || '').toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    // CORRECCIÓN HU07: Filtro estricto combinado (Búsqueda + Sede)
+    const profesionalesFiltrados = profesionales.filter(p => {
+        // 1. Condición de búsqueda por texto
+        const coincideTexto = p.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                              (p.especialidades_nombres?.[0] || '').toLowerCase().includes(searchTerm.toLowerCase());
+        
+        // 2. Condición de Sede (lugares_atencion debe incluir la sede seleccionada)
+        // Si no hay sede seleccionada, mostramos todos (por seguridad).
+        const coincideSede = !sedeSeleccionada || 
+                             (p.lugares_atencion && p.lugares_atencion.includes(parseInt(sedeSeleccionada)));
+
+        return coincideTexto && coincideSede;
+    });
 
     return (
         // CONTENEDOR PRINCIPAL
-        // Cambiamos la lógica: Si está cerrado, ahora ocupa w-16 (Mini barra), no w-0.
         <div 
             className={`
                 h-full flex flex-col transition-all duration-300 ease-in-out bg-white border-r border-gray-200 shadow-xl z-20 
@@ -69,7 +77,10 @@ const ListaProfesionales = ({
                             <select 
                                 className="w-full p-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                                 value={sedeSeleccionada || ''}
-                                onChange={(e) => setSedeSeleccionada(e.target.value)}
+                                onChange={(e) => {
+                                    setSedeSeleccionada(e.target.value);
+                                    // Opcional: Podrías limpiar selectedProfs aquí si quieres que al cambiar de sede se desmarquen los médicos
+                                }}
                             >
                                 {sedes.map(s => <option key={s.id} value={s.id}>{s.nombre}</option>)}
                             </select>
@@ -90,7 +101,7 @@ const ListaProfesionales = ({
                     <div className="flex-1 overflow-y-auto p-3 space-y-2 scrollbar-thin scrollbar-thumb-gray-200 animate-fadeIn">
                         {profesionalesFiltrados.length === 0 ? (
                             <div className="text-center p-4 text-gray-400 text-sm italic">
-                                Sin resultados.
+                                Sin resultados en esta sede.
                             </div>
                         ) : (
                             profesionalesFiltrados.map(prof => {
