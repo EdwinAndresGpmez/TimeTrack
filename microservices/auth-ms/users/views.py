@@ -182,6 +182,25 @@ class UserAdminViewSet(viewsets.ModelViewSet):
         grupos = Group.objects.all()
         serializer = GroupSerializer(grupos, many=True) 
         return Response(serializer.data)
+    
+    @action(detail=True, methods=["get", "post"])
+    def red_familiar(self, request, pk=None):
+        """
+        GET: Devuelve la lista de delegados/dependientes de este usuario.
+        POST: Recibe una lista de IDs y actualiza sus conexiones.
+        """
+        user = self.get_object()
+        
+        if request.method == "POST":
+            dependientes_ids = request.data.get("dependientes", [])
+            # .set() reemplaza las relaciones actuales por las nuevas
+            user.dependientes.set(dependientes_ids)
+            user.save()
+            return Response({"status": "Red familiar actualizada"})
+            
+        # Si es GET
+        serializer = UserAdminSerializer(user)
+        return Response(serializer.data.get("dependientes_detalle", []))
 
 class MenuItemAdminViewSet(viewsets.ModelViewSet):
     queryset = MenuItem.objects.all().order_by("order")
@@ -219,3 +238,16 @@ class SidebarBrandingView(APIView):
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=400)
+
+class MiRedFamiliarView(APIView):
+    """
+    Permite a Andrea (o cualquier usuario) ver su propia red 
+    sin pasar por el filtro de seguridad de Administrador.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        # Usamos el serializador que ya creamos con dependientes_detalle
+        # Se filtra automáticamente por el usuario que envía el Token (request.user)
+        serializer = UserSerializer(request.user)
+        return Response(serializer.data.get("dependientes_detalle", []))  

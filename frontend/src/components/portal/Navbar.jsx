@@ -8,10 +8,17 @@ import Swal from 'sweetalert2';
 
 const Navbar = () => {
     const [isOpen, setIsOpen] = useState(false);
-    const [isChatOpen, setIsChatOpen] = useState(false); // Estado para el chat
+    const [isChatOpen, setIsChatOpen] = useState(false); 
     const navigate = useNavigate();
 
-    // Lógica para el botón Agendar
+    // --- CORRECCIÓN: Definir explícitamente las rutas ---
+    const menuItems = [
+        { label: 'Inicio', path: '/' },
+        { label: 'Servicios', path: '/servicios' },
+        { label: 'PQRS', path: '/pqrs' },
+        { label: 'Trabaje con Nosotros', path: '/trabaje-con-nosotros' } // Coincide exacto con App.jsx
+    ];
+
     const handleAgendarClick = (e) => {
         e.preventDefault();
         
@@ -22,8 +29,8 @@ const Navbar = () => {
             text: 'para agendar tu cita necesitamos identificarte',
             icon: 'question',
             showCancelButton: true,
-            confirmButtonColor: '#2563EB', // Azul corporativo
-            cancelButtonColor: '#10B981', // Verde éxito
+            confirmButtonColor: '#2563EB', 
+            cancelButtonColor: '#10B981', 
             confirmButtonText: 'Sí, Ingresar',
             cancelButtonText: 'No, Registrarme'
         }).then((result) => {
@@ -37,14 +44,11 @@ const Navbar = () => {
         setIsOpen(false);
     };
 
-    // --- Componente interno del Chatbot Demo ---
     const ChatbotDemo = () => {
         return (
             <div className="fixed bottom-6 right-6 z-[60] flex flex-col items-end gap-2 font-sans">
-                {/* Ventana del Chat */}
                 {isChatOpen && (
                     <div className="bg-white w-80 h-96 rounded-2xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden animate-fade-in-up">
-                        {/* Cabecera del Chat */}
                         <div className="bg-blue-800 p-4 flex justify-between items-center text-white">
                             <div className="flex items-center gap-2">
                                 <div className="bg-white text-blue-800 p-1.5 rounded-full">
@@ -62,21 +66,17 @@ const Navbar = () => {
                             </button>
                         </div>
 
-                        {/* Cuerpo de Mensajes */}
                         <div className="flex-1 p-4 bg-gray-50 overflow-y-auto space-y-3">
-                            {/* Mensaje del sistema */}
                             <div className="flex gap-2 items-start">
                                 <div className="bg-blue-100 p-2 rounded-lg rounded-tl-none text-sm text-gray-800 max-w-[85%] shadow-sm">
                                     ¡Hola! 👋 Bienvenido a TimeTrack Medical. ¿En qué puedo ayudarte hoy?
                                 </div>
                             </div>
-                            {/* Mensaje de ejemplo de usuario */}
                             <div className="flex gap-2 items-end justify-end">
                                 <div className="bg-blue-600 p-2 rounded-lg rounded-tr-none text-sm text-white max-w-[85%] shadow-sm">
                                     Quiero información sobre citas.
                                 </div>
                             </div>
-                             {/* Respuesta automática simulada */}
                              <div className="flex gap-2 items-start">
                                 <div className="bg-blue-100 p-2 rounded-lg rounded-tl-none text-sm text-gray-800 max-w-[85%] shadow-sm">
                                     Claro, puedes agendar en el botón superior o llamarnos al (606) 840 4873.
@@ -84,7 +84,6 @@ const Navbar = () => {
                             </div>
                         </div>
 
-                        {/* Input Area */}
                         <div className="p-3 bg-white border-t flex gap-2">
                             <input 
                                 type="text" 
@@ -98,14 +97,12 @@ const Navbar = () => {
                     </div>
                 )}
 
-                {/* Botón Flotante (Globo) */}
                 <button 
                     onClick={() => setIsChatOpen(!isChatOpen)}
                     className={`${isChatOpen ? 'bg-gray-600' : 'bg-blue-600'} text-white p-4 rounded-full shadow-lg hover:scale-110 transition-transform duration-300 flex items-center justify-center relative`}
                 >
                     {isChatOpen ? <FaTimes className="text-xl" /> : <FaCommentDots className="text-2xl" />}
                     
-                    {/* Notificación roja */}
                     {!isChatOpen && (
                         <span className="absolute top-0 right-0 flex h-3 w-3">
                           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
@@ -117,11 +114,9 @@ const Navbar = () => {
         );
     };
 
-    // --- Render Principal ---
     return (
         <>
             <header className="bg-white/95 backdrop-blur-md shadow-md fixed w-full z-50 top-0 transition-all duration-300">
-                {/* Barra Superior de Contacto */}
                 <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white text-xs md:text-sm py-2 hidden md:block">
                     <div className="container mx-auto px-4 flex justify-between items-center">
                         <div className="flex gap-6 font-medium">
@@ -138,31 +133,24 @@ const Navbar = () => {
                     </div>
                 </div>
 
-                {/* Navegación Principal */}
                 <nav className="container mx-auto px-4 py-3 md:py-4 flex justify-between items-center">
-                    {/* Logo */}
                     <Link to="/" className="text-2xl md:text-3xl font-extrabold text-blue-900 tracking-tight">
                         TimeTrack<span className="text-blue-500">Medical</span>
                     </Link>
 
-                    {/* Menú Desktop */}
                     <div className="hidden md:flex gap-8 items-center font-medium text-gray-600">
-                        {['Inicio', 'Servicios', 'PQRS', 'Trabaja con Nosotros'].map((item, index) => {
-                            // Convertir texto a ruta simple para el ejemplo
-                            const path = item === 'Inicio' ? '/' : `/${item.toLowerCase().replace(/ /g, '-')}`;
-                            return (
-                                <Link 
-                                    key={index} 
-                                    to={path} 
-                                    className="hover:text-blue-600 transition duration-300 relative group"
-                                >
-                                    {item}
-                                    <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-blue-600 transition-all duration-300 group-hover:w-full"></span>
-                                </Link>
-                            );
-                        })}
+                        {/* CORRECCIÓN: Uso del array menuItems */}
+                        {menuItems.map((item, index) => (
+                            <Link 
+                                key={index} 
+                                to={item.path} 
+                                className="hover:text-blue-600 transition duration-300 relative group"
+                            >
+                                {item.label}
+                                <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-blue-600 transition-all duration-300 group-hover:w-full"></span>
+                            </Link>
+                        ))}
                         
-                        {/* Botón Agendar */}
                         <button 
                             onClick={handleAgendarClick}
                             className="bg-blue-600 text-white px-6 py-2.5 rounded-full hover:bg-blue-700 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 font-bold text-sm shadow-md"
@@ -171,19 +159,24 @@ const Navbar = () => {
                         </button>
                     </div>
 
-                    {/* Botón Móvil */}
                     <button className="md:hidden text-2xl text-blue-900 p-2" onClick={() => setIsOpen(!isOpen)}>
                         {isOpen ? <FaTimes /> : <FaBars />}
                     </button>
                 </nav>
 
-                {/* Menú Móvil Desplegable */}
                 <div className={`md:hidden bg-white border-t overflow-hidden transition-all duration-300 ${isOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}>
                     <div className="p-4 flex flex-col gap-4 text-center font-medium text-gray-700">
-                        <Link to="/" onClick={() => setIsOpen(false)} className="hover:text-blue-600">Inicio</Link>
-                        <Link to="/servicios" onClick={() => setIsOpen(false)} className="hover:text-blue-600">Servicios</Link>
-                        <Link to="/pqrs" onClick={() => setIsOpen(false)} className="hover:text-blue-600">PQRS</Link>
-                        <Link to="/trabaja-con-nosotros" onClick={() => setIsOpen(false)} className="hover:text-blue-600">Trabaja con Nosotros</Link>
+                        {/* CORRECCIÓN: Menú móvil actualizado */}
+                        {menuItems.map((item, index) => (
+                            <Link 
+                                key={index} 
+                                to={item.path} 
+                                onClick={() => setIsOpen(false)} 
+                                className="hover:text-blue-600"
+                            >
+                                {item.label}
+                            </Link>
+                        ))}
                         
                         <button 
                             onClick={handleAgendarClick} 
@@ -195,7 +188,6 @@ const Navbar = () => {
                 </div>
             </header>
 
-            {/* Inyectamos el Chatbot aquí */}
             <ChatbotDemo />
         </>
     );

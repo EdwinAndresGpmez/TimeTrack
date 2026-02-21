@@ -4,8 +4,16 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 from .models import CrearCuenta, MenuItem, PermisoVista, SidebarBranding
 
+class DependienteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CrearCuenta
+        fields = ['id', 'nombre', 'documento', 'tipo_documento', 'correo']
+
 
 class UserSerializer(serializers.ModelSerializer):
+
+    dependientes_detalle = DependienteSerializer(source='dependientes', many=True, read_only=True)
+
     class Meta:
         model = CrearCuenta
         fields = [
@@ -21,6 +29,7 @@ class UserSerializer(serializers.ModelSerializer):
             "paciente_id",
             "profesional_id",
             "is_staff",
+            "dependientes_detalle",
         ]
         extra_kwargs = {
             "password": {"write_only": True},
@@ -79,6 +88,7 @@ class PermisoVistaSerializer(serializers.ModelSerializer):
 
 class UserAdminSerializer(serializers.ModelSerializer):
     groups = serializers.SlugRelatedField(many=True, queryset=Group.objects.all(), slug_field="name")
+    dependientes_detalle = DependienteSerializer(source='dependientes', many=True, read_only=True)
 
     class Meta:
         model = CrearCuenta
@@ -91,6 +101,7 @@ class UserAdminSerializer(serializers.ModelSerializer):
             "is_staff",
             "groups",
             "paciente_id",
+            "dependientes_detalle",
         ]
         read_only_fields = ["paciente_id"]
 

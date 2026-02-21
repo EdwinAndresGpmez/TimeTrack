@@ -45,6 +45,7 @@ class CrearCuenta(AbstractBaseUser, PermissionsMixin):
     usuario_estado = models.BooleanField(default=True, null=True)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
+    dependientes = models.ManyToManyField('self', symmetrical=False, related_name='tutores', blank=True)
 
     objects = CrearCuentaManager()
 

@@ -7,7 +7,6 @@ import { FaUser, FaIdCard, FaPhone, FaMapMarkerAlt, FaVenusMars, FaSave, FaHospi
 const Perfil = () => {
     const { user } = useContext(AuthContext);
     const [loading, setLoading] = useState(true);
-    // const [tiposPaciente, setTiposPaciente] = useState([]); // Eliminado por unused
     const [existePerfil, setExistePerfil] = useState(false);
     
     // Nombre del tipo para mostrar (ej: "EPS SURA")
@@ -35,12 +34,20 @@ const Perfil = () => {
                 patientService.getTiposPaciente(), 
                 patientService.getMyProfile(user.user_id || user.id)
             ]);
-            
-            // setTiposPaciente(tipos); // Eliminado para limpiar ESLint
 
             if (perfil) {
                 setExistePerfil(true);
-                setFormData(perfil);
+                // Asegurar que nulls no rompan los inputs al setear el estado
+                setFormData({
+                    ...perfil,
+                    nombre: perfil.nombre || '',
+                    apellido: perfil.apellido || '',
+                    fecha_nacimiento: perfil.fecha_nacimiento || '',
+                    direccion: perfil.direccion || '',
+                    telefono: perfil.telefono || '',
+                    email_contacto: perfil.email_contacto || '',
+                    genero: perfil.genero || 'M'
+                });
 
                 // --- LÓGICA ROBUSTA PARA OBTENER EL NOMBRE ---
                 let nombreReal = 'Sin Validar';
@@ -149,36 +156,42 @@ const Perfil = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                          <label className="block text-gray-700 font-bold mb-2">Nombres</label>
-                         <input type="text" name="nombre" value={formData.nombre} onChange={handleChange} className="w-full border rounded-lg p-3 bg-gray-50 focus:outline-none" readOnly />
+                         {/* Se añadió || '' por seguridad */}
+                         <input type="text" name="nombre" value={formData.nombre || ''} onChange={handleChange} className="w-full border rounded-lg p-3 bg-gray-50 focus:outline-none" readOnly />
                          <p className="text-xs text-gray-400 mt-1">Para corregir nombres, contacta soporte.</p>
                     </div>
                     <div>
                          <label className="block text-gray-700 font-bold mb-2">Apellidos</label>
-                         <input type="text" name="apellido" value={formData.apellido} onChange={handleChange} className="w-full border rounded-lg p-3 outline-none focus:ring-2 focus:ring-blue-500" />
+                         {/* Se añadió || '' por seguridad */}
+                         <input type="text" name="apellido" value={formData.apellido || ''} onChange={handleChange} className="w-full border rounded-lg p-3 outline-none focus:ring-2 focus:ring-blue-500" />
                     </div>
 
                     <div>
                         <label className="block text-gray-700 font-bold mb-2">Teléfono</label>
                         <div className="flex items-center border rounded-lg p-2 bg-white focus-within:ring-2 focus-within:ring-blue-500">
                             <FaPhone className="text-gray-400 mr-2" />
-                            <input type="text" name="telefono" value={formData.telefono} onChange={handleChange} className="w-full bg-transparent outline-none" />
+                            {/* Se añadió || '' por seguridad */}
+                            <input type="text" name="telefono" value={formData.telefono || ''} onChange={handleChange} className="w-full bg-transparent outline-none" />
                         </div>
                     </div>
                     <div>
                         <label className="block text-gray-700 font-bold mb-2">Dirección</label>
                         <div className="flex items-center border rounded-lg p-2 bg-white focus-within:ring-2 focus-within:ring-blue-500">
                             <FaMapMarkerAlt className="text-gray-400 mr-2" />
-                            <input type="text" name="direccion" value={formData.direccion} onChange={handleChange} className="w-full bg-transparent outline-none" />
+                            {/* Se añadió || '' por seguridad */}
+                            <input type="text" name="direccion" value={formData.direccion || ''} onChange={handleChange} className="w-full bg-transparent outline-none" />
                         </div>
                     </div>
                     
                     <div>
                         <label className="block text-gray-700 font-bold mb-2">Fecha Nacimiento</label>
-                        <input type="date" name="fecha_nacimiento" value={formData.fecha_nacimiento} onChange={handleChange} required className="w-full border rounded-lg p-3 outline-none focus:ring-2 focus:ring-blue-500" />
+                        {/* Se añadió || '' por seguridad */}
+                        <input type="date" name="fecha_nacimiento" value={formData.fecha_nacimiento || ''} onChange={handleChange} required className="w-full border rounded-lg p-3 outline-none focus:ring-2 focus:ring-blue-500" />
                     </div>
                     <div>
                         <label className="block text-gray-700 font-bold mb-2">Género</label>
-                         <select name="genero" value={formData.genero} onChange={handleChange} className="w-full border rounded-lg p-3 outline-none focus:ring-2 focus:ring-blue-500">
+                         {/* Se añadió || 'M' por seguridad */}
+                         <select name="genero" value={formData.genero || 'M'} onChange={handleChange} className="w-full border rounded-lg p-3 outline-none focus:ring-2 focus:ring-blue-500">
                             <option value="M">Masculino</option>
                             <option value="F">Femenino</option>
                             <option value="O">Otro</option>

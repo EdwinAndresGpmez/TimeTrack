@@ -1,5 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { FaPlus, FaLock, FaHistory, FaUser, FaRegCopy, FaPaste, FaTrash, FaBan, FaPencilAlt, FaClock } from 'react-icons/fa';
+import { 
+    FaPlus, FaLock, FaHistory, FaUser, FaRegCopy, FaPaste, 
+    FaBan, FaCogs 
+} from 'react-icons/fa';
 import Swal from 'sweetalert2';
 
 const GrillaSemanal = ({ 
@@ -7,9 +10,12 @@ const GrillaSemanal = ({
     agendasCombinadas = {}, 
     servicios, 
     duracionDefecto, 
+    horaInicioGrid = 6,
+    horaFinGrid = 20,
     onCrearTurno, 
     onGestionarTurno,
-    onAgendarCita, // <-- NUEVO: Para agendar express
+    onAgendarCita, 
+    onBloquearSlotRapido,
     calendarView, 
     fechaReferencia,
     setCalendarView,
@@ -25,7 +31,7 @@ const GrillaSemanal = ({
 
     useEffect(() => {
         const handleResize = () => {
-            if (window.innerWidth < 768 && calendarView === 'week') {
+            if (window.innerWidth < 768 && (calendarView === 'week' || calendarView === 'month')) {
                 if(setCalendarView) setCalendarView('day');
             }
         };
@@ -41,7 +47,9 @@ const GrillaSemanal = ({
         };
     }, [calendarView, setCalendarView, contextMenu]);
 
-    const HORAS = Array.from({ length: 15 }, (_, i) => i + 6); // 6:00 a 20:00
+    const startHour = Math.max(0, Math.min(23, horaInicioGrid));
+    const endHour = Math.max(1, Math.min(24, horaFinGrid));
+    const HORAS = Array.from({ length: endHour - startHour }, (_, i) => i + startHour);
 
     const getDiasColumna = () => {
         const dias = [];
@@ -59,6 +67,16 @@ const GrillaSemanal = ({
             for (let i = 0; i < 7; i++) {
                 const d = new Date(lunes);
                 d.setDate(lunes.getDate() + i);
+                d.setHours(0, 0, 0, 0);
+                dias.push(d);
+            }
+        }
+        else if (calendarView === 'month') {
+            const year = current.getFullYear();
+            const month = current.getMonth();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            for (let i = 1; i <= daysInMonth; i++) {
+                const d = new Date(year, month, i);
                 d.setHours(0, 0, 0, 0);
                 dias.push(d);
             }
@@ -104,16 +122,44 @@ const GrillaSemanal = ({
         setContextMenu({ visible: true, x: e.pageX, y: e.pageY, data: { slot: slotData, fecha: fechaStr } });
     };
 
-    const ejecutarAccionRapida = (accion) => {
+    const ejecutarAccionRapida = async (accion) => {
         if (!contextMenu.data) return;
         const { slot, fecha } = contextMenu.data;
-        if (accion === 'EDITAR' || accion === 'ELIMINAR') {
-            onGestionarTurno(slot.turno, fecha);
-        } else if (accion === 'BLOQUEAR') {
-            window.gestionarSlot && window.gestionarSlot('BLOQUEAR', slot.inicio, slot.turno.hora_fin.slice(0,5), null); 
-            onGestionarTurno(slot.turno, fecha);
-        }
+        
         setContextMenu({ ...contextMenu, visible: false });
+
+        if (accion === 'AGENDAR' && onAgendarCita) {
+            onAgendarCita(slot, fecha);
+        } 
+        else if (accion === 'CONFIGURAR') {
+            onGestionarTurno(slot.turno, fecha);
+        } 
+        else if (accion === 'BLOQUEAR') {
+            const { value: motivo } = await Swal.fire({
+                title: 'Bloquear Espacio Rápido',
+                input: 'text',
+                inputPlaceholder: 'Ej: Almuerzo, Reunión, Permiso...',
+                showCancelButton: true,
+                confirmButtonText: 'Bloquear',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#ea580c'
+            });
+
+            if (motivo !== undefined && onBloquearSlotRapido) {
+                const [h, m] = slot.inicio.split(':').map(Number);
+                const end = new Date();
+                end.setHours(h, m + slot.duracion, 0);
+                const finStr = `${end.getHours().toString().padStart(2,'0')}:${end.getMinutes().toString().padStart(2,'0')}`;
+                
+                onBloquearSlotRapido({
+                    profId: slot.profId,
+                    fecha: fecha,
+                    inicio: slot.inicio,
+                    fin: finStr,
+                    motivo: motivo || 'Bloqueo manual'
+                });
+            }
+        }
     };
 
     const renderCeldaTiempo = (fechaColumna, hora, colIndex) => {
@@ -168,21 +214,18 @@ const GrillaSemanal = ({
                     slotStart.setHours(hora, minActual, 0, 0);
                     
                     const slotEnd = new Date(slotStart);
-                    slotEnd.setMinutes(slotEnd.getMinutes() + duracionReal); // Solo evaluamos ocupación en el tiempo de cita
+                    slotEnd.setMinutes(slotEnd.getMinutes() + duracionReal); 
 
-                    // 1. Verificar Bloqueos
                     const bloqueoEncontrado = agendaProf.bloqueos?.find(b => {
                         const bStart = new Date(b.fecha_inicio);
                         const bEnd = new Date(b.fecha_fin);
                         return slotStart >= bStart && slotStart < bEnd;
                     });
 
-                    // 2. Verificar Citas (NUEVO: HU05 y HU01)
                     const citaEncontrada = agendaProf.citas?.find(c => {
                         if (c.fecha !== fechaColumnaStr || ['CANCELADA', 'RECHAZADA'].includes(c.estado)) return false;
                         const cStart = new Date(`${fechaColumnaStr}T${c.hora_inicio}`);
                         const cEnd = new Date(`${fechaColumnaStr}T${c.hora_fin}`);
-                        // Hay colisión si (A_Start < B_End) Y (A_End > B_Start)
                         return (slotStart < cEnd && slotEnd > cStart);
                     });
 
@@ -250,48 +293,53 @@ const GrillaSemanal = ({
                     let containerStyle = "";
                     let iconoEstado = null;
                     let tooltipText = "";
+                    let bgColorClass = "";
+                    let textColorClass = "";
+                    let borderColorClass = "";
 
-                    // APLICACIÓN ESTRICTA DE COLORES - HU05
+                    // CORRECCIÓN: ASIGNACIÓN DINÁMICA DE COLORES
+                    // Extraemos las clases base del color del profesional (ej: "bg-blue-100 text-blue-800 border-blue-300")
+                    if (slot.profColor) {
+                        const parts = slot.profColor.clase.split(' ');
+                        bgColorClass = parts[0] || 'bg-gray-50';
+                        textColorClass = parts[1] || 'text-gray-700';
+                        borderColorClass = parts[2] || 'border-gray-200';
+                    }
+
                     if (slot.isBloqueado) {
-                        // ROJO: Bloqueado
+                        // Bloqueo: Mantenemos el rojo universal de advertencia
                         containerStyle = "bg-red-50 border-l-[3px] border-red-500 text-red-700 cursor-not-allowed";
                         iconoEstado = <FaLock size={8}/>;
                         tooltipText = `Bloqueado: ${slot.motivoBloqueo}`;
                     } else if (slot.isPasado) {
-                        // GRIS: Pasado
+                        // Pasado: Gris desvanecido
                         containerStyle = "bg-gray-100 border-l-[3px] border-gray-400 text-gray-400 opacity-60 grayscale cursor-not-allowed";
                         iconoEstado = <FaHistory size={8}/>;
                         tooltipText = "Horario finalizado";
                     } else if (slot.isAgendado) {
-                        // COLOR DEL MÉDICO: Ocupado por paciente
-                        let bgClass = slot.profColor?.clase.split(' ')[0] || 'bg-blue-50'; 
-                        let borderClass = slot.profColor?.clase.split(' ')[2] || 'border-blue-300';
-                        let textClass = slot.profColor?.clase.split(' ')[1] || 'text-blue-700';
-                        containerStyle = `${bgClass} border-l-[3px] ${borderClass} ${textClass} hover:brightness-95 hover:shadow-md`;
+                        // Agendado (Ocupado): Color FUERTE del profesional
+                        containerStyle = `${bgColorClass} border-l-[3px] ${borderColorClass} ${textColorClass} shadow-sm`;
                         iconoEstado = <FaUser size={8}/>;
-                        tooltipText = `Cita ocupada - ${slot.cita?.paciente_nombre || 'Paciente'}`;
+                        tooltipText = `Cita ocupada - ${slot.cita?.paciente_nombre || 'Paciente'} (Dr. ${slot.profNombre})`;
                     } else {
-                        // VERDE: Disponible para Agendar (Express)
-                        containerStyle = "bg-green-50 border-l-[3px] border-green-500 text-green-700 hover:bg-green-100 hover:shadow-md";
+                        // Libre: Fondo blanco, pero borde y texto con el color del profesional para distinguirlo suavemente
+                        const textOnlyClass = textColorClass.replace('text-', 'text-opacity-70 text-'); // Un poco más claro
+                        containerStyle = `bg-white border-l-[3px] ${borderColorClass} ${textOnlyClass} hover:${bgColorClass} hover:shadow-sm`;
                         iconoEstado = <FaPlus size={8} className="opacity-50"/>;
-                        tooltipText = `Disponible para ${slot.servicioNombre} (${slot.duracion}m + ${slot.buffer}m buffer)`;
+                        tooltipText = `Disponible para ${slot.servicioNombre} - Dr. ${slot.profNombre}`;
                     }
 
                     return (
                         <div 
                             key={`${slot.profId}-${idx}`}
                             className={`flex-1 rounded-sm text-[10px] px-1.5 py-0.5 flex flex-col justify-center transition-all overflow-hidden min-h-[32px] relative group ${containerStyle}`}
-                            
-                            // NUEVO: LÓGICA DE CLIC CORREGIDA (HU01 vs HU04)
                             onClick={(e) => { 
                                 e.stopPropagation(); 
                                 if (slot.isAgendado) {
-                                    Swal.fire('Espacio Ocupado', `Este horario ya fue reservado.`, 'info');
+                                    Swal.fire('Espacio Ocupado', `Paciente: ${slot.cita?.paciente_nombre || 'Desconocido'}\nMédico: ${slot.profNombre}`, 'info');
                                 } else if (!slot.isBloqueado && !slot.isPasado && onAgendarCita) {
-                                    // CLIC IZQUIERDO EN VERDE: Agendamiento Express
                                     onAgendarCita(slot, fechaColumnaStr); 
                                 } else {
-                                    // CLIC EN ROJO/PASADO: Abre la gestión para poder DESBLOQUEAR o VER
                                     onGestionarTurno(slot.turno, fechaColumnaStr);
                                 }
                             }}
@@ -300,12 +348,20 @@ const GrillaSemanal = ({
                         >
                             <div className="flex items-center justify-between w-full leading-tight">
                                 <span className="font-mono font-bold">{slot.inicio}</span>
-                                {iconoEstado}
+                                <div className="flex items-center gap-1">
+                                    {/* Mostrar primera palabra del nombre del Dr. si hay más de 1 médico seleccionado */}
+                                    {selectedProfs.length > 1 && (
+                                        <span className="text-[8px] opacity-70 uppercase tracking-tighter truncate max-w-[40px]">
+                                            {slot.profNombre.split(' ')[0]}
+                                        </span>
+                                    )}
+                                    {iconoEstado}
+                                </div>
                             </div>
                             
                             {!slot.isBloqueado && !slot.isPasado && (
                                 <div className="flex items-center gap-1 mt-0.5">
-                                    <span className="truncate font-medium w-full">
+                                    <span className="truncate font-medium w-full text-[9px] leading-none">
                                         {slot.isAgendado ? slot.cita?.paciente_nombre : slot.servicioNombre}
                                     </span>
                                 </div>
@@ -326,31 +382,45 @@ const GrillaSemanal = ({
     
     const diasColumna = getDiasColumna();
     
+    let gridWidthClass = 'w-full';
+    if (calendarView === 'week') gridWidthClass = 'min-w-[800px] md:min-w-full';
+    if (calendarView === 'month') gridWidthClass = 'min-w-[2500px]'; 
+
     return (
         <div className="h-full overflow-auto bg-white relative scrollbar-thin w-full" onMouseLeave={() => { isDragging.current = false; setDragSelection(null); }}>
             
-            {contextMenu.visible && (
+            {/* MENÚ CONTEXTUAL */}
+            {contextMenu.visible && contextMenu.data && (
                 <div 
-                    className="fixed z-[9999] bg-white rounded-lg shadow-xl border border-gray-200 w-48 py-1 animate-fadeIn"
+                    className="fixed z-[9999] bg-white rounded-lg shadow-xl border border-gray-200 w-56 py-1 animate-fadeIn"
                     style={{ top: contextMenu.y, left: contextMenu.x }}
                 >
-                    <div className="px-3 py-2 border-b bg-gray-50 text-xs font-bold text-gray-600">
-                        Configurar Horario Base
+                    <div className="px-3 py-2 border-b bg-gray-50 text-xs font-bold text-gray-600 truncate flex flex-col">
+                        <span>{contextMenu.data.fecha}</span>
+                        <span className="text-blue-600 font-mono text-[10px]">{contextMenu.data.slot.inicio} - Dr. {contextMenu.data.slot.profNombre}</span>
                     </div>
-                    <button onClick={() => ejecutarAccionRapida('EDITAR')} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2">
-                        <FaPencilAlt size={12}/> Gestionar Bloques
-                    </button>
-                    <button onClick={() => ejecutarAccionRapida('BLOQUEAR')} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-600 flex items-center gap-2">
-                        <FaBan size={12}/> Bloquear Rápido
-                    </button>
+                    
+                    {!contextMenu.data.slot.isAgendado && !contextMenu.data.slot.isBloqueado && !contextMenu.data.slot.isPasado && (
+                        <button onClick={() => ejecutarAccionRapida('AGENDAR')} className="w-full text-left px-4 py-2 text-sm text-green-700 hover:bg-green-50 flex items-center gap-2 font-bold">
+                            <FaPlus size={12}/> Agendar Paciente Aquí
+                        </button>
+                    )}
+
+                    {!contextMenu.data.slot.isBloqueado && !contextMenu.data.slot.isPasado && (
+                        <button onClick={() => ejecutarAccionRapida('BLOQUEAR')} className="w-full text-left px-4 py-2 text-sm text-orange-600 hover:bg-orange-50 flex items-center gap-2 font-bold">
+                            <FaBan size={12}/> Bloquear este espacio
+                        </button>
+                    )}
+
                     <div className="border-t my-1"></div>
-                    <button onClick={() => ejecutarAccionRapida('ELIMINAR')} className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 font-bold">
-                        <FaTrash size={12}/> Eliminar Horario Base
+
+                    <button onClick={() => ejecutarAccionRapida('CONFIGURAR')} className="w-full text-left px-4 py-2 text-sm text-blue-700 hover:bg-blue-50 flex items-center gap-2 font-bold">
+                        <FaCogs size={12}/> Configurar Serie Completa
                     </button>
                 </div>
             )}
 
-            <div className={`${calendarView === 'week' ? 'min-w-[800px] md:min-w-full' : 'w-full'} h-full flex flex-col`}>
+            <div className={`${gridWidthClass} h-full flex flex-col`}>
                 <div className="flex border-b bg-gray-50 sticky top-0 z-20 shadow-sm">
                     <div className="w-14 flex-shrink-0 p-2 text-center text-gray-500 text-[10px] border-r bg-white flex items-center justify-center font-bold">HORA</div>
                     {diasColumna.map((fecha, i) => {

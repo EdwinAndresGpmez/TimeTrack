@@ -151,4 +151,20 @@ export const authService = {
         const response = await api.patch('/users/admin/branding/', data);
         return response.data;
     },
+
+    getRedFamiliar: async (id) => {
+        const response = await api.get(`/users/admin/users/${id}/red_familiar/`);
+        return response.data;
+    },
+
+    getMiRedFamiliar: async () => {
+        const response = await api.get('/users/me/red/');
+        return response.data;
+    },
+
+    updateRedFamiliar: async (id, dependientesIds) => {
+        const response = await api.post(`/users/admin/users/${id}/red_familiar/`, { dependientes: dependientesIds });
+        return response.data;
+    },
+    
 };

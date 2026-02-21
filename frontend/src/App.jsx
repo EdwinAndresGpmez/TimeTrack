@@ -2,10 +2,15 @@ import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 
-// Importaciones de Páginas
+// Importaciones de Páginas Públicas
 import Home from './pages/portal/Home';
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
+// ---> 1. IMPORTAR LAS NUEVAS PÁGINAS AQUÍ <---
+import PQRS from './pages/portal/PQRS'; // Ajusta la ruta si están en otra carpeta
+import TrabajeConNosotros from './pages/portal/TrabajeConNosotros'; // Ajusta la ruta si están en otra carpeta
+
+// Importaciones de Páginas Privadas
 import PrivateRoute from './components/auth/PrivateRoute';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import DashboardLayout from './components/system/DashboardLayout';
@@ -34,6 +39,10 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           
+          {/* ---> 2. AGREGAR LAS RUTAS PÚBLICAS AQUÍ <--- */}
+          <Route path="/pqrs" element={<PQRS />} />
+          <Route path="/trabaje-con-nosotros" element={<TrabajeConNosotros />} />
+          
           {/* --- RUTAS PRIVADAS BASE --- */}
           <Route element={<PrivateRoute />}>
              
@@ -45,7 +54,6 @@ function App() {
                  <Route path="/dashboard/perfil" element={<Perfil />} />
                  
                  {/* --- MÓDULOS DE PACIENTE --- */}
-                 {/* AHORA SÍ TIENEN CANDADO: Solo entra quien tenga el permiso 'acceso_mis_citas' */}
                  <Route path="/dashboard/citas" element={
                     <ProtectedRoute requiredPermission="acceso_mis_citas">
                         <MisCitas />
@@ -59,7 +67,6 @@ function App() {
                  } />
 
                  {/* --- ZONA ADMINISTRATIVA --- */}
-                 
                  <Route path="/dashboard/admin/configuracion" element={
                     <ProtectedRoute requiredPermission="config_sistema">
                         <ConfiguracionSistema />

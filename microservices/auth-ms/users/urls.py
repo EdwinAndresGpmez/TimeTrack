@@ -12,7 +12,8 @@ from .views import (
     MenuItemAdminViewSet,
     PermisoVistaAdminViewSet,
     GroupViewSet,
-    SidebarBrandingView
+    SidebarBrandingView,
+    MiRedFamiliarView
 )
 
 # Configuración del Router para el ViewSet de Admin
@@ -28,6 +29,7 @@ urlpatterns = [
     path("login/", CustomTokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("login/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     path("me/", UserDetailView.as_view(), name="user_me"),
+    path("me/red/", MiRedFamiliarView.as_view(), name="user_family_network"),
     path("menu/", DynamicMenuView.as_view(), name="dynamic_menu"),
     path("me/permisos/", MisPermisosView.as_view(), name="user_permissions"),
     path("admin/branding/", SidebarBrandingView.as_view(), name="admin_branding"),

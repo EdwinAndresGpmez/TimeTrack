@@ -4,10 +4,13 @@ import { patientService } from '../../services/patientService';
 import Swal from 'sweetalert2';
 import { 
     FaEdit, FaKey, FaUserShield, FaSearch, FaChevronLeft, FaChevronRight, 
-    FaFilter, FaStethoscope, FaEnvelope, FaPhone, FaIdCard, FaPen 
+    FaFilter, FaStethoscope, FaEnvelope, FaPhone, FaIdCard, FaPen, 
+    FaUsers, FaSitemap, FaTimes 
 } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
-import { FaUsers } from 'react-icons/fa';
+
+// IMPORTACIÓN DEL NUEVO COMPONENTE
+import MapaFamiliar from './MapaFamiliar'; 
 
 const AdminUsuarios = () => {
     // --- ESTADOS DE DATOS ---
@@ -35,6 +38,10 @@ const AdminUsuarios = () => {
     const [formData, setFormData] = useState({
         nombre: '', email: '', tipo_documento: 'CC', documento: '', numero: ''
     });
+
+    // --- NUEVO: MODAL RED FAMILIAR ---
+    const [isFamilyModalOpen, setIsFamilyModalOpen] = useState(false);
+    const [familyTargetUser, setFamilyTargetUser] = useState(null);
 
     // 1. CARGA INICIAL
     useEffect(() => {
@@ -66,32 +73,31 @@ const AdminUsuarios = () => {
         setCurrentPage(1); 
     }, [users, searchTerm, filterRole]);
 
-    // HELPER: Detectar Rol (Insensible a mayúsculas)
     const hasRole = (user, roleName) => {
         if (!user || !user.groups) return false;
-        return user.groups.some(g => g.toLowerCase() === roleName.toLowerCase());
+        return user.groups.some(g => {
+            const gName = typeof g === 'object' ? g.name : g;
+            return gName.toLowerCase() === roleName.toLowerCase();
+        });
     };
 
     // 3. CARGA DE DATOS COMPLETA
     const cargarDatos = async () => {
         try {
             setLoading(true);
-            
-            // Ejecutamos todas las peticiones en paralelo
             const [usersData, gruposData, tiposData, pacientesData] = await Promise.all([
                 authService.getAllUsers(),
                 authService.getGroups(),
                 patientService.getTiposPaciente(),
-                patientService.getAll() // Traemos TODOS los pacientes para mapearlos
+                patientService.getAll() 
             ]);
 
-            // Creamos el mapa de pacientes para acceso instantáneo
             const map = {};
-            pacientesData.forEach(p => {
-                if (p.user_id) {
-                    map[p.user_id] = p;
-                }
-            });
+            if (Array.isArray(pacientesData)) {
+                pacientesData.forEach(p => { if (p.user_id) map[p.user_id] = p; });
+            } else if (pacientesData && pacientesData.results) {
+                 pacientesData.results.forEach(p => { if (p.user_id) map[p.user_id] = p; });
+            }
 
             setUsers(usersData);
             setFilteredUsers(usersData); 
@@ -108,10 +114,9 @@ const AdminUsuarios = () => {
     };
 
     // --- ACCIONES AUTH ---
-    
     const handleToggleActive = async (user) => {
         try {
-            await authService.adminUpdateUser(user.id, { is_active: !user.is_active });
+            await authService.updateUserAdmin(user.id, { is_active: !user.is_active });
             const updatedUsers = users.map(u => u.id === user.id ? { ...u, is_active: !u.is_active } : u);
             setUsers(updatedUsers);
             Swal.fire({
@@ -146,10 +151,16 @@ const AdminUsuarios = () => {
 
     const handleEditGroups = async (user) => {
         const groupsHtml = availableGroups.map(group => {
-            const checked = user.groups.includes(group) ? 'checked' : '';
+            const groupName = group.name || group;
+            const isChecked = user.groups.some(ug => {
+                const uName = typeof ug === 'object' ? ug.name : ug;
+                return uName === groupName;
+            });
+            const checked = isChecked ? 'checked' : '';
+
             return `<div style="text-align:left; margin-bottom:5px;">
-                <input type="checkbox" id="chk-${group}" value="${group}" ${checked}> 
-                <label for="chk-${group}" style="margin-left:8px;">${group}</label>
+                <input type="checkbox" id="chk-${groupName}" value="${groupName}" ${checked}> 
+                <label for="chk-${groupName}" style="margin-left:8px;">${groupName}</label>
             </div>`;
         }).join('');
 
@@ -157,14 +168,18 @@ const AdminUsuarios = () => {
             title: `Roles: ${user.nombre}`, html: groupsHtml, showCancelButton: true,
             preConfirm: () => {
                 const selected = [];
-                availableGroups.forEach(g => { if (document.getElementById(`chk-${g}`).checked) selected.push(g); });
+                availableGroups.forEach(g => { 
+                    const groupName = g.name || g;
+                    const el = document.getElementById(`chk-${groupName}`);
+                    if (el && el.checked) selected.push(groupName); 
+                });
                 return selected;
             }
         });
 
         if (formValues) {
             try {
-                await authService.adminUpdateUser(user.id, { groups: formValues });
+                await authService.updateUserAdmin(user.id, { groups: formValues });
                 const updatedUsers = users.map(u => u.id === user.id ? { ...u, groups: formValues } : u);
                 setUsers(updatedUsers);
                 Swal.fire('Roles actualizados', '', 'success');
@@ -175,26 +190,18 @@ const AdminUsuarios = () => {
         }
     };
 
-    // --- ACCIÓN: EDITAR CLASIFICACIÓN (Con actualización en tiempo real) ---
-
     const handleEditTipoPaciente = async (user) => {
         if (!hasRole(user, 'paciente')) return;
 
-        // 1. Obtenemos datos del mapa o fetch si no existe
         let perfil = patientsMap[user.id];
         
         if (!perfil) {
-            // Intento de fallback (por si se acaba de crear y no refrescamos)
-            try {
-                perfil = await patientService.getProfileByUserId(user.id);
-            } catch (e) { console.error(e); }
+            try { perfil = await patientService.getProfileByUserId(user.id); } 
+            catch (e) { console.error(e); }
         }
 
-        if (!perfil) {
-            return Swal.fire('Sin Ficha', 'El usuario es paciente pero no tiene ficha clínica asociada.', 'warning');
-        }
+        if (!perfil) return Swal.fire('Sin Ficha', 'El usuario es paciente pero no tiene ficha clínica asociada.', 'warning');
 
-        // 2. Preparar Select
         let currentTipoId = '';
         if (perfil.tipo_usuario) {
             currentTipoId = (typeof perfil.tipo_usuario === 'object') ? perfil.tipo_usuario.id : perfil.tipo_usuario;
@@ -204,7 +211,6 @@ const AdminUsuarios = () => {
             `<option value="${tipo.id}" ${parseInt(currentTipoId) === tipo.id ? 'selected' : ''}>${tipo.nombre}</option>`
         ).join('');
 
-        // 3. Modal
         const { value: nuevoTipoId } = await Swal.fire({
             title: `Clasificación: ${user.nombre}`,
             html: `
@@ -214,28 +220,21 @@ const AdminUsuarios = () => {
                     ${optionsHtml}
                 </select>
             `,
-            showCancelButton: true,
-            confirmButtonText: 'Guardar',
-            confirmButtonColor: '#0d9488',
+            showCancelButton: true, confirmButtonText: 'Guardar', confirmButtonColor: '#0d9488',
             preConfirm: () => document.getElementById('swal-tipo-paciente').value
         });
 
-        // 4. Guardar y Actualizar Estado Local
         if (nuevoTipoId !== undefined) {
             try {
                 Swal.showLoading();
                 const payload = { tipo_usuario: nuevoTipoId ? parseInt(nuevoTipoId) : null };
-                
-                // Actualizar BD
                 const updatedPatient = await patientService.update(perfil.id, payload);
                 
-                // Actualizar Estado Local (Para que la tabla cambie sin recargar)
                 setPatientsMap(prev => ({
                     ...prev,
                     [user.id]: {
                         ...prev[user.id],
                         tipo_usuario: updatedPatient.tipo_usuario,
-                        // Simulamos el nombre si viene solo el ID, o usamos el objeto si viene completo
                         tipo_usuario_nombre: tiposPaciente.find(t => t.id == payload.tipo_usuario)?.nombre || 'Particular'
                     }
                 }));
@@ -261,7 +260,7 @@ const AdminUsuarios = () => {
     const handleModalSubmit = async (e) => {
         e.preventDefault();
         try {
-            await authService.adminUpdateUser(editingUser.id, formData);
+            await authService.updateUserAdmin(editingUser.id, formData);
             const updatedUsers = users.map(u => u.id === editingUser.id ? { ...u, ...formData } : u);
             setUsers(updatedUsers);
             setIsModalOpen(false);
@@ -270,6 +269,12 @@ const AdminUsuarios = () => {
             console.error(error);
             Swal.fire('Error', 'Error guardando datos.', 'error'); 
         }
+    };
+
+    // --- GESTIÓN RED FAMILIAR ---
+    const openFamilyModal = (user) => {
+        setFamilyTargetUser(user);
+        setIsFamilyModalOpen(true);
     };
 
     // --- RENDER ---
@@ -281,19 +286,22 @@ const AdminUsuarios = () => {
     return (
         <div className="max-w-7xl mx-auto p-4">
             
-            {/* Header */}
+            {/* Header Actualizado */}
             <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-                <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-2">
-                    <FaUserShield className="text-blue-600"/> Gestión de Usuarios
-                </h1>
-                <div className="flex items-center gap-2">
-                    <Link to="/dashboard/admin/pacientes" className="inline-flex items-center gap-2 bg-gray-100 text-gray-700 px-3 py-2 rounded">
-                        <FaUsers /> Gestión de Pacientes
-                    </Link>
+                <div className="flex flex-col">
+                    <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-2">
+                        <FaUserShield className="text-blue-600"/> Gestión de Usuarios
+                    </h1>
+                    <div className="text-sm text-gray-500 mt-1">
+                        Total Registrados: <b>{filteredUsers.length}</b>
+                    </div>
                 </div>
-                <div className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
-                    Total: <b>{filteredUsers.length}</b>
-                </div>
+
+                {/* BOTÓN CON DISEÑO NUEVO */}
+                <Link to="/dashboard/admin/pacientes" className="group relative inline-flex items-center justify-center px-8 py-3 font-bold text-white transition-all duration-200 bg-teal-600 rounded-2xl hover:bg-teal-700 shadow-xl active:scale-95">
+                    <FaUsers className="mr-3 text-xl group-hover:scale-110 transition-transform" />
+                    <span className="text-lg">Gestión de Pacientes</span>
+                </Link>
             </div>
 
             {/* Filtros */}
@@ -307,7 +315,15 @@ const AdminUsuarios = () => {
                     <select className="w-full border rounded-lg p-2 bg-white focus:ring-2 focus:ring-blue-500 outline-none"
                         value={filterRole} onChange={(e) => setFilterRole(e.target.value)}>
                         <option value="todos">Todos los Roles</option>
-                        {availableGroups.map(g => (<option key={g} value={g}>{g}</option>))}
+                        {availableGroups.map((g, index) => {
+                            const groupName = g.name || g;
+                            const groupId = g.id || groupName;
+                            return (
+                                <option key={groupId} value={groupName}>
+                                    {groupName}
+                                </option>
+                            );
+                        })}
                         <option value="sin_rol">Sin Roles</option>
                     </select>
                 </div>
@@ -332,7 +348,6 @@ const AdminUsuarios = () => {
                             ) : currentUsers.map(u => (
                                 <tr key={u.id} className="hover:bg-blue-50 transition duration-150 group">
                                     
-                                    {/* 1. INFORMACIÓN ENRIQUECIDA */}
                                     <td className="px-6 py-4">
                                         <div className="flex items-start gap-3">
                                             <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold text-lg shadow-sm">
@@ -350,37 +365,29 @@ const AdminUsuarios = () => {
                                                     <FaEnvelope className="text-gray-400" />
                                                     <span className="truncate max-w-[150px]" title={u.email}>{u.email}</span>
                                                 </div>
-
-                                                {u.numero && (
-                                                    <div className="flex items-center gap-2 text-xs text-gray-500">
-                                                        <FaPhone className="text-gray-400" />
-                                                        <span>{u.numero}</span>
-                                                    </div>
-                                                )}
                                             </div>
                                         </div>
                                     </td>
 
-                                    {/* 2. ROLES */}
                                     <td className="px-6 py-4">
                                         <div className="flex flex-wrap gap-2 cursor-pointer" onClick={() => handleEditGroups(u)}>
-                                            {u.groups.length > 0 ? u.groups.map(g => (
-                                                <span key={g} className={`px-2 py-1 rounded-md text-xs font-bold border ${
-                                                    g.toLowerCase() === 'admin' ? 'bg-purple-50 text-purple-700 border-purple-200' :
-                                                    g.toLowerCase() === 'paciente' ? 'bg-green-50 text-green-700 border-green-200' :
+                                            {u.groups.length > 0 ? u.groups.map((g, idx) => {
+                                                const gName = typeof g === 'object' ? g.name : g;
+                                                return (
+                                                <span key={idx} className={`px-2 py-1 rounded-md text-xs font-bold border ${
+                                                    gName.toLowerCase() === 'admin' ? 'bg-purple-50 text-purple-700 border-purple-200' :
+                                                    gName.toLowerCase() === 'paciente' ? 'bg-green-50 text-green-700 border-green-200' :
                                                     'bg-blue-50 text-blue-700 border-blue-200'
                                                 }`}>
-                                                    {g}
+                                                    {gName}
                                                 </span>
-                                            )) : <span className="text-xs text-gray-400 italic border border-dashed border-gray-300 px-2 py-1 rounded">+ Asignar</span>}
+                                            )}) : <span className="text-xs text-gray-400 italic border border-dashed border-gray-300 px-2 py-1 rounded">+ Asignar</span>}
                                         </div>
                                     </td>
 
-                                    {/* 3. CLASIFICACIÓN VISIBLE */}
                                     <td className="px-6 py-4 text-center align-middle">
                                         {hasRole(u, 'paciente') ? (
                                             <div className="flex flex-col items-center gap-1">
-                                                {/* Badge con el nombre real traído del mapa */}
                                                 <span className={`px-3 py-1 rounded-full text-xs font-bold shadow-sm border ${
                                                     patientsMap[u.id]?.tipo_usuario_nombre 
                                                         ? 'bg-teal-100 text-teal-800 border-teal-200' 
@@ -389,7 +396,6 @@ const AdminUsuarios = () => {
                                                     {patientsMap[u.id]?.tipo_usuario_nombre || 'Particular / Sin Clasificar'}
                                                 </span>
 
-                                                {/* Botón discreto para editar */}
                                                 <button 
                                                     onClick={() => handleEditTipoPaciente(u)}
                                                     className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1 mt-1 opacity-0 group-hover:opacity-100 transition-opacity"
@@ -402,20 +408,32 @@ const AdminUsuarios = () => {
                                         )}
                                     </td>
 
-                                    {/* 4. ESTADO */}
                                     <td className="px-6 py-4 text-center">
                                         <button onClick={() => handleToggleActive(u)} className={`relative inline-flex items-center h-6 rounded-full w-11 transition-all focus:outline-none ${u.is_active ? 'bg-green-500' : 'bg-gray-300'}`}>
                                             <span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform shadow-sm ${u.is_active ? 'translate-x-6' : 'translate-x-1'}`} />
                                         </button>
                                     </td>
 
-                                    {/* 5. ACCIONES */}
                                     <td className="px-6 py-4 text-center">
-                                        <div className="flex justify-center gap-3">
-                                            <button onClick={() => openEditModal(u)} className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors" title="Editar Info Básica">
+                                        <div className="flex justify-center gap-2 items-center">
+                                            {/* NUEVO BOTÓN: MAPA FAMILIAR */}
+                                            <button 
+                                                onClick={() => openFamilyModal(u)} 
+                                                className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-full transition-colors relative group/btn" 
+                                                title="Configurar Red Familiar / Delegados"
+                                            >
+                                                <FaSitemap size={16} />
+                                                <span className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover/btn:opacity-100 pointer-events-none whitespace-nowrap transition-opacity z-10">
+                                                    Red Familiar
+                                                </span>
+                                            </button>
+
+                                            <div className="w-px h-6 bg-gray-200 mx-1"></div>
+
+                                            <button onClick={() => openEditModal(u)} className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors" title="Editar Info Básica">
                                                 <FaEdit size={16} />
                                             </button>
-                                            <button onClick={() => handleChangePassword(u)} className="p-2 text-gray-500 hover:text-yellow-600 hover:bg-yellow-50 rounded-full transition-colors" title="Cambiar Contraseña">
+                                            <button onClick={() => handleChangePassword(u)} className="p-2 text-gray-400 hover:text-yellow-600 hover:bg-yellow-50 rounded-full transition-colors" title="Cambiar Contraseña">
                                                 <FaKey size={16} />
                                             </button>
                                         </div>
@@ -470,6 +488,36 @@ const AdminUsuarios = () => {
                                     <button type="button" onClick={() => setIsModalOpen(false)} className="bg-white border border-gray-300 text-gray-700 px-5 py-2 rounded-lg font-medium hover:bg-gray-50 transition-all">Cancelar</button>
                                 </div>
                             </form>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL RED FAMILIAR (CON EL LIENZO OFICIAL) */}
+            {isFamilyModalOpen && familyTargetUser && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/80 backdrop-blur-sm animate-fadeIn p-4">
+                    <div className="bg-white w-full max-w-5xl h-[85vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden relative">
+                        {/* Cabecera del Lienzo */}
+                        <div className="bg-gradient-to-r from-purple-800 to-indigo-900 p-4 shrink-0 flex justify-between items-center text-white">
+                            <div>
+                                <h2 className="text-xl font-black flex items-center gap-2">
+                                    <FaSitemap className="text-purple-300" /> Lienzo de Conexiones Familiares
+                                </h2>
+                                <p className="text-xs text-purple-200 mt-1 font-medium">
+                                    Configurando delegados para: <span className="font-bold text-white">{familyTargetUser.nombre}</span>
+                                </p>
+                            </div>
+                            <button 
+                                onClick={() => setIsFamilyModalOpen(false)} 
+                                className="bg-white/10 hover:bg-red-500 p-2 rounded-full transition-colors text-white"
+                            >
+                                <FaTimes size={20}/>
+                            </button>
+                        </div>
+                        
+                        {/* APLICACIÓN DEL MAPA FAMILIAR */}
+                        <div className="flex-1 relative overflow-hidden">
+                            <MapaFamiliar targetUser={familyTargetUser} onClose={() => setIsFamilyModalOpen(false)} />
                         </div>
                     </div>
                 </div>

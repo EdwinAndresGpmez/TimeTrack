@@ -1,42 +1,67 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useContext } from 'react';
 import { citasService } from '../../services/citasService';
 import { staffService } from '../../services/staffService'; 
+import { patientService } from '../../services/patientService'; 
+import { AuthContext } from '../../context/AuthContext'; 
 import { FaCalendarPlus, FaNotesMedical, FaTimesCircle, FaCheckCircle, FaMapMarkerAlt, FaUserMd, FaStethoscope } from 'react-icons/fa';
 import Swal from 'sweetalert2'; 
 import { Link } from 'react-router-dom';
 import DataUpdateEnforcer from '../../components/system/DataUpdateEnforcer'; 
 
 const MisCitas = () => {
-    // --- ESTADOS ---
+    const { user } = useContext(AuthContext); 
+
     const [citas, setCitas] = useState([]);
     const [servicios, setServicios] = useState([]);
     const [profesionales, setProfesionales] = useState([]);
     const [sedes, setSedes] = useState([]);
     const [loading, setLoading] = useState(true);
+    
+    const [pacienteId, setPacienteId] = useState(null); 
 
+    // CORRECCIÓN: Validar user.user_id (Formato JWT de Django) o user.id
     useEffect(() => {
-        cargarDatosCompletos();
-    }, []);
+        if (user && (user.user_id || user.id)) {
+            cargarDatosCompletos();
+        }
+    }, [user]);
 
-    // Carga Masiva de Datos
     const cargarDatosCompletos = async () => {
         setLoading(true);
         try {
-            const [dataCitas, dataServicios, dataProfesionales, dataSedes] = await Promise.all([
-                citasService.getAll(),
+            let currentPacienteId = null;
+            try {
+                const idParaBuscar = user.user_id || user.id; 
+                const perfil = await patientService.getProfileByUserId(idParaBuscar);
+                currentPacienteId = perfil.id;
+                setPacienteId(perfil.id);
+            } catch (e) {
+                console.warn("El usuario aún no tiene ficha de paciente creada.");
+            }
+
+            const promesas = [
                 staffService.getServicios(),
                 staffService.getProfesionales(),
                 staffService.getLugares()
-            ]);
+            ];
 
-            setCitas(dataCitas);
+            if (currentPacienteId) {
+                promesas.unshift(citasService.getAll({ paciente_id: currentPacienteId }));
+            } else {
+                promesas.unshift(Promise.resolve([])); 
+            }
+
+            const [dataCitas, dataServicios, dataProfesionales, dataSedes] = await Promise.all(promesas);
+
+            const citasList = Array.isArray(dataCitas) ? dataCitas : (dataCitas.results || []);
+
+            setCitas(citasList);
             setServicios(dataServicios);
             setProfesionales(dataProfesionales);
             setSedes(dataSedes);
 
         } catch (err) {
             console.error("Error cargando datos", err);
-            // Ignoramos error 404 si es usuario nuevo sin citas
             if (!err.response || err.response.status !== 404) {
                 Swal.fire('Error', 'No se pudo cargar el historial completo. Por favor, recarga la página.', 'error');
             }
@@ -45,7 +70,6 @@ const MisCitas = () => {
         }
     };
 
-    // --- HELPERS PARA OBTENER NOMBRES ---
     const getNombreServicio = (id) => {
         const item = servicios.find(s => s.id === id);
         return item ? item.nombre : 'Servicio General';
@@ -66,7 +90,6 @@ const MisCitas = () => {
         return item ? item.direccion : '';
     };
 
-    // --- LÓGICA DE CANCELACIÓN ---
     const handleCancelar = async (id) => {
         const result = await Swal.fire({
             title: '¿Estás seguro?',
@@ -83,53 +106,31 @@ const MisCitas = () => {
             try {
                 await citasService.cancel(id);
                 
-                await Swal.fire(
-                    '¡Cancelada!',
-                    'Tu cita ha sido cancelada exitosamente.',
-                    'success'
-                );
+                await Swal.fire('¡Cancelada!', 'Tu cita ha sido cancelada exitosamente.', 'success');
                 
-                // Recargar datos para refrescar la lista
-                const nuevasCitas = await citasService.getAll();
-                setCitas(nuevasCitas);
+                if (pacienteId) {
+                    const nuevasCitas = await citasService.getAll({ paciente_id: pacienteId });
+                    setCitas(Array.isArray(nuevasCitas) ? nuevasCitas : (nuevasCitas.results || []));
+                }
 
             } catch (error) {
                 console.error("Error al cancelar:", error);
-                
-                // --- EXTRACCIÓN DE MENSAJE DE ERROR ---
                 let mensajeUsuario = 'Ocurrió un error inesperado al cancelar. Intenta nuevamente.';
-                
                 if (error.response && error.response.data) {
                     const data = error.response.data;
-                    
-                    // Prioridad 1: Mensaje explícito 'detail' o 'detalle'
                     if (data.detalle) mensajeUsuario = data.detalle;
                     else if (data.detail) mensajeUsuario = data.detail;
-                    
-                    // Prioridad 2: Errores generales
-                    else if (data.non_field_errors && Array.isArray(data.non_field_errors)) {
-                        mensajeUsuario = data.non_field_errors[0];
-                    }
-                    
-                    // Prioridad 3: Objeto de errores { campo: ["Error"] }
+                    else if (data.non_field_errors && Array.isArray(data.non_field_errors)) mensajeUsuario = data.non_field_errors[0];
                     else if (typeof data === 'object') {
                         const mensajes = Object.values(data).flat();
-                        if (mensajes.length > 0) {
-                            mensajeUsuario = mensajes.join('. ');
-                        }
+                        if (mensajes.length > 0) mensajeUsuario = mensajes.join('. ');
                     }
                 }
-                
-                Swal.fire({
-                    icon: 'error',
-                    title: 'No se pudo cancelar',
-                    text: mensajeUsuario
-                });
+                Swal.fire({ icon: 'error', title: 'No se pudo cancelar', text: mensajeUsuario });
             }
         }
     };
 
-    // Badge de Estados
     const getStatusBadge = (estado) => {
         const config = {
             'PENDIENTE':  { color: 'bg-yellow-100 text-yellow-800 border-yellow-200', label: 'Pendiente' },
@@ -141,16 +142,11 @@ const MisCitas = () => {
             'NO_ASISTIO': { color: 'bg-orange-100 text-orange-800 border-orange-200', label: 'No Asistió' },
             'INASISTENCIA': { color: 'bg-orange-100 text-orange-800 border-orange-200', label: 'No Asistió' }
         };
-        
         const status = config[estado] || config['PENDIENTE'];
-
-        return (
-            <span className={`px-3 py-1 rounded-full text-xs font-bold border ${status.color}`}>
-                {status.label}
-            </span>
-        );
+        return <span className={`px-3 py-1 rounded-full text-xs font-bold border ${status.color}`}>{status.label}</span>;
     };
 
+    // Spinner de carga
     if (loading) return (
         <div className="flex flex-col items-center justify-center h-64 text-blue-600">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
@@ -160,7 +156,6 @@ const MisCitas = () => {
 
     return (
         <div className="max-w-7xl mx-auto p-4">
-            {/* 1. COMPONENTE VIGILANTE DE DATOS */}
             <DataUpdateEnforcer />
 
             <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">

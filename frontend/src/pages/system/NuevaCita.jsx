@@ -4,18 +4,15 @@ import { staffService } from '../../services/staffService';
 import { citasService } from '../../services/citasService';
 import { patientService } from '../../services/patientService';
 import { agendaService } from '../../services/agendaService';
+import { authService } from '../../services/authService'; // IMPORTANTE
 import { AuthContext } from '../../context/AuthContext';
 import Swal from 'sweetalert2';
 import { 
     FaStethoscope, FaUserMd, FaHospital, FaCalendarAlt, FaClock, 
-    FaCheckCircle, FaMagic, FaArrowRight, FaArrowLeft, FaChevronRight, FaChevronLeft, FaTimes
+    FaCheckCircle, FaMagic, FaArrowRight, FaArrowLeft, FaChevronRight, 
+    FaChevronLeft, FaTimes, FaUsers, FaUserCircle 
 } from 'react-icons/fa';
 
-/**
- * @param {Number} adminSelectedPatientId - Opcional. Si se provee, el wizard agendará para este paciente.
- * @param {Boolean} isAdminMode - Indica si el componente está siendo usado desde la administración.
- * @param {Object} preselectedSlot - Opcional. Datos del modo Express provenientes de la grilla.
- */
 const NuevaCita = ({ adminSelectedPatientId = null, isAdminMode = false, preselectedSlot = null }) => {
     const navigate = useNavigate();
     const { user } = useContext(AuthContext);
@@ -26,21 +23,20 @@ const NuevaCita = ({ adminSelectedPatientId = null, isAdminMode = false, presele
     const [sedes, setSedes] = useState([]); 
     
     // --- ESTADOS WIZARD ---
-    const [step, setStep] = useState(1);
-    const [selection, setSelection] = useState({
-        servicio: null,
-        profesional: null,
-        sede: null,
-        fecha: '',
-        hora: ''
-    });
+    const [step, setStep] = useState(0); 
+    const [selection, setSelection] = useState({ servicio: null, profesional: null, sede: null, fecha: '', hora: '' });
     
     // --- ESTADOS AUXILIARES ---
     const [slots, setSlots] = useState([]);
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
     const [loadingSlots, setLoadingSlots] = useState(false);
+    
     const [pacienteId, setPacienteId] = useState(null);
     const [perfilPaciente, setPerfilPaciente] = useState(null); 
+    
+    // Datos de la red familiar
+    const [dependientes, setDependientes] = useState([]);
+    const [titularPerfil, setTitularPerfil] = useState(null);
     
     const [fechaInicioCarrusel, setFechaInicioCarrusel] = useState(() => {
         const d = new Date();
@@ -48,7 +44,6 @@ const NuevaCita = ({ adminSelectedPatientId = null, isAdminMode = false, presele
         return d;
     });
 
-    // --- ESTADOS ASISTENTE INTELIGENTE ---
     const [showAssistant, setShowAssistant] = useState(false);
     const [suggestions, setSuggestions] = useState([]);
     const [assistantLoading, setAssistantLoading] = useState(false);
@@ -56,74 +51,114 @@ const NuevaCita = ({ adminSelectedPatientId = null, isAdminMode = false, presele
 
     useEffect(() => {
         const init = async () => {
+            setLoading(true);
             try {
-                let perfil;
-                if (adminSelectedPatientId) {
-                    perfil = await patientService.getPatientById(adminSelectedPatientId);
-                    setPacienteId(adminSelectedPatientId);
-                } else {
-                    perfil = await patientService.getMyProfile(user.user_id);
-                    setPacienteId(perfil.id);
-                }
-                
-                setPerfilPaciente(perfil);
+                const idActual = user.user_id || user.id;
+                let perfilPrincipal;
 
+                // 1. Obtener datos del paciente titular
+                if (adminSelectedPatientId) {
+                    perfilPrincipal = await patientService.getPatientById(adminSelectedPatientId);
+                } else {
+                    perfilPrincipal = await patientService.getMyProfile(idActual);
+                }
+                setTitularPerfil(perfilPrincipal);
+
+                // 2. CORRECCIÓN: Consultar Red Familiar en tiempo real para el paso 0
+                let dependientesLocales = [];
+                if (!isAdminMode && !adminSelectedPatientId) {
+                    try {
+                        // CAMBIO AQUÍ: Usamos la ruta "pública" /me/red/
+                        const dataRed = await authService.getMiRedFamiliar(); 
+                        dependientesLocales = dataRed || [];
+                        setDependientes(dependientesLocales);
+                    } catch (errRed) {
+                        console.error("Error consultando red familiar:", errRed);
+                    }
+                }
+                // 3. Decidir en qué paso iniciar
+                if (preselectedSlot) {
+                    // Si viene de la agenda, saltamos directo al final
+                    setPacienteId(perfilPrincipal.id);
+                    setPerfilPaciente(perfilPrincipal);
+                    setStep(preselectedSlot.servicioId ? 5 : 1);
+                } else if (dependientesLocales.length > 0 && !adminSelectedPatientId) {
+                    // SI TIENE FAMILIARES -> PASO 0
+                    setStep(0);
+                } else {
+                    // CASO NORMAL -> PASO 1
+                    setPacienteId(perfilPrincipal.id);
+                    setPerfilPaciente(perfilPrincipal);
+                    setStep(1);
+                }
+
+                // 4. Cargar catálogos iniciales
                 const [allServicios, allSedes, allProfesionales] = await Promise.all([
                     staffService.getServicios({ activo: true }),
                     staffService.getLugares({ activo: true }),
                     staffService.getProfesionales({ activo: true })
                 ]);
                 
-                const tipoId = perfil.tipo_usuario?.id || perfil.tipo_usuario;
-                let serviciosFiltrados = allServicios.filter(s => {
-                    const permitidos = s.tipos_paciente_ids?.map(Number) || [];
-                    return permitidos.length === 0 || (tipoId && permitidos.includes(Number(tipoId)));
-                });
+                setServicios(allServicios);
+                setSedes(allSedes); 
+                setProfesionales(allProfesionales);
 
-                // --- LÓGICA DE AUTOCOMPLETADO (MODO EXPRESS) ---
                 if (preselectedSlot) {
-                    // Usamos parseInt para evitar fallos comparando Strings vs Numbers
                     const servicioMatch = preselectedSlot.servicioId ? allServicios.find(s => parseInt(s.id) === parseInt(preselectedSlot.servicioId)) : null;
                     const profMatch = allProfesionales.find(p => parseInt(p.id) === parseInt(preselectedSlot.profId));
                     const sedeMatch = allSedes.find(s => parseInt(s.id) === parseInt(preselectedSlot.lugarId));
 
-                    // Si NO viene un servicio específico desde la grilla, filtramos la lista para que el admin solo
-                    // vea los servicios que ese médico seleccionado tiene habilitados.
-                    if (!servicioMatch && profMatch && profMatch.servicios_habilitados) {
-                        serviciosFiltrados = serviciosFiltrados.filter(s => profMatch.servicios_habilitados.includes(s.id));
-                    }
-
                     setSelection({
-                        servicio: servicioMatch, // Será null si era un slot "General"
+                        servicio: servicioMatch, 
                         profesional: profMatch || { id: preselectedSlot.profId, nombre: preselectedSlot.profNombre },
                         sede: sedeMatch || { id: preselectedSlot.lugarId, nombre: 'Sede no encontrada' },
                         fecha: preselectedSlot.fecha,
                         hora: preselectedSlot.inicio
                     });
-                    
-                    if (servicioMatch) {
-                        // Si la grilla SÍ tenía un servicio específico, saltamos directo a confirmar
-                        setStep(5);
-                    } else {
-                        // Si era un horario General, nos quedamos en el paso 1 para elegir servicio
-                        setStep(1);
-                    }
                 }
-
-                setServicios(serviciosFiltrados);
-                setSedes(allSedes); 
-                setProfesionales(allProfesionales);
 
             } catch (e) { 
                 console.error("Error inicializando NuevaCita:", e);
-                Swal.fire('Error', 'No se pudo cargar la información del paciente.', 'error');
+                Swal.fire('Error', 'No se pudo cargar la información para agendar.', 'error');
+            } finally {
+                setLoading(false);
             }
         };
         init();
-    }, [adminSelectedPatientId, user.user_id, preselectedSlot]);
+    }, [adminSelectedPatientId, user, preselectedSlot, isAdminMode]);
+
+    const seleccionarPaciente = async (esTitular, depData = null) => {
+        setLoading(true);
+        try {
+            let perfilSeleccionado;
+            if (esTitular) {
+                perfilSeleccionado = titularPerfil;
+            } else {
+                // Buscamos la ficha médica (Paciente) del dependiente usando su user_id
+                perfilSeleccionado = await patientService.getProfileByUserId(depData.id);
+            }
+
+            setPacienteId(perfilSeleccionado.id);
+            setPerfilPaciente(perfilSeleccionado);
+            
+            // Filtro de servicios por tipo de paciente
+            const tipoId = perfilSeleccionado.tipo_usuario?.id || perfilSeleccionado.tipo_usuario;
+            const allServicios = await staffService.getServicios({ activo: true });
+            let serviciosFiltrados = allServicios.filter(s => {
+                const permitidos = s.tipos_paciente_ids?.map(Number) || [];
+                return permitidos.length === 0 || (tipoId && permitidos.includes(Number(tipoId)));
+            });
+            setServicios(serviciosFiltrados);
+            
+            setStep(1); 
+        } catch (error) {
+            Swal.fire('Atención', 'El familiar seleccionado aún no tiene una ficha médica creada.', 'warning');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const fetchSlots = useCallback(async () => {
-        // En modo express no buscamos slots porque la hora ya viene lista
         if (preselectedSlot) return; 
 
         setLoadingSlots(true);
@@ -135,30 +170,36 @@ const NuevaCita = ({ adminSelectedPatientId = null, isAdminMode = false, presele
                 selection.servicio.duracion_minutos
             );
 
-            const [bloqueosData, citasDia] = await Promise.all([
+            const [bloqueosData, rawCitas] = await Promise.all([
                 agendaService.getBloqueos({ profesional_id: selection.profesional.id }),
-                citasService.getAll({ 
-                    profesional_id: selection.profesional.id, 
-                    fecha: selection.fecha,
-                    estado_ne: 'CANCELADA'
-                })
+                citasService.getAll({ profesional_id: selection.profesional.id, fecha: selection.fecha })
             ]);
 
+            const citasDia = Array.isArray(rawCitas) ? rawCitas : (rawCitas?.results || []);
             const ahoraMismo = new Date();
 
-            const slotsLimpios = slotsBase.filter(hora => {
-                const slotStart = new Date(`${selection.fecha}T${hora}`);
-                if (!isAdminMode && slotStart < ahoraMismo) return false;
+            const slotsLimpios = slotsBase
+                .filter(slot => {
+                    const h = typeof slot === 'object' ? slot.hora : slot;
+                    if (typeof slot === 'object' && slot.disponible === false) return false; 
 
-                const isBloqueado = bloqueosData.some(b => {
-                    const bStart = new Date(b.fecha_inicio);
-                    const bEnd = new Date(b.fecha_fin);
-                    return slotStart >= bStart && slotStart < bEnd;
-                });
-                
-                const isOcupado = citasDia.some(cita => cita.hora_inicio === hora);
-                return !isBloqueado && !isOcupado;
-            });
+                    const slotStart = new Date(`${selection.fecha}T${h}`);
+                    if (!isAdminMode && slotStart < ahoraMismo) return false;
+
+                    const isBloqueado = bloqueosData.some(b => {
+                        const bStart = new Date(b.fecha_inicio);
+                        const bEnd = new Date(b.fecha_fin);
+                        return slotStart >= bStart && slotStart < bEnd;
+                    });
+                    
+                    const isOcupado = citasDia.some(cita => {
+                        if (cita.estado === 'CANCELADA' || cita.estado === 'RECHAZADA') return false;
+                        return cita.hora_inicio.startsWith(h);
+                    });
+
+                    return !isBloqueado && !isOcupado;
+                })
+                .map(slot => typeof slot === 'object' ? slot.hora : slot); 
 
             setSlots(slotsLimpios);
         } catch (e) { 
@@ -174,7 +215,6 @@ const NuevaCita = ({ adminSelectedPatientId = null, isAdminMode = false, presele
         }
     }, [selection.fecha, selection.profesional, selection.sede, step, fetchSlots]);
 
-    // --- ASISTENTE MÁGICO ---
     const abrirAsistente = () => {
         if (!selection.servicio) return Swal.fire('Paso 1', 'Elige un servicio primero.', 'info');
         setShowAssistant(true);
@@ -188,9 +228,7 @@ const NuevaCita = ({ adminSelectedPatientId = null, isAdminMode = false, presele
         try {
             let profsDelServicio = profesionales;
             if (profsDelServicio.length === 0) {
-                profsDelServicio = await staffService.getProfesionales({ 
-                    servicios_habilitados: selection.servicio.id, activo: true 
-                });
+                profsDelServicio = await staffService.getProfesionales({ servicios_habilitados: selection.servicio.id, activo: true });
                 setProfesionales(profsDelServicio);
             }
 
@@ -210,16 +248,27 @@ const NuevaCita = ({ adminSelectedPatientId = null, isAdminMode = false, presele
                     const slotsBase = await agendaService.getSlots(prof.id, fechaStr, selection.servicio.duracion_minutos);
                     
                     if (slotsBase.length > 0) {
-                        const [bloqueosData, citasDia] = await Promise.all([
+                        const [bloqueosData, rawCitas] = await Promise.all([
                             agendaService.getBloqueos({ profesional_id: prof.id }),
-                            citasService.getAll({ profesional_id: prof.id, fecha: fechaStr, estado_ne: 'CANCELADA' })
+                            citasService.getAll({ profesional_id: prof.id, fecha: fechaStr })
                         ]);
 
-                        const slotLibre = slotsBase.find(hora => {
-                            const slotStart = new Date(`${fechaStr}T${hora}`);
+                        const citasDia = Array.isArray(rawCitas) ? rawCitas : (rawCitas?.results || []);
+
+                        const slotLibre = slotsBase.find(slot => {
+                            const h = typeof slot === 'object' ? slot.hora : slot;
+                            if (typeof slot === 'object' && slot.disponible === false) return false;
+
+                            const slotStart = new Date(`${fechaStr}T${h}`);
                             if (!isAdminMode && slotStart < ahoraMismo) return false;
+                            
                             const isBloqueado = bloqueosData.some(b => new Date(b.fecha_inicio) <= slotStart && new Date(b.fecha_fin) > slotStart);
-                            const isOcupado = citasDia.some(c => c.hora_inicio === hora);
+                            
+                            const isOcupado = citasDia.some(c => {
+                                if (c.estado === 'CANCELADA' || c.estado === 'RECHAZADA') return false;
+                                return c.hora_inicio.startsWith(h);
+                            });
+
                             return !isBloqueado && !isOcupado;
                         });
 
@@ -228,7 +277,7 @@ const NuevaCita = ({ adminSelectedPatientId = null, isAdminMode = false, presele
                                 profesional: prof,
                                 sede: sedes.find(s => s.id === prof.lugares_atencion[0]),
                                 fecha: fechaStr,
-                                hora: slotLibre
+                                hora: typeof slotLibre === 'object' ? slotLibre.hora : slotLibre
                             });
                         }
                     }
@@ -251,13 +300,7 @@ const NuevaCita = ({ adminSelectedPatientId = null, isAdminMode = false, presele
     };
 
     const seleccionarSugerencia = (sug) => {
-        setSelection(prev => ({ 
-            ...prev, 
-            profesional: sug.profesional,
-            sede: sug.sede,
-            fecha: sug.fecha,
-            hora: sug.hora
-        }));
+        setSelection(prev => ({ ...prev, profesional: sug.profesional, sede: sug.sede, fecha: sug.fecha, hora: sug.hora }));
         setShowAssistant(false);
         setStep(5);
     };
@@ -266,37 +309,33 @@ const NuevaCita = ({ adminSelectedPatientId = null, isAdminMode = false, presele
 
     const prevStep = () => {
         if (preselectedSlot) {
-            // Si vino preseleccionado y retrocedemos desde el paso 5 a elegir servicio (porque era general)
             if (step === 5 && !preselectedSlot.servicioId) {
                 setSelection({ ...selection, servicio: null });
                 setStep(1);
             } else {
-                // Cancelamos el flujo express completo
                 Swal.fire({
-                    title: '¿Cancelar modo Express?',
-                    text: "Volverás a la agenda de profesionales.",
-                    icon: 'warning',
-                    showCancelButton: true,
-                    confirmButtonText: 'Sí, volver',
-                    cancelButtonText: 'No'
+                    title: '¿Cancelar modo Express?', text: "Volverás a la agenda.", icon: 'warning',
+                    showCancelButton: true, confirmButtonText: 'Sí, volver', cancelButtonText: 'No'
                 }).then((result) => {
-                    if (result.isConfirmed) {
-                        navigate('/dashboard/admin/agenda');
-                    }
+                    if (result.isConfirmed) navigate('/dashboard/admin/agenda');
                 });
             }
         } else {
-            setStep(s => s - 1);
+            if (step === 1 && dependientes.length > 0 && !isAdminMode) {
+                setStep(0);
+                setPacienteId(null);
+                setPerfilPaciente(null);
+            } else {
+                setStep(s => s - 1);
+            }
         }
     };
 
     const selectServicio = async (srv) => {
         if (preselectedSlot) {
-            // MODO EXPRESS (Desde general): Asignamos servicio y brincamos al final
             setSelection({ ...selection, servicio: srv });
             setStep(5);
         } else {
-            // MODO NORMAL: Continuamos al paso 2 limpiando selecciones previas
             setSelection({ ...selection, servicio: srv, profesional: null, sede: null });
             const profs = await staffService.getProfesionales({ servicios_habilitados: srv.id, activo: true });
             setProfesionales(profs);
@@ -333,14 +372,10 @@ const NuevaCita = ({ adminSelectedPatientId = null, isAdminMode = false, presele
                 hora_inicio: selection.hora,
                 hora_fin: horaFinCalc,
                 is_admin_mode: isAdminMode, 
-                nota: adminSelectedPatientId 
-                    ? `Agendado por Administrador/Secretaría para: ${perfilPaciente?.nombre}`
-                    : 'Agendado vía Web Wizard'
+                nota: adminSelectedPatientId || perfilPaciente?.id !== titularPerfil?.id ? `Cita gestionada por delegado para: ${perfilPaciente?.nombre}` : 'Agendado vía Web'
             });
             await Swal.fire('¡Cita Confirmada!', 'La cita ha sido agendada con éxito.', 'success');
-            
             navigate(adminSelectedPatientId ? '/dashboard/admin/citas' : '/dashboard/citas');
-            
         } catch (error) {
             let mensajeError = 'No se pudo agendar la cita. Intente nuevamente.';
             if (error.response?.data) {
@@ -364,15 +399,56 @@ const NuevaCita = ({ adminSelectedPatientId = null, isAdminMode = false, presele
     };
 
     const moverCarrusel = (dias) => {
-        const nuevaFecha = new Date(fechaInicioCarrusel);
-        nuevaFecha.setDate(nuevaFecha.getDate() + dias);
         const hoy = new Date();
         hoy.setHours(0,0,0,0);
+        const nuevaFecha = new Date(fechaInicioCarrusel);
+        nuevaFecha.setDate(nuevaFecha.getDate() + dias);
         if (nuevaFecha < hoy) setFechaInicioCarrusel(hoy);
         else setFechaInicioCarrusel(nuevaFecha);
     };
 
     const esElInicio = fechaInicioCarrusel.getTime() === new Date().setHours(0,0,0,0);
+
+    const renderStep0 = () => (
+        <div className="animate-fadeIn max-w-3xl mx-auto text-center">
+            <div className="w-20 h-20 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center mx-auto mb-6">
+                <FaUsers size={36}/>
+            </div>
+            <h2 className="text-3xl font-black text-gray-800 mb-2">¿Para quién es la cita hoy?</h2>
+            <p className="text-gray-500 mb-8">Selecciona el paciente para el cual deseas agendar el espacio.</p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <button 
+                    onClick={() => seleccionarPaciente(true)}
+                    className="bg-white border-2 border-purple-200 hover:border-purple-500 hover:shadow-xl p-6 rounded-2xl flex items-center gap-4 transition-all group text-left"
+                >
+                    <div className="w-14 h-14 bg-purple-50 rounded-full flex items-center justify-center text-purple-600 group-hover:bg-purple-600 group-hover:text-white transition-colors">
+                        <FaUserCircle size={28}/>
+                    </div>
+                    <div>
+                        <h3 className="font-bold text-lg text-gray-800">Para Mí</h3>
+                        <p className="text-sm text-gray-500">{titularPerfil?.nombre}</p>
+                    </div>
+                </button>
+
+                {dependientes.map(dep => (
+                    <button 
+                        key={dep.id}
+                        onClick={() => seleccionarPaciente(false, dep)}
+                        className="bg-white border-2 border-indigo-100 hover:border-indigo-400 hover:shadow-xl p-6 rounded-2xl flex items-center gap-4 transition-all group text-left"
+                    >
+                        <div className="w-14 h-14 bg-indigo-50 rounded-full flex items-center justify-center text-indigo-500 group-hover:bg-indigo-500 group-hover:text-white transition-colors font-bold text-xl uppercase">
+                            {dep.nombre.charAt(0)}
+                        </div>
+                        <div className="overflow-hidden">
+                            <h3 className="font-bold text-lg text-gray-800 truncate" title={dep.nombre}>{dep.nombre}</h3>
+                            <p className="text-xs text-gray-500 font-mono">Doc: {dep.documento}</p>
+                        </div>
+                    </button>
+                ))}
+            </div>
+        </div>
+    );
 
     const renderStep1 = () => (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-fadeIn">
@@ -400,9 +476,7 @@ const NuevaCita = ({ adminSelectedPatientId = null, isAdminMode = false, presele
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {profesionales.map(p => (
                     <div key={p.id} onClick={() => selectProfesional(p)} className="flex items-center gap-4 bg-white p-4 rounded-xl border border-gray-200 hover:border-blue-500 hover:shadow-md cursor-pointer transition">
-                        <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center font-bold text-gray-500 text-lg">
-                            {p.nombre.charAt(0)}
-                        </div>
+                        <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center font-bold text-gray-500 text-lg uppercase">{p.nombre.charAt(0)}</div>
                         <div>
                             <h4 className="font-bold text-gray-800">{p.nombre}</h4>
                             <p className="text-xs text-gray-500">{p.registro_medico ? `RM: ${p.registro_medico}` : 'Profesional'}</p>
@@ -420,13 +494,8 @@ const NuevaCita = ({ adminSelectedPatientId = null, isAdminMode = false, presele
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-fadeIn">
                 {sedesMedico.length > 0 ? sedesMedico.map(s => (
                     <div key={s.id} onClick={() => selectSede(s)} className="bg-white p-6 rounded-xl border border-gray-200 hover:border-green-500 hover:shadow-md cursor-pointer transition flex items-center gap-4">
-                        <div className="bg-green-50 p-3 rounded-lg text-green-600">
-                            <FaHospital size={24}/>
-                        </div>
-                        <div>
-                            <h4 className="font-bold text-gray-800">{s.nombre}</h4>
-                            <p className="text-sm text-gray-500">{s.direccion}</p>
-                        </div>
+                        <div className="bg-green-50 p-3 rounded-lg text-green-600"><FaHospital size={24}/></div>
+                        <div><h4 className="font-bold text-gray-800">{s.nombre}</h4><p className="text-sm text-gray-500">{s.direccion}</p></div>
                     </div>
                 )) : <div className="col-span-2 text-center text-red-500 p-8">El médico no tiene sedes disponibles.</div>}
             </div>
@@ -485,14 +554,13 @@ const NuevaCita = ({ adminSelectedPatientId = null, isAdminMode = false, presele
             <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6"><FaCheckCircle size={40}/></div>
             <h2 className="text-2xl font-black text-gray-800 mb-2">¡Casi listo!</h2>
             <div className="bg-gray-50 p-6 rounded-2xl mb-8 text-left space-y-4 border border-gray-100">
-                {adminSelectedPatientId && <div className="flex justify-between items-center"><span className="text-gray-500 text-sm">Paciente</span><span className="font-bold text-indigo-600">{perfilPaciente?.nombre}</span></div>}
-                
-                {/* Agregado para que muestre el servicio correctamente si es express */}
                 <div className="flex justify-between items-center">
-                    <span className="text-gray-500 text-sm">Servicio</span>
-                    <span className="font-bold text-gray-800">{selection.servicio?.nombre || 'General / Mixto'}</span>
+                    <span className="text-gray-500 text-sm">Paciente</span>
+                    <span className="font-bold text-indigo-600 truncate max-w-[200px]" title={perfilPaciente?.nombre}>
+                        {perfilPaciente?.nombre} {perfilPaciente?.apellido}
+                    </span>
                 </div>
-                
+                <div className="flex justify-between items-center"><span className="text-gray-500 text-sm">Servicio</span><span className="font-bold text-gray-800">{selection.servicio?.nombre || 'General'}</span></div>
                 <div className="flex justify-between items-center"><span className="text-gray-500 text-sm">Profesional</span><span className="font-bold text-gray-800">{selection.profesional?.nombre}</span></div>
                 <div className="flex justify-between items-center"><span className="text-gray-500 text-sm">Sede</span><span className="font-bold text-gray-800 text-xs text-right max-w-[150px] truncate" title={selection.sede?.nombre}>{selection.sede?.nombre}</span></div>
                 <div className="h-px bg-gray-200 my-2"></div>
@@ -500,15 +568,21 @@ const NuevaCita = ({ adminSelectedPatientId = null, isAdminMode = false, presele
             </div>
             <button onClick={confirmCita} disabled={loading} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl font-bold shadow-lg transition disabled:opacity-50">{loading ? 'Confirmando...' : 'Confirmar Agendamiento'}</button>
             <button onClick={() => {
-                if(preselectedSlot) {
-                     navigate('/dashboard/admin/agenda'); // Si viene de express, volver a la agenda
-                } else {
-                     setSelection({ servicio: null, profesional: null, sede: null, fecha: '', hora: '' });
-                     setStep(1);
+                if(preselectedSlot) navigate('/dashboard/admin/agenda');
+                else { 
+                    setSelection({ servicio: null, profesional: null, sede: null, fecha: '', hora: '' }); 
+                    setStep(dependientes.length > 0 && !isAdminMode ? 0 : 1); 
                 }
             }} className="mt-4 text-gray-400 text-sm hover:text-gray-600 underline">
                 {preselectedSlot ? 'Cancelar y volver a la agenda' : 'Empezar de nuevo'}
             </button>
+        </div>
+    );
+
+    if (loading && step === 0) return (
+        <div className="flex flex-col items-center justify-center h-64 text-blue-600">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+            <span className="font-bold">Verificando red familiar...</span>
         </div>
     );
 
@@ -524,15 +598,17 @@ const NuevaCita = ({ adminSelectedPatientId = null, isAdminMode = false, presele
                 </div>
             )}
 
-            <div className="flex items-center justify-center mb-10 gap-2">
-                {[1,2,3,4,5].map(i => <div key={i} className={`h-1.5 rounded-full flex-1 transition-all duration-700 ${step >= i ? 'bg-blue-600' : 'bg-gray-200'}`}></div>)}
-            </div>
+            {step > 0 && (
+                <div className="flex items-center justify-center mb-10 gap-2">
+                    {[1,2,3,4,5].map(i => <div key={i} className={`h-1.5 rounded-full flex-1 transition-all duration-700 ${step >= i ? 'bg-blue-600' : 'bg-gray-200'}`}></div>)}
+                </div>
+            )}
 
-            {step < 5 && (
+            {step > 0 && step < 5 && (
                 <div className="flex justify-between items-center mb-8">
                     <div>
                         <h1 className="text-3xl font-black text-gray-800">
-                            {step === 1 && (preselectedSlot ? "Elige el Servicio para este horario" : "Elige tu Servicio")} 
+                            {step === 1 && "Elige tu Servicio"} 
                             {step === 2 && "Selecciona Especialista"} 
                             {step === 3 && "Selecciona Sede"} 
                             {step === 4 && "¿Cuándo te atendemos?"}
@@ -543,6 +619,7 @@ const NuevaCita = ({ adminSelectedPatientId = null, isAdminMode = false, presele
                 </div>
             )}
 
+            {step === 0 && renderStep0()}
             {step === 1 && renderStep1()}
             {step === 2 && renderStep2()}
             {step === 3 && renderStep3()}
@@ -553,20 +630,18 @@ const NuevaCita = ({ adminSelectedPatientId = null, isAdminMode = false, presele
                 <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
                     <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
                         <div className="bg-gradient-to-r from-purple-600 to-indigo-600 p-6 flex justify-between items-start text-white">
-                            <div><h3 className="text-xl font-bold flex items-center gap-2"><FaMagic className="text-yellow-300"/> Asistente Inteligente</h3><p className="text-purple-100 text-sm mt-1">Opciones disponibles para {perfilPaciente?.nombre}</p></div>
+                            <div><h3 className="text-xl font-bold flex items-center gap-2"><FaMagic className="text-yellow-300"/> Asistente Inteligente</h3><p className="text-purple-100 text-sm mt-1">Opciones para {perfilPaciente?.nombre}</p></div>
                             <button onClick={() => setShowAssistant(false)} className="text-white/80 hover:text-white hover:bg-white/20 p-2 rounded-full transition"><FaTimes size={20}/></button>
                         </div>
                         <div className="p-6 overflow-y-auto bg-gray-50 flex-1">
                             {assistantLoading && suggestions.length === 0 ? <div className="text-center py-10"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-purple-600 mx-auto mb-3"></div></div> : suggestions.length === 0 ? <div className="text-center py-10 text-gray-500"><p>No hay opciones.</p></div> : (
                                 <div className="space-y-3">
-                                    {suggestions.map((sug, idx) => {
-                                        return (
-                                            <div key={idx} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between gap-4">
-                                                <div className="text-left"><h4 className="font-bold text-gray-800">{sug.profesional.nombre}</h4><p className="text-xs text-gray-500">{sug.fecha} | {sug.hora}</p></div>
-                                                <button onClick={() => seleccionarSugerencia(sug)} className="bg-purple-600 text-white px-4 py-2 rounded-lg font-bold text-sm">Seleccionar</button>
-                                            </div>
-                                        );
-                                    })}
+                                    {suggestions.map((sug, idx) => (
+                                        <div key={idx} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between gap-4">
+                                            <div className="text-left"><h4 className="font-bold text-gray-800">{sug.profesional.nombre}</h4><p className="text-xs text-gray-500">{sug.fecha} | {sug.hora}</p></div>
+                                            <button onClick={() => seleccionarSugerencia(sug)} className="bg-purple-600 text-white px-4 py-2 rounded-lg font-bold text-sm">Seleccionar</button>
+                                        </div>
+                                    ))}
                                     <button onClick={() => buscarSugerencias(searchDateStart)} disabled={assistantLoading} className="w-full mt-4 py-3 text-sm text-gray-400 font-bold uppercase tracking-widest border-2 border-dashed border-gray-200 rounded-xl">Cargar más</button>
                                 </div>
                             )}
