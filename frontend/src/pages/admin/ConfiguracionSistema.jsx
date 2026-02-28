@@ -1,18 +1,18 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { configService } from '../../services/configService';
-import { authService } from '../../services/authService'; // Agregado para Branding
+import { authService } from '../../services/authService'; 
 import Swal from 'sweetalert2';
 import * as FaIcons from 'react-icons/fa';
 import AdminMenu from './AdminMenu';
-import AdminSidebarBranding from './AdminSidebarBranding'; // Importación del nuevo componente
+import AdminSidebarBranding from './AdminSidebarBranding'; 
 import {
     FaCogs, FaSave, FaClock, FaCalendarCheck, FaToggleOn,
     FaUserEdit, FaUserSlash, FaMagic, FaPlus, FaTrash,
     FaArrowRight, FaExclamationTriangle, FaTimes, FaLayerGroup,
-    FaShieldAlt, FaChevronDown, FaInfoCircle, FaPalette
+    FaShieldAlt, FaChevronDown, FaInfoCircle, FaPalette, FaLock
 } from 'react-icons/fa';
 
-// --- 1. PALETA DE COLORES (Para el borde lateral del estado) ---
+// --- 1. PALETA DE COLORES ---
 const COLOR_PRESETS = [
     { name: 'yellow', hex: '#EAB308', label: 'Amarillo' },
     { name: 'green', hex: '#16A34A', label: 'Verde' },
@@ -25,6 +25,9 @@ const COLOR_PRESETS = [
     { name: 'purple', hex: '#8B5CF6', label: 'Violeta' },
     { name: 'teal', hex: '#14B8A6', label: 'Turquesa' },
 ];
+
+// SLUGS PROTEGIDOS: Requeridos para que el backend procese reglas de negocio
+const PROTECTED_SLUGS = ['PENDIENTE', 'ACEPTADA', 'EN_SALA', 'REALIZADA', 'CANCELADA', 'RECHAZADA', 'NO_ASISTIO'];
 
 // --- 2. ICONOS DISPONIBLES ---
 const ICON_OPTIONS = [
@@ -49,7 +52,6 @@ const BUTTON_STYLES = [
     { id: 'dark', label: 'Oscuro (Admin)', class: 'bg-gray-700 text-gray-100 border-gray-600' },
 ];
 
-// Función auxiliar para hex
 const getColorHex = (colorValue) => {
     if (!colorValue) return '#6B7280';
     if (colorValue.startsWith('#')) return colorValue;
@@ -172,7 +174,6 @@ const ConfiguracionSistema = () => {
     const [activeTab, setActiveTab] = useState('reglas');
     const [loading, setLoading] = useState(true);
 
-    // Estado de Configuración General
     const [config, setConfig] = useState({
         max_citas_dia_paciente: 1,
         permitir_mismo_servicio_dia: false,
@@ -183,14 +184,8 @@ const ConfiguracionSistema = () => {
         mensaje_notificacion_cancelacion: '',
         workflow_citas: [],
         grupos_excepcion_antelacion: 'Administrador, Recepcion',
-        sidebar_bg_color: '#0f172a',
-        sidebar_accent_color: '#34d399',
-        sidebar_logo_url: '',
-        sidebar_variant: 'floating',
-        sidebar_border_radius: 24,
     });
 
-    // Estado específico para el Branding (Nuevo modelo)
     const [brandingConfig, setBrandingConfig] = useState({
         empresa_nombre: 'TimeTrack',
         logo_url: '',
@@ -207,7 +202,6 @@ const ConfiguracionSistema = () => {
     const cargarTodo = async () => {
         setLoading(true);
         try {
-            // Cargar Configuración Global y Branding en paralelo
             const [dataConfig, dataBranding] = await Promise.all([
                 configService.getConfig(),
                 authService.getBranding()
@@ -231,17 +225,11 @@ const ConfiguracionSistema = () => {
         }
     };
 
-    const cargarConfig = async () => {
-        // Esta función se mantiene por compatibilidad si se llama individualmente
-        await cargarTodo();
-    };
-
     const handleChange = (e) => {
         const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         setConfig({ ...config, [e.target.name]: value });
     };
 
-    // --- HANDLERS WORKFLOW ---
     const addState = () => {
         const newState = {
             slug: `ESTADO_${Date.now()}`,
@@ -308,20 +296,13 @@ const ConfiguracionSistema = () => {
 
         try {
             if (activeTab === 'branding') {
-                // GUARDAR SOLO BRANDING
                 await authService.updateBranding(brandingConfig);
                 Swal.fire('¡Éxito!', 'Diseño del Sidebar actualizado.', 'success');
             }
             else if (activeTab === 'menus') {
-                // INFO PARA MENÚS (se guardan por fila individual)
-                Swal.fire(
-                    'Info',
-                    'Para Menús y Permisos, use los iconos de guardado individuales de cada fila.',
-                    'info'
-                );
+                Swal.fire('Info', 'Para Menús y Permisos, use los iconos de guardado individuales.', 'info');
             }
             else {
-                // GUARDAR REGLAS DE NEGOCIO (todo lo de config)
                 await configService.updateConfig(config);
                 Swal.fire('¡Éxito!', 'Configuración de reglas guardada.', 'success');
             }
@@ -332,6 +313,7 @@ const ConfiguracionSistema = () => {
             setLoading(false);
         }
     };
+
     return (
         <div className="max-w-7xl mx-auto p-6 min-h-screen bg-gray-50/50">
             {/* ENCABEZADO */}
@@ -432,13 +414,11 @@ const ConfiguracionSistema = () => {
                                     <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:scale-110 transition-transform duration-500 pointer-events-none">
                                         <FaShieldAlt size={120} />
                                     </div>
-
                                     <div className="relative z-10">
                                         <div className="flex items-center gap-2 mb-3">
                                             <label className="font-bold text-indigo-900">Grupos con Excepción de Antelación</label>
                                             <InfoTooltip text="Los usuarios pertenecientes a estos grupos podrán agendar citas con menos de 1 hora de antelación." />
                                         </div>
-
                                         <input
                                             type="text"
                                             name="grupos_excepcion_antelacion"
@@ -490,7 +470,6 @@ const ConfiguracionSistema = () => {
                                     <div className="text-5xl font-black text-red-600 mb-2">{config.limite_inasistencias}</div>
                                     <input type="range" name="limite_inasistencias" value={config.limite_inasistencias} onChange={handleChange} min="0" max="10" className="w-full h-2 bg-red-200 rounded-lg appearance-none cursor-pointer" />
                                 </div>
-
                                 <div className="md:col-span-2">
                                     <label className="block font-bold text-gray-700 mb-2">Mensaje de Bloqueo para el Paciente</label>
                                     <textarea
@@ -525,7 +504,6 @@ const ConfiguracionSistema = () => {
                                         <span className="font-bold text-orange-800">Horas</span>
                                     </div>
                                 </div>
-
                                 <div>
                                     <label className="block font-bold text-gray-700 mb-2">Mensaje de Error (Cancelación Tardía)</label>
                                     <input
@@ -546,7 +524,7 @@ const ConfiguracionSistema = () => {
                             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 bg-indigo-50 p-4 rounded-xl border border-indigo-100">
                                 <div>
                                     <h3 className="text-xl font-black text-indigo-900 flex items-center gap-2"><FaMagic /> Diseñador de Flujos</h3>
-                                    <p className="text-xs text-indigo-700">Personaliza los estados de la cita y las transiciones permitidas.</p>
+                                    <p className="text-xs text-indigo-700">Personaliza los estados. Los marcados con <FaLock className="inline" /> son fundamentales para el backend.</p>
                                 </div>
                                 <button type="button" onClick={addState} className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2 shadow-lg transition active:scale-95 whitespace-nowrap">
                                     <FaPlus /> Crear Estado
@@ -554,93 +532,103 @@ const ConfiguracionSistema = () => {
                             </div>
 
                             <div className="space-y-6">
-                                {config.workflow_citas.map((state, sIdx) => (
-                                    <div key={sIdx} className="bg-white border border-gray-200 rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-300 relative group">
-                                        <div className="absolute left-0 top-0 bottom-0 w-2 rounded-l-2xl" style={{ backgroundColor: getColorHex(state.color) }}></div>
-                                        <div className="p-6 pl-8">
-                                            <div className="flex justify-between items-start mb-6">
-                                                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 w-full pr-12">
-                                                    <div>
-                                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Nombre Visible</label>
-                                                        <input type="text" value={state.label} onChange={(e) => updateStateField(sIdx, 'label', e.target.value)} className="w-full font-bold text-gray-800 border-b border-gray-300 focus:border-indigo-500 outline-none py-1 bg-transparent" />
-                                                    </div>
-                                                    <div>
-                                                        <div className="flex items-center">
-                                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Slug (Código)</label>
-                                                            <InfoTooltip text="El Slug es el ID interno. Debe ser único." />
+                                {config.workflow_citas.map((state, sIdx) => {
+                                    const isProtected = PROTECTED_SLUGS.includes(state.slug);
+                                    return (
+                                        <div key={sIdx} className="bg-white border border-gray-200 rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-300 relative group">
+                                            <div className="absolute left-0 top-0 bottom-0 w-2 rounded-l-2xl" style={{ backgroundColor: getColorHex(state.color) }}></div>
+                                            <div className="p-6 pl-8">
+                                                <div className="flex justify-between items-start mb-6">
+                                                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 w-full pr-12">
+                                                        <div>
+                                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Nombre Visible</label>
+                                                            <input type="text" value={state.label} onChange={(e) => updateStateField(sIdx, 'label', e.target.value)} className="w-full font-bold text-gray-800 border-b border-gray-300 focus:border-indigo-500 outline-none py-1 bg-transparent" />
                                                         </div>
-                                                        <input type="text" value={state.slug} onChange={(e) => updateStateField(sIdx, 'slug', e.target.value.toUpperCase().replace(/\s+/g, '_'))} className="w-full font-mono text-xs text-indigo-600 border-b border-gray-300 focus:border-indigo-500 outline-none py-1 bg-transparent uppercase" />
-                                                    </div>
-                                                    <div>
-                                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 block">Color</label>
-                                                        <div className="flex items-center gap-3">
-                                                            <div className="relative overflow-hidden w-9 h-9 rounded-full shadow-sm ring-2 ring-gray-100 flex items-center justify-center bg-gray-50">
-                                                                <input type="color" value={getColorHex(state.color)} onChange={(e) => updateStateField(sIdx, 'color', e.target.value)} className="absolute w-[150%] h-[150%] cursor-pointer p-0 border-none top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+                                                        <div>
+                                                            <div className="flex items-center gap-1">
+                                                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Slug (Código)</label>
+                                                                {isProtected ? <FaLock className="text-[10px] text-orange-400" /> : <InfoTooltip text="ID técnico único e inalterable si está protegido." />}
+                                                            </div>
+                                                            <input 
+                                                                type="text" 
+                                                                readOnly={isProtected}
+                                                                value={state.slug} 
+                                                                onChange={(e) => updateStateField(sIdx, 'slug', e.target.value.toUpperCase().replace(/\s+/g, '_'))} 
+                                                                className={`w-full font-mono text-xs border-b py-1 outline-none uppercase ${isProtected ? 'text-gray-400 border-gray-200 bg-gray-50/50 cursor-not-allowed' : 'text-indigo-600 border-gray-300 focus:border-indigo-500 bg-transparent'}`} 
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 block">Color</label>
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="relative overflow-hidden w-9 h-9 rounded-full shadow-sm ring-2 ring-gray-100 flex items-center justify-center bg-gray-50">
+                                                                    <input type="color" value={getColorHex(state.color)} onChange={(e) => updateStateField(sIdx, 'color', e.target.value)} className="absolute w-[150%] h-[150%] cursor-pointer p-0 border-none top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+                                                                </div>
                                                             </div>
                                                         </div>
+                                                        <div>
+                                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 block">Icono</label>
+                                                            <IconSelector value={state.icon} onChange={(newIcon) => updateStateField(sIdx, 'icon', newIcon)} />
+                                                        </div>
                                                     </div>
-                                                    <div>
-                                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 block">Icono</label>
-                                                        <IconSelector value={state.icon} onChange={(newIcon) => updateStateField(sIdx, 'icon', newIcon)} />
-                                                    </div>
+                                                    {!isProtected && (
+                                                        <button type="button" onClick={() => removeState(sIdx)} className="text-gray-300 hover:text-red-500 p-2 rounded-full hover:bg-red-50 transition">
+                                                            <FaTrash />
+                                                        </button>
+                                                    )}
                                                 </div>
-                                                <button type="button" onClick={() => removeState(sIdx)} className="text-gray-300 hover:text-red-500 p-2 rounded-full hover:bg-red-50 transition">
-                                                    <FaTrash />
-                                                </button>
-                                            </div>
 
-                                            <div className="bg-gray-50/50 rounded-xl p-4 border border-gray-100">
-                                                <h4 className="text-xs font-bold text-gray-500 uppercase mb-3 flex items-center gap-2"><FaArrowRight className="text-indigo-400" /> Botones de Acción</h4>
-                                                <div className="space-y-3">
-                                                    {state.acciones.map((accion, aIdx) => (
-                                                        <div key={aIdx} className="flex flex-wrap md:flex-nowrap items-center gap-3 bg-white p-3 rounded-lg border border-gray-200 shadow-sm">
-                                                            <div className="flex-1 min-w-[150px]">
-                                                                <span className="text-[9px] text-gray-400 uppercase font-bold block mb-1">Texto</span>
-                                                                <input type="text" placeholder="Ej: Facturar" value={accion.label} onChange={(e) => updateActionField(sIdx, aIdx, 'label', e.target.value)} className="w-full text-sm font-bold text-gray-700 border-none focus:ring-0 bg-transparent placeholder-gray-300" />
+                                                <div className="bg-gray-50/50 rounded-xl p-4 border border-gray-100">
+                                                    <h4 className="text-xs font-bold text-gray-500 uppercase mb-3 flex items-center gap-2"><FaArrowRight className="text-indigo-400" /> Botones de Acción</h4>
+                                                    <div className="space-y-3">
+                                                        {state.acciones.map((accion, aIdx) => (
+                                                            <div key={aIdx} className="flex flex-wrap md:flex-nowrap items-center gap-3 bg-white p-3 rounded-lg border border-gray-200 shadow-sm">
+                                                                <div className="flex-1 min-w-[150px]">
+                                                                    <span className="text-[9px] text-gray-400 uppercase font-bold block mb-1">Texto</span>
+                                                                    <input type="text" placeholder="Ej: Facturar" value={accion.label} onChange={(e) => updateActionField(sIdx, aIdx, 'label', e.target.value)} className="w-full text-sm font-bold text-gray-700 border-none focus:ring-0 bg-transparent placeholder-gray-300" />
+                                                                </div>
+                                                                <FaArrowRight className="text-gray-300 text-xs mt-4" />
+                                                                <div className="flex-1 min-w-[150px]">
+                                                                    <span className="text-[9px] text-gray-400 uppercase font-bold block mb-1">Destino</span>
+                                                                    <select value={accion.target} onChange={(e) => updateActionField(sIdx, aIdx, 'target', e.target.value)} className="w-full text-sm bg-gray-50 border-gray-200 rounded px-2 py-1.5 text-indigo-700 font-bold outline-none">
+                                                                        {config.workflow_citas.map(s => <option key={s.slug} value={s.slug}>{s.label}</option>)}
+                                                                    </select>
+                                                                </div>
+                                                                <div className="w-32">
+                                                                    <span className="text-[9px] text-gray-400 uppercase font-bold block mb-1">Estilo</span>
+                                                                    <ButtonStyleSelector value={accion.tipo} onChange={(newStyle) => updateActionField(sIdx, aIdx, 'tipo', newStyle)} />
+                                                                </div>
+                                                                <div className="w-20">
+                                                                    <span className="text-[9px] text-gray-400 uppercase font-bold block mb-1">Icono</span>
+                                                                    <IconSelector value={accion.icon || 'FaArrowRight'} onChange={(newIcon) => updateActionField(sIdx, aIdx, 'icon', newIcon)} compact={true} />
+                                                                </div>
+                                                                <div className="flex flex-col gap-1 px-2 border-l border-gray-200">
+                                                                    <label className="flex items-center gap-1 cursor-pointer">
+                                                                        <input type="checkbox" checked={accion.requiere_nota_medica} onChange={(e) => updateActionField(sIdx, aIdx, 'requiere_nota_medica', e.target.checked)} className="accent-blue-600 w-3 h-3" />
+                                                                        <FaIcons.FaClipboardList className={`text-xs ${accion.requiere_nota_medica ? 'text-blue-600' : 'text-gray-300'}`} />
+                                                                    </label>
+                                                                    <label className="flex items-center gap-1 cursor-pointer">
+                                                                        <input type="checkbox" checked={accion.requiere_motivo} onChange={(e) => updateActionField(sIdx, aIdx, 'requiere_motivo', e.target.checked)} className="accent-red-500 w-3 h-3" />
+                                                                        <FaExclamationTriangle className={`text-xs ${accion.requiere_motivo ? 'text-red-500' : 'text-gray-300'}`} />
+                                                                    </label>
+                                                                </div>
+                                                                <button type="button" onClick={() => removeAction(sIdx, aIdx)} className="text-gray-300 hover:text-red-500 mt-4"><FaTimes /></button>
                                                             </div>
-                                                            <FaArrowRight className="text-gray-300 text-xs mt-4" />
-                                                            <div className="flex-1 min-w-[150px]">
-                                                                <span className="text-[9px] text-gray-400 uppercase font-bold block mb-1">Destino</span>
-                                                                <select value={accion.target} onChange={(e) => updateActionField(sIdx, aIdx, 'target', e.target.value)} className="w-full text-sm bg-gray-50 border-gray-200 rounded px-2 py-1.5 text-indigo-700 font-bold outline-none">
-                                                                    {config.workflow_citas.map(s => <option key={s.slug} value={s.slug}>{s.label}</option>)}
-                                                                </select>
-                                                            </div>
-                                                            <div className="w-32">
-                                                                <span className="text-[9px] text-gray-400 uppercase font-bold block mb-1">Estilo</span>
-                                                                <ButtonStyleSelector value={accion.tipo} onChange={(newStyle) => updateActionField(sIdx, aIdx, 'tipo', newStyle)} />
-                                                            </div>
-                                                            <div className="w-20">
-                                                                <span className="text-[9px] text-gray-400 uppercase font-bold block mb-1">Icono</span>
-                                                                <IconSelector value={accion.icon || 'FaArrowRight'} onChange={(newIcon) => updateActionField(sIdx, aIdx, 'icon', newIcon)} compact={true} />
-                                                            </div>
-                                                            <div className="flex flex-col gap-1 px-2 border-l border-gray-200">
-                                                                <label className="flex items-center gap-1 cursor-pointer">
-                                                                    <input type="checkbox" checked={accion.requiere_nota_medica} onChange={(e) => updateActionField(sIdx, aIdx, 'requiere_nota_medica', e.target.checked)} className="accent-blue-600 w-3 h-3" />
-                                                                    <FaIcons.FaClipboardList className={`text-xs ${accion.requiere_nota_medica ? 'text-blue-600' : 'text-gray-300'}`} />
-                                                                </label>
-                                                                <label className="flex items-center gap-1 cursor-pointer">
-                                                                    <input type="checkbox" checked={accion.requiere_motivo} onChange={(e) => updateActionField(sIdx, aIdx, 'requiere_motivo', e.target.checked)} className="accent-red-500 w-3 h-3" />
-                                                                    <FaExclamationTriangle className={`text-xs ${accion.requiere_motivo ? 'text-red-500' : 'text-gray-300'}`} />
-                                                                </label>
-                                                            </div>
-                                                            <button type="button" onClick={() => removeAction(sIdx, aIdx)} className="text-gray-300 hover:text-red-500 mt-4"><FaTimes /></button>
-                                                        </div>
-                                                    ))}
+                                                        ))}
+                                                    </div>
+                                                    <button type="button" onClick={() => addAction(sIdx)} className="mt-4 text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 transition">
+                                                        <FaPlus className="bg-indigo-100 p-0.5 rounded-full" /> Agregar Acción
+                                                    </button>
                                                 </div>
-                                                <button type="button" onClick={() => addAction(sIdx)} className="mt-4 text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 transition">
-                                                    <FaPlus className="bg-indigo-100 p-0.5 rounded-full" /> Agregar Acción
-                                                </button>
                                             </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         </div>
                     )}
 
                     {activeTab === 'menus' && <AdminMenu />}
-
-                    {/* --- NUEVA PESTAÑA: BRANDING --- */}
+                    
                     {activeTab === 'branding' && (
                         <AdminSidebarBranding
                             brandingConfig={brandingConfig}
@@ -652,8 +640,8 @@ const ConfiguracionSistema = () => {
 
                 {/* BOTÓN FLOTANTE DE GUARDADO */}
                 <div className="sticky bottom-6 flex justify-end mt-6 z-30">
-                    <button type="submit" className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-bold py-4 px-10 rounded-full shadow-2xl flex items-center gap-3 transition-all transform hover:-translate-y-1 hover:shadow-green-500/30">
-                        <FaSave size={20} /> GUARDAR CAMBIOS
+                    <button type="submit" disabled={loading} className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-bold py-4 px-10 rounded-full shadow-2xl flex items-center gap-3 transition-all transform hover:-translate-y-1 hover:shadow-green-500/30">
+                        <FaSave size={20} /> {loading ? 'GUARDANDO...' : 'GUARDAR CAMBIOS'}
                     </button>
                 </div>
             </form>

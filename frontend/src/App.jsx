@@ -6,9 +6,8 @@ import { AuthProvider } from './context/AuthContext';
 import Home from './pages/portal/Home';
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
-// ---> 1. IMPORTAR LAS NUEVAS PÁGINAS AQUÍ <---
-import PQRS from './pages/portal/PQRS'; // Ajusta la ruta si están en otra carpeta
-import TrabajeConNosotros from './pages/portal/TrabajeConNosotros'; // Ajusta la ruta si están en otra carpeta
+import PQRS from './pages/portal/PQRS'; 
+import TrabajeConNosotros from './pages/portal/TrabajeConNosotros'; 
 
 // Importaciones de Páginas Privadas
 import PrivateRoute from './components/auth/PrivateRoute';
@@ -29,6 +28,10 @@ import AdminParametricas from './pages/admin/AdminParametricas';
 import GestionAgenda from './pages/admin/agenda/GestionAgenda';
 import RecepcionConsultorio from './pages/system/RecepcionConsultorio';
 
+// ---> NUEVAS PÁGINAS OPERATIVAS <---
+import DashboardProfesional from './pages/system/DashboardProfesional';
+import SalaEsperaPantalla from './pages/system/SalaEsperaPantalla';
+
 function App() {
   return (
     <AuthProvider>
@@ -38,18 +41,22 @@ function App() {
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
-          
-          {/* ---> 2. AGREGAR LAS RUTAS PÚBLICAS AQUÍ <--- */}
           <Route path="/pqrs" element={<PQRS />} />
           <Route path="/trabaje-con-nosotros" element={<TrabajeConNosotros />} />
           
-          {/* --- RUTAS PRIVADAS BASE --- */}
+          {/* --- RUTAS PRIVADAS --- */}
           <Route element={<PrivateRoute />}>
              
-             {/* Layout Común (Sidebar + Header) */}
+             {/* 1. RUTA ESPECIAL: PANTALLA DE SALA (Sin Layout, Pantalla Completa) */}
+             <Route path="/sala-espera" element={
+                <ProtectedRoute requiredPermission="acceso_pantalla_sala">
+                    <SalaEsperaPantalla />
+                </ProtectedRoute>
+             } />
+
+             {/* 2. RUTAS CON DASHBOARD LAYOUT (Sidebar + Header) */}
              <Route element={<DashboardLayout />}>
                  
-                 {/* Rutas Generales (Solo requieren login) */}
                  <Route path="/dashboard" element={<Dashboard />} />
                  <Route path="/dashboard/perfil" element={<Perfil />} />
                  
@@ -63,6 +70,13 @@ function App() {
                  <Route path="/dashboard/citas/nueva" element={
                     <ProtectedRoute requiredPermission="nuevas_citas">
                         <NuevaCita />
+                    </ProtectedRoute>
+                 } />
+
+                 {/* --- MÓDULO MÉDICO OPERATIVO --- */}
+                 <Route path="/dashboard/doctor/atencion" element={
+                    <ProtectedRoute requiredPermission="atencion_consultorio">
+                        <DashboardProfesional />
                     </ProtectedRoute>
                  } />
 

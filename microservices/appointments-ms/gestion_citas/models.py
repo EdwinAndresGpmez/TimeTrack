@@ -1,7 +1,9 @@
 from django.db import models
 import copy
 
-# Definimos el flujo por defecto para mantener la compatibilidad inicial
+# ESTADOS CRÍTICOS: Protegidos para que el backend pueda aplicar reglas de negocio
+PROTECTED_SLUGS = ['PENDIENTE', 'ACEPTADA', 'EN_SALA', 'LLAMADO', 'REALIZADA', 'CANCELADA', 'RECHAZADA', 'NO_ASISTIO']
+
 DEFAULT_WORKFLOW = [
     {
         "slug": "PENDIENTE",
@@ -30,14 +32,23 @@ DEFAULT_WORKFLOW = [
         "color": "indigo",
         "icon": "FaHourglassHalf",
         "acciones": [
-            {"target": "REALIZADA", "label": "Finalizar Atención", "tipo": "blue", "requiere_nota_medica": True},
+            {"target": "LLAMADO", "label": "Llamar a Consulta", "tipo": "blue", "icon": "FaBullhorn"},
             {"target": "CANCELADA", "label": "Cancelar", "tipo": "warning", "requiere_motivo": True}
+        ]
+    },
+    {
+        "slug": "LLAMADO",
+        "label": "En Consulta",
+        "color": "blue",
+        "icon": "FaUserMd",
+        "acciones": [
+            {"target": "REALIZADA", "label": "Finalizar Atención", "tipo": "success", "requiere_nota_medica": True}
         ]
     },
     {
         "slug": "REALIZADA",
         "label": "Realizadas",
-        "color": "blue",
+        "color": "green",
         "icon": "FaCalendarCheck",
         "acciones": []
     },
@@ -64,28 +75,23 @@ DEFAULT_WORKFLOW = [
     }
 ]
 
-# 🔹 Función callable para evitar que el JSONField comparta la misma instancia
 def default_workflow():
     return copy.deepcopy(DEFAULT_WORKFLOW)
 
 
 class Cita(models.Model):
     estado = models.CharField(max_length=50, default="PENDIENTE", db_index=True)
-
     usuario_id = models.BigIntegerField(null=True, blank=True)
     profesional_id = models.BigIntegerField(db_index=True)
     lugar_id = models.BigIntegerField(null=True, blank=True)
     horario_id = models.BigIntegerField(null=True, blank=True)
     paciente_id = models.BigIntegerField(db_index=True)
     servicio_id = models.BigIntegerField(null=True, blank=True)
-
     fecha = models.DateField()
     hora_inicio = models.TimeField()
     hora_fin = models.TimeField()
-
     nota = models.TextField(blank=True, null=True, verbose_name="Nota inicial del paciente")
     nota_interna = models.TextField(blank=True, null=True, verbose_name="Nota de Recepción/Administrativa")
-
     activo = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -146,7 +152,6 @@ class ConfiguracionGlobal(models.Model):
         blank=True
     )
 
-    # 🔹 Motor dinámico de estados (corregido)
     workflow_citas = models.JSONField(
         default=default_workflow,
         verbose_name="Flujo de Estados Dinámico"
@@ -159,6 +164,15 @@ class ConfiguracionGlobal(models.Model):
 
     def save(self, *args, **kwargs):
         self.pk = 1
+        # Aseguramos consistencia de Slugs protegidos
+        current_slugs = [s['slug'] for s in self.workflow_citas]
+        for protected in PROTECTED_SLUGS:
+            if protected not in current_slugs:
+                # Si falta uno, lo buscamos en el default_workflow
+                default_state = next((item for item in DEFAULT_WORKFLOW if item["slug"] == protected), None)
+                if default_state:
+                    self.workflow_citas.append(default_state)
+        
         super().save(*args, **kwargs)
 
     def __str__(self):

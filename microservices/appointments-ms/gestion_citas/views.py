@@ -48,19 +48,25 @@ class CitaViewSet(viewsets.ModelViewSet):
     def reporte_inasistencias(self, request):
         config, _ = ConfiguracionGlobal.objects.get_or_create(pk=1)
         limite = config.limite_inasistencias
+        
         data = (
             Cita.objects.filter(estado="NO_ASISTIO")
             .values("paciente_id")
             .annotate(total=Count("id"), ultima_falta=Max("fecha"))
         )
+        
         resultado = {}
         for item in data:
             pid = str(item["paciente_id"])
             cantidad = item["total"]
             bloqueado = (limite > 0) and (cantidad >= limite)
+            
+            # CORRECCIÓN: Serialización manual de la fecha para evitar Error 500
+            fecha_str = item["ultima_falta"].isoformat() if item["ultima_falta"] else None
+            
             resultado[pid] = {
                 "inasistencias": cantidad,
-                "ultima_falta": item["ultima_falta"],
+                "ultima_falta": fecha_str,
                 "bloqueado_por_inasistencias": bloqueado,
             }
         return Response(resultado)
@@ -104,10 +110,7 @@ class CitaViewSet(viewsets.ModelViewSet):
                     f_ini = datetime.strptime(fecha_solicitada, "%Y-%m-%d").date()
                     cita_dt = timezone.make_aware(datetime.combine(f_ini, h_ini))
                     
-                    # Verificación de privilegios
                     grupos_excepcion = [g.strip() for g in config.grupos_excepcion_antelacion.split(',') if g.strip()]
-                    
-                    # Intentamos obtener grupos del usuario (Token JWT)
                     user_groups = request.user.groups.values_list('name', flat=True)
                     
                     tiene_privilegio = (
@@ -134,15 +137,14 @@ class CitaViewSet(viewsets.ModelViewSet):
                             if str(servicio_id) in d: duracion = d[str(servicio_id)].get("duracion", 20)
                 except Exception: pass
 
-                # Recalcular fin
                 h_fin_dt = datetime.strptime(hora_inicio_str, fmt) + timedelta(minutes=duracion)
                 data["hora_fin"] = h_fin_dt.strftime("%H:%M:%S")
                 
-                # Cruces
+                # ACTUALIZACIÓN: Incluimos LLAMADO en validación de cruces
                 cruce_medico = Cita.objects.select_for_update().filter(
                     profesional_id=data.get("profesional_id"),
                     fecha=fecha_solicitada,
-                    estado__in=["PENDIENTE", "ACEPTADA", "EN_SALA"],
+                    estado__in=["PENDIENTE", "ACEPTADA", "EN_SALA", "LLAMADO"],
                     hora_inicio__lt=h_fin_dt.time(),
                     hora_fin__gt=h_ini,
                 ).exists()
@@ -152,12 +154,12 @@ class CitaViewSet(viewsets.ModelViewSet):
                 cruce_paciente = Cita.objects.filter(
                     paciente_id=paciente_id,
                     fecha=fecha_solicitada,
-                    estado__in=["PENDIENTE", "ACEPTADA", "EN_SALA"],
+                    estado__in=["PENDIENTE", "ACEPTADA", "EN_SALA", "LLAMADO"],
                     hora_inicio__lt=h_fin_dt.time(),
                     hora_fin__gt=h_ini,
                 ).exists()
                 if cruce_paciente:
-                    return Response({"detalle": "El paciente ya tiene cita en ese horario."}, status=400)
+                    return Response({"detalle": "El paciente ya tiene cita o está en atención en ese horario."}, status=400)
 
                 # 3. LÍMITES DIARIOS
                 citas_dia = Cita.objects.filter(paciente_id=paciente_id, fecha=fecha_solicitada).exclude(
@@ -169,7 +171,6 @@ class CitaViewSet(viewsets.ModelViewSet):
                 if not config.permitir_mismo_servicio_dia and citas_dia.filter(servicio_id=servicio_id).exists():
                     return Response({"detalle": "Ya tiene cita de este servicio hoy."}, status=400)
 
-                # GUARDADO
                 serializer = self.get_serializer(data=data)
                 serializer.is_valid(raise_exception=True)
                 self.perform_create(serializer)
@@ -182,61 +183,43 @@ class CitaViewSet(viewsets.ModelViewSet):
     def update(self, request, *args, **kwargs):
         instance = self.get_object()
         nuevo_estado = request.data.get("estado")
-        
         config, _ = ConfiguracionGlobal.objects.get_or_create(pk=1)
         workflow = config.workflow_citas
-        estados_validos = [st['slug'] for st in workflow]
         
+        estados_validos = [st['slug'] for st in workflow]
         if nuevo_estado and nuevo_estado not in estados_validos:
-             return Response(
-                {"detalle": f"El estado '{nuevo_estado}' no es válido."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+             return Response({"detalle": f"El estado '{nuevo_estado}' no es válido."}, status=400)
 
         estados_finales = [st['slug'] for st in workflow if not st.get('acciones')]
-        
         if instance.estado in estados_finales and nuevo_estado != instance.estado:
-             es_admin = request.user.is_staff or request.user.is_superuser
-             if not es_admin:
+             if not (request.user.is_staff or request.user.is_superuser):
                 return Response({"detalle": "Cita en estado final."}, status=400)
 
         ahora = timezone.now()
         try:
             fecha_cita = timezone.make_aware(datetime.combine(instance.fecha, instance.hora_inicio))
-        except Exception:
+        except:
             fecha_cita = ahora
 
         if nuevo_estado == "NO_ASISTIO" and fecha_cita > ahora:
             return Response({"detalle": "No puedes marcar asistencia futura."}, status=400)
 
-        if nuevo_estado == "REALIZADA":
-            margen = ahora + timedelta(minutes=15)
-            es_admin = request.user.is_staff or request.user.is_superuser
-            if fecha_cita > margen and not es_admin:
-                return Response({"detalle": "La cita aún no ha comenzado."}, status=400)
-
-        if nuevo_estado == "CANCELADA":
-            es_admin = request.user.is_staff or request.user.is_superuser
-            if ahora > fecha_cita and not es_admin:
-                return Response({"detalle": "La cita ya pasó."}, status=400)
-            
-            diferencia = fecha_cita - ahora
-            if (diferencia.total_seconds() / 3600) < config.horas_antelacion_cancelar and not es_admin:
-                 return Response({"detalle": f"Mínimo {config.horas_antelacion_cancelar}h de antelación."}, status=400)
-
+        # Manejo de notas y evoluciones médicas
         nota_interna = request.data.get('nota_interna')
         if nota_interna:
             instance.nota_interna = f"{instance.nota_interna or ''} | {nota_interna}".strip(" |")
             instance.save(update_fields=['nota_interna'])
+            
+        notas_medicas = request.data.get('notas_medicas')
+        if notas_medicas:
+            NotaMedica.objects.update_or_create(cita=instance, defaults={'contenido': notas_medicas})
 
         return super().update(request, *args, **kwargs)
 
     def list(self, request, *args, **kwargs):
         response = super().list(request, *args, **kwargs)
         data = response.data.get("results") if isinstance(response.data, dict) and "results" in response.data else response.data
-        
         data_enriquecida = self._enrich_data(data)
-        
         if isinstance(response.data, dict) and "results" in response.data:
             response.data["results"] = data_enriquecida
         else:
@@ -245,8 +228,6 @@ class CitaViewSet(viewsets.ModelViewSet):
 
     def _enrich_data(self, citas):
         if not citas: return citas
-        
-        # 1. Recolectar IDs asegurando que sean strings únicos
         ids = {"paciente": set(), "profesional": set(), "servicio": set(), "lugar": set()}
         for c in citas:
             if c.get("paciente_id"): ids["paciente"].add(str(c["paciente_id"]))
@@ -254,61 +235,36 @@ class CitaViewSet(viewsets.ModelViewSet):
             if c.get("servicio_id"): ids["servicio"].add(str(c["servicio_id"]))
             if c.get("lugar_id"): ids["lugar"].add(str(c["lugar_id"]))
 
-        # Función de consulta interna
         def fetch_bulk(url, id_set):
             if not id_set: return {}
             try:
-                # Limpiamos IDs vacíos o nulos antes de enviar
                 clean_ids = [i for i in id_set if i and i != 'None']
                 if not clean_ids: return {}
-                
                 r = requests.get(f"{url}?ids={','.join(clean_ids)}", timeout=2)
-                if r.status_code == 200:
-                    data = r.json()
-                    # Log para ver qué llega realmente de Pacientes
-                    if "pacientes" in url:
-                        print(f"DEBUG - Respuesta MS Pacientes: {data}")
-                    return data
-                return {}
-            except Exception as e:
-                print(f"DEBUG - Error consultando microservicio {url}: {e}")
-                return {}
+                return r.json() if r.status_code == 200 else {}
+            except: return {}
 
-        # 2. Consultar a los microservicios
         info_pacientes = fetch_bulk(PATIENTS_MS_URL, ids["paciente"])
         info_profesionales = fetch_bulk(STAFF_MS_URL, ids["profesional"])
         info_servicios = fetch_bulk(SERVICES_MS_URL, ids["servicio"])
         info_lugares = fetch_bulk(LUGARES_MS_URL, ids["lugar"])
 
-        # 3. Mapeo de datos (Enriquecimiento)
         for c in citas:
-            # Convertimos el ID a string para buscarlo en el diccionario de respuesta
             p_id = str(c.get("paciente_id"))
-            p_info = info_pacientes.get(p_id) # Usamos get directo del ID
-            
+            p_info = info_pacientes.get(p_id)
             if p_info:
-                # Si el microservicio devuelve 'nombre_completo' lo usamos
-                # Si no, usamos 'nombre' y 'apellido'
-                nombre_comp = p_info.get("nombre_completo")
-                if not nombre_comp:
-                    nombre = p_info.get("nombre", "")
-                    apellido = p_info.get("apellido", "")
-                    nombre_comp = f"{nombre} {apellido}".strip()
-                
-                c["paciente_nombre"] = nombre_comp or "Paciente sin nombre"
+                nombre = p_info.get("nombre", "")
+                apellido = p_info.get("apellido", "")
+                c["paciente_nombre"] = p_info.get("nombre_completo") or f"{nombre} {apellido}".strip()
                 c["paciente_doc"] = p_info.get("numero_documento") or p_info.get("documento", "N/A")
                 c["paciente_fecha_nacimiento"] = p_info.get("fecha_nacimiento")
             else:
-                # Si p_info es None, es porque el ID no se encontró en el MS Pacientes
-                c["paciente_nombre"] = "DESCONOCIDO (No encontrado)"
+                c["paciente_nombre"] = "DESCONOCIDO"
                 c["paciente_doc"] = "N/A"
-                c["paciente_fecha_nacimiento"] = None
-
-            # Enriquecer profesional, servicio y lugar
+            
             c["profesional_nombre"] = info_profesionales.get(str(c.get("profesional_id")), {}).get("nombre", "No asignado")
             c["servicio_nombre"] = info_servicios.get(str(c.get("servicio_id")), {}).get("nombre", "No especificado")
             c["lugar_nombre"] = info_lugares.get(str(c.get("lugar_id")), {}).get("nombre", "Sede Principal")
-            
         return citas
 
 

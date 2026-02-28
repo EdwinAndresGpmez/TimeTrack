@@ -1,3 +1,5 @@
+from datetime import timedelta
+from django.utils import timezone
 from django.contrib.auth.models import Group
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
@@ -69,6 +71,10 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         token["paciente_id"] = user.paciente_id
         token["profesional_id"] = user.profesional_id
         token["roles"] = list(user.groups.values_list("name", flat=True))
+
+        if user.groups.filter(name="Pantalla Sala").exists():
+            # Seteamos la expiración a 365 días (1 año)
+            token.set_exp(lifetime=timedelta(days=365))
 
         return token
 
