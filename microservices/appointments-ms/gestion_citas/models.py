@@ -42,6 +42,8 @@ DEFAULT_WORKFLOW = [
         "color": "blue",
         "icon": "FaUserMd",
         "acciones": [
+             {"target": "LLAMADO", "label": "Re-llamar", "tipo": "indigo", "icon": "FaBullhorn"},
+             {"target": "NO_ASISTIO", "label": "No llegó", "tipo": "warning", "requiere_motivo": True, "icon": "FaUserClock"},
             {"target": "REALIZADA", "label": "Finalizar Atención", "tipo": "success", "requiere_nota_medica": True}
         ]
     },

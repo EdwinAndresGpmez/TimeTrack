@@ -61,10 +61,14 @@ export const citasService = {
             const response = await api.patch(`${BASE_URL}/${id}/`, payload);
             return response.data;
         } catch (error) {
-            // Esto imprimirá en la consola del navegador la razón exacta del error 400
-            // Ej: "La cita ya pasó" o "El estado 'Finalizado' no es válido"
-            console.error("❌ Error en updateEstado:", error.response?.data);
-            throw error; // Re-lanzamos para que el componente (AdminCitas) pueda mostrar la alerta
-        }
+              const status = error?.response?.status;
+              const data = error?.response?.data;
+                    
+              console.error("❌ Error en updateEstado status:", status);
+              console.error("❌ Error en updateEstado data:", data);
+              console.error("❌ Error en updateEstado data JSON:", JSON.stringify(data, null, 2));
+                    
+              throw error;
+            }
     }
 };

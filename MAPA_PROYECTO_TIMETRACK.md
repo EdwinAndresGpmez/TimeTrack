@@ -1,6 +1,8 @@
 # Mapeo y Estado del Proyecto TimeTrack
 **Actualizado:** 22 de Enero, 2026
 
+**Última revisión automática:** 28 de Febrero, 2026
+
 > Arquitectura de Microservicios con Django (Backend), React + Vite (Frontend), Nginx (Gateway), PostgreSQL (DB Centralizada) y Redis
 
 ---
@@ -21,6 +23,16 @@
 | **ia-ms** | 8006 | ✅ Completo | Chatbot IA, sesiones y configuración |
 | **portal-ms** | 8007 | 🔄 Parcial | Modelos, serializers y endpoints banners/videos listos, PQRS/HV en progreso |
 | **frontend** | 5173 | ✅ Avanzado | React + Vite + TailwindCSS, portal público y paneles funcionales |
+
+---
+
+## 🛠️ Infraestructura y DevOps
+
+- **Docker Compose**: Orquestación de todos los microservicios, frontend y servicios de infraestructura (PostgreSQL, Redis, Nginx).
+- **CI/CD**: Sugerido implementar pipelines automáticos para pruebas, build y despliegue (GitHub Actions, GitLab CI, etc.).
+- **Monitoreo y Logs**: Falta integración de monitoreo centralizado (ej. Prometheus, Grafana, Sentry, ELK). Recomendado para producción.
+- **Backups**: No documentado el flujo de backups automáticos de BD y archivos.
+- **Seeds y Datos Demo**: Mejorar scripts de carga de datos demo para ambientes de desarrollo y testing.
 
 ---
 
@@ -210,6 +222,14 @@
 
 **Stack:** React 19.2, Vite 5.x, TailwindCSS 3.4.17, React Router 7.x
 
+### Integraciones y mejoras pendientes
+- **Internacionalización (i18n)**: Falta soporte multidioma (Español/Inglés) en toda la UI.
+- **Accesibilidad (a11y)**: Mejorar contraste, navegación por teclado y etiquetas ARIA.
+- **Onboarding y ayuda**: Sugerido agregar tutoriales interactivos y ayuda contextual para usuarios nuevos y administradores.
+- **Panel de métricas**: No existe dashboard de métricas de uso, errores o logs para admins.
+- **Testing**: Aumentar cobertura de pruebas unitarias y E2E (Vitest, Cypress).
+- **Documentación de componentes**: Sugerido Storybook para documentar UI reutilizable.
+
 ### Estructura de Carpetas
 ```
 frontend/src/
@@ -284,6 +304,11 @@ frontend/src/
 - ❌ **Confirmación de citas:** Envío de email/SMS de confirmación
 - ❌ **Manejo offline:** Service Workers para caché
 
+- ❌ **Panel de administración avanzado:** Falta panel para monitoreo, logs, métricas y gestión avanzada de usuarios y recursos.
+- ❌ **Gestión de seeds/datos demo:** Scripts y UI para cargar datos de prueba fácilmente.
+- ❌ **Internacionalización y accesibilidad:** Implementar soporte multidioma y mejoras de accesibilidad.
+- ❌ **Documentación API pública:** Swagger/OpenAPI y ejemplos de consumo para integradores externos.
+
 ---
 
 ## 📝 Estado de Integración Frontend-Backend
@@ -315,6 +340,11 @@ frontend/src/
   - [ ] Twilio para WhatsApp
   - [ ] Frontend: Página de buzón
 
+- [ ] **Panel de monitoreo y métricas:** Dashboard para admins con logs, errores, uso de recursos y auditoría.
+- [ ] **Seeds y datos demo:** Scripts y UI para cargar datos de prueba y facilitar testing.
+- [ ] **Backups automáticos:** Documentar y automatizar backups de BD y archivos.
+- [ ] **CI/CD:** Implementar pipelines automáticos para pruebas y despliegue.
+
 
 ### ALTAS (Próximos)
 - [ ] **IA Widget:** Componente flotante React
@@ -326,12 +356,18 @@ frontend/src/
   - [ ] CSV/PDF de citas por rango de fechas
   - [ ] Historial de auditoría
 
+- [ ] **Internacionalización:** Soporte multidioma en frontend y backend.
+- [ ] **Accesibilidad:** Mejoras de a11y en toda la UI.
+- [ ] **Documentación API:** Swagger/OpenAPI y ejemplos de consumo.
+
 
 ### MEDIAS (Nice to Have)
 - [ ] **Confirmación automática:** Email/SMS cuando se reserva cita
 - [ ] **Recordatorios:** Notificación 24h antes de cita
 - [ ] **Calendario visual:** Integrar react-calendar en admin
 - [ ] **Multidioma:** i18n (Español/Inglés)
+
+- [ ] **Onboarding y ayuda interactiva:** Tutoriales y ayuda contextual para usuarios nuevos y admins.
 
 ---
 
@@ -400,6 +436,8 @@ POST   /api/v1/notifications/buzon/
 - [x] UI responsiva con TailwindCSS
 - [x] Contexto de autenticación persistente
 - [x] Integración Axios con interceptores
+- [x] Contexto de autenticación persistente
+- [x] Integración Axios con interceptores
 
 
 ### 🔄 En Progreso
@@ -408,10 +446,23 @@ POST   /api/v1/notifications/buzon/
 - [ ] IA-MS: Widget frontend
   - Estado: Banners y videos funcionales, PQRS y hoja de vida en desarrollo.
 
+- [ ] Panel de monitoreo y métricas para admins
+- [ ] Seeds y datos demo para testing
+- [ ] Backups automáticos y documentación de recuperación
+- [ ] CI/CD y pipelines de despliegue
+
 ---
 
 
 ## Reglas de Negocio Detectadas y Sugeridas
+
+## 🔒 Seguridad y Buenas Prácticas
+- Revisar y reforzar RBAC/permisos granulares en todos los endpoints.
+- Validar y sanitizar todos los campos de entrada (especialmente archivos y textos largos).
+- Implementar rate limiting y throttling en endpoints públicos.
+- Forzar HTTPS en producción y restringir CORS a orígenes confiables.
+- Minimizar información sensible en JWT y tokens.
+- Monitorear logs de acceso y errores críticos.
 
 1. **Cancelación de citas:** Solo se permite cancelar si faltan más de X horas (parametrizable).
 2. **Validación de solapamiento de disponibilidad:** Un profesional no puede tener dos horarios solapados el mismo día.
@@ -507,6 +558,12 @@ Este documento recopila y describe todas las reglas de negocio identificadas en 
 - El historial de auditoría debe ser inalterable y consultable por administradores.
 
 ## otras cosas a tener en cuenta.
+
+## 🌐 Integración Externa y API Pública
+- Documentar y exponer la API pública con Swagger/OpenAPI.
+- Proveer ejemplos de consumo (curl, Postman, JS, Python).
+- Versionar la API y documentar cambios.
+- Facilitar onboarding de integradores externos.
 
 Diagnóstico de Brechas (Gap Analysis)
 Basado en la comparativa entre los endpoints disponibles y las páginas detectadas:
@@ -669,6 +726,12 @@ Documentar el flujo de autenticación y cómo el Gateway (Nginx) enruta las peti
     - Django: 4.x
     - Django REST Framework: 3.x
 
+- **Testing y QA:**
+  - Pytest y Django TestCase para backend.
+  - Vitest/Jest y React Testing Library para frontend.
+  - Cypress o Playwright para pruebas E2E.
+  - Cobertura de pruebas y reportes automáticos sugeridos en CI.
+
 - **Frontend:**
   - React 18.x (ver frontend/package.json)
   - Vite como bundler y servidor de desarrollo.
@@ -698,6 +761,20 @@ Documentar el flujo de autenticación y cómo el Gateway (Nginx) enruta las peti
 > Avances registrados automáticamente por GitHub Copilot.
 
 > Documento generado automáticamente para diagnóstico y planificación.
+
+---
+
+# 🧭 Hallazgos y sugerencias adicionales tras revisión completa (28/02/2026)
+
+- Falta panel de monitoreo y métricas para admins (logs, errores, uso de recursos, auditoría).
+- Mejorar scripts y UI para seeds/datos demo y testing.
+- Documentar y automatizar backups y recuperación de BD y archivos.
+- Implementar CI/CD y pipelines automáticos.
+- Reforzar internacionalización y accesibilidad en frontend.
+- Documentar y exponer la API pública con Swagger/OpenAPI y ejemplos de consumo.
+- Mejorar onboarding y ayuda interactiva para usuarios y admins.
+- Aumentar cobertura de testing y reportes automáticos.
+- Validar y reforzar seguridad en endpoints, JWT, CORS y almacenamiento de archivos.
 
 
 Aquí tienes el resumen de tu Stack de Diseño (UI) actual:

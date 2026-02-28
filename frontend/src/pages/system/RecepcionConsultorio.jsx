@@ -111,8 +111,8 @@ const RecepcionConsultorio = () => {
         const config = workflow.find(s => s.slug === estado);
         const color = config?.color || '#6B7280';
         return (
-            <span 
-                style={{ borderColor: color, color: color, backgroundColor: `${color}15` }} 
+            <span
+                style={{ borderColor: color, color: color, backgroundColor: `${color}15` }}
                 className="px-3 py-1 rounded-full text-[10px] uppercase font-bold border tracking-wider"
             >
                 {config?.label || estado.replace(/_/g, ' ')}
@@ -222,7 +222,7 @@ const RecepcionConsultorio = () => {
                 <div className="flex flex-col lg:flex-row gap-4 items-center justify-between bg-gray-50 p-2 rounded-xl border border-gray-200">
                     <div className="flex items-center gap-2 bg-white p-1 rounded-lg border border-gray-200 shadow-sm">
                         <button onClick={() => cambiarFecha(-1)} className="p-2 hover:bg-gray-100 rounded-md text-gray-500 transition active:scale-95"><FaChevronLeft /></button>
-                        
+
                         <div onClick={abrirCalendario} className="relative flex flex-col items-center px-4 py-1 border-x border-gray-100 cursor-pointer hover:bg-indigo-50/50 transition rounded group min-w-[140px]">
                             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none mb-1">
                                 {new Date(selectedDate + "T12:00:00").toLocaleDateString('es-ES', { weekday: 'long' })}
@@ -307,7 +307,7 @@ const RecepcionConsultorio = () => {
                                                 <td className="p-4">
                                                     <div className="flex items-center justify-center gap-2">
                                                         {/* BOTÓN PRINCIPAL DE INGRESO/NOTA */}
-                                                        <button 
+                                                        <button
                                                             onClick={() => handleAtender(cita)}
                                                             className={`p-2 rounded-lg transition-all border shadow-sm ${cita.estado === 'PENDIENTE' || cita.estado === 'ACEPTADA' ? 'bg-indigo-600 text-white border-indigo-700' : 'bg-white text-indigo-600 border-indigo-200 hover:bg-indigo-50'}`}
                                                             title="Admitir o Editar Nota"
@@ -378,11 +378,11 @@ const RecepcionConsultorio = () => {
                                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Paciente</label>
                                         <div className="text-2xl font-black text-gray-800 mt-1">{citaSeleccionada.paciente_nombre}</div>
                                         <div className="text-sm text-gray-500 mb-4 font-mono">{citaSeleccionada.paciente_doc}</div>
-                                        
+
                                         <div className="flex gap-2">
                                             <div className="bg-indigo-50 px-3 py-1.5 rounded-lg text-xs text-indigo-800 font-bold border border-indigo-100 flex items-center gap-1">
-                                                🎂 {citaSeleccionada.paciente_fecha_nacimiento 
-                                                    ? calcularEdad(citaSeleccionada.paciente_fecha_nacimiento) 
+                                                🎂 {citaSeleccionada.paciente_fecha_nacimiento
+                                                    ? calcularEdad(citaSeleccionada.paciente_fecha_nacimiento)
                                                     : "Edad N/A"}
                                             </div>
                                             <div className="bg-gray-100 px-3 py-1.5 rounded-lg text-xs text-gray-600 border border-gray-200 font-bold">
@@ -436,8 +436,10 @@ const RecepcionConsultorio = () => {
                                                             </span>
                                                         </div>
                                                         <div className="text-sm font-bold text-indigo-900">{hist.profesional_nombre}</div>
+
+                                                        {/* ✅ CAMBIO MÍNIMO (alternativa 2): usar el string nuevo del serializer */}
                                                         <div className="text-xs text-gray-500 italic bg-yellow-50 p-2 rounded border border-yellow-100 mt-2">
-                                                            "{hist.nota_medica || "Sin notas registradas."}"
+                                                            "{hist.nota_medica_contenido || "Sin notas registradas."}"
                                                         </div>
                                                     </div>
                                                 ))}
@@ -453,8 +455,8 @@ const RecepcionConsultorio = () => {
                                 Cerrar
                             </button>
                             {!['REALIZADA', 'CANCELADA', 'NO_ASISTIO', 'RECHAZADA'].includes(citaSeleccionada.estado) && (
-                                <button 
-                                    onClick={confirmarIngreso} 
+                                <button
+                                    onClick={confirmarIngreso}
                                     className="px-6 py-2 rounded-lg bg-green-600 text-white font-bold hover:bg-green-700 shadow-lg flex items-center gap-2 transform active:scale-95 transition text-sm"
                                 >
                                     <FaSave /> {citaSeleccionada.estado === 'EN_SALA' ? 'Actualizar Datos' : 'Confirmar Ingreso'}

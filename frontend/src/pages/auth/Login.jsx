@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
 import AuthLayout from '../../components/auth/AuthLayout';
-import { AuthContext } from '../../context/AuthContext'; // <--- Importamos el contexto
+import { AuthContext } from '../../context/AuthContext';
 
 const MySwal = withReactContent(Swal);
 
@@ -22,10 +22,8 @@ const Login = () => {
         setLoading(true);
 
         try {
-            // Llamamos a la función login del AuthContext (no al servicio directo)
             await login(credentials);
-            
-            // Alerta tipo "Toast" (Pequeña en la esquina superior)
+
             MySwal.fire({
                 toast: true,
                 position: 'top-end',
@@ -35,18 +33,24 @@ const Login = () => {
                 timer: 1500,
                 timerProgressBar: true,
                 didOpen: (toast) => {
-                    toast.addEventListener('mouseenter', Swal.stopTimer)
-                    toast.addEventListener('mouseleave', Swal.resumeTimer)
+                    toast.addEventListener('mouseenter', Swal.stopTimer);
+                    toast.addEventListener('mouseleave', Swal.resumeTimer);
                 }
             });
 
-            // Redirigir al home
+            // Limpia contraseña en memoria lo antes posible
+            setCredentials((prev) => ({ ...prev, password: '' }));
+
             setTimeout(() => {
-                navigate('/dashboard'); 
+                navigate('/dashboard');
             }, 1500);
 
         } catch (error) {
             console.error(error);
+
+            // Limpia contraseña también si falla
+            setCredentials((prev) => ({ ...prev, password: '' }));
+
             MySwal.fire({
                 icon: 'error',
                 title: 'Error de acceso',
@@ -63,27 +67,40 @@ const Login = () => {
             <form onSubmit={handleSubmit} className="space-y-6">
                 <div>
                     <label className="block text-gray-700 text-sm font-bold mb-2">Documento de Identidad</label>
-                    <input 
-                        type="text" 
-                        name="documento" 
-                        value={credentials.documento} 
+                    <input
+                        type="text"
+                        name="documento"
+                        value={credentials.documento}
                         onChange={handleChange}
                         className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 transition-colors hover:bg-white"
                         placeholder="Ej: 123456789"
-                        required 
+                        required
+                        // ✅ Evita warning/autofill correcto
+                        autoComplete="username"
+                        // ✅ Mejor UX
+                        inputMode="numeric"
+                        spellCheck={false}
+                        autoCorrect="off"
+                        autoCapitalize="none"
                     />
                 </div>
 
                 <div>
                     <label className="block text-gray-700 text-sm font-bold mb-2">Contraseña</label>
-                    <input 
-                        type="password" 
-                        name="password" 
-                        value={credentials.password} 
+                    <input
+                        type="password"
+                        name="password"
+                        value={credentials.password}
                         onChange={handleChange}
                         className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 transition-colors hover:bg-white"
                         placeholder="••••••••"
-                        required 
+                        required
+                        // ✅ Esto quita el warning del navegador
+                        autoComplete="current-password"
+                        // ✅ Mejor UX / evitar “correcciones”
+                        spellCheck={false}
+                        autoCorrect="off"
+                        autoCapitalize="none"
                     />
                     <div className="text-right mt-2">
                         <Link to="/forgot-password" className="text-sm text-blue-500 hover:text-blue-700 font-medium transition-colors">
@@ -92,8 +109,8 @@ const Login = () => {
                     </div>
                 </div>
 
-                <button 
-                    type="submit" 
+                <button
+                    type="submit"
                     disabled={loading}
                     className={`w-full font-bold py-3 rounded-lg transition-all duration-300 transform hover:scale-[1.02] shadow-md text-white
                         ${loading ? 'bg-blue-400 cursor-wait' : 'bg-gradient-to-r from-blue-600 to-blue-700 hover:to-blue-800'}

@@ -11,6 +11,7 @@ class NotaMedicaSerializer(serializers.ModelSerializer):
 
 class CitaSerializer(serializers.ModelSerializer):
     nota_medica = NotaMedicaSerializer(read_only=True, required=False)
+    nota_medica_contenido = serializers.SerializerMethodField()
 
     # Campos calculados (se llenan en el ViewSet via _enrich_data)
     paciente_nombre = serializers.SerializerMethodField()
@@ -41,6 +42,10 @@ class CitaSerializer(serializers.ModelSerializer):
     
     def get_paciente_fecha_nacimiento(self, obj):
         return getattr(obj, "paciente_fecha_nacimiento", None)
+    
+    def get_nota_medica_contenido(self, obj):
+        nm = getattr(obj, "nota_medica", None)
+        return nm.contenido if nm else None
 
 
 class HistoricoCitaSerializer(serializers.ModelSerializer):

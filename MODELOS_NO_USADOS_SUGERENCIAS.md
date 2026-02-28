@@ -7,24 +7,29 @@ Este documento identifica los modelos de cada microservicio y su uso real en bac
 - Pacientes que pueden pedir citas de otros pacientes del grupo familiar. (OK)
 - Auditoria para todos las acciones de la aplicación.
 - Notificaciones, alertas por correo electronico y mensajes de texto.
-- asignación de Profesional como usuario de la aplicación -medico
-- Vista para el profesional para ver sus citas asignadas y los comentarios de los pacientes y la funcionarias de la clinica.
+- asignación de Profesional como usuario de la aplicación -medico (OK)
+- Vista para el profesional para ver sus citas asignadas y los comentarios de los pacientes y la funcionarias de la clinica. (OK)
 - Chatbot interno entre funcionarios de la empresa.
 - Terminar desarrollo del portal.
 - Crear vistas para el administrador relacionado con el portal y su administración.
 - Crear vista para el administrador relacionado con el envio de correos y notificaciones.
 - Crear chatbot con el modelo de inteligencia artifical para solicitud de citas, cancelacion, y demas componentes.
 - Crear la integracion con whatsapp de meta para la interacion con la ia y la aplicación. 
-- Crear pantalla de gestion de pacientes para activar el turno en sala de espera y ser mas precisos durante la atención.
+- Crear pantalla de gestion de pacientes para activar el turno en sala de espera y ser mas precisos durante la atención. (OK)
 - Crear API para integración con otras aplicaciones para que consuman los datos basicos relacionado con la citas.- webservices metodo get
-- Mejorar los archivos .py para la creación automatica de las vistas y permisos por vista segun los grupos y roles y tambien cambiar los iconos para que tengan mejor diseño.(Segmentos)
+- Mejorar los archivos .py para la creación automatica de las vistas y permisos por vista segun los grupos y roles y tambien cambiar los iconos para que tengan mejor diseño.(OK)(Segmentos)
 - validar las vulnerabilidades al final y corregirlas todas.
 - Crear un flujo de ayuda con IA para los administradores de la aplicación. -********************
 - Validar el uso de memoria y optimización de los recursos.
 - Implementar modo oscuro para los usuarios.
 - Validar los horarios relacionados con los servicios.
 - Revisar las transiciones de los estados y agregar la transicion rechazada. 
+- hacer 2FA y autenticacion con google o outlook
 
+
+# PARA REVISAR:
+- En los perfiles en "Perfil" Mi información Personal debo revisar ya que en Nombres esta saliendo todo incluyendo los apellidos 
+- Revisar en modulo "Profesionales" para que en la tabla se vea toda la información del profesional ademas no esta sincronizando o buscando automaticamente los usuarios que corresponden al profesional creado. ya que en todos asi lo vincule esta saliendo Sin cuenta de acceso.
 
 ---
 
