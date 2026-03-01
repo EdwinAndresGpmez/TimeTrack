@@ -187,7 +187,7 @@ const ConfiguracionSistema = () => {
     });
 
     const [brandingConfig, setBrandingConfig] = useState({
-        empresa_nombre: 'TimeTrack',
+        empresa_nombre: 'idefnova',
         logo_url: '',
         bg_color: '#0f172a',
         accent_color: '#34d399',
@@ -293,22 +293,19 @@ const ConfiguracionSistema = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
-
         try {
-            if (activeTab === 'branding') {
-                await authService.updateBranding(brandingConfig);
-                Swal.fire('¡Éxito!', 'Diseño del Sidebar actualizado.', 'success');
-            }
-            else if (activeTab === 'menus') {
-                Swal.fire('Info', 'Para Menús y Permisos, use los iconos de guardado individuales.', 'info');
-            }
-            else {
-                await configService.updateConfig(config);
-                Swal.fire('¡Éxito!', 'Configuración de reglas guardada.', 'success');
-            }
+            // Guardar configuración general y branding
+            await configService.updateConfig(config);
+            await authService.updateBranding(brandingConfig);
+            // Actualizar localStorage y disparar evento brandingChanged SOLO al guardar
+            localStorage.setItem('branding', JSON.stringify(brandingConfig));
+            window.dispatchEvent(new Event('brandingChanged'));
+            Swal.fire('¡Guardado!', 'La configuración fue actualizada.', 'success');
+            // Recargar datos
+            cargarTodo();
         } catch (error) {
-            console.error(error);
-            Swal.fire('Error', 'No se pudieron guardar los cambios.', 'error');
+            console.error("Error guardando configuración:", error);
+            Swal.fire('Error', 'No se pudo guardar la configuración.', 'error');
         } finally {
             setLoading(false);
         }

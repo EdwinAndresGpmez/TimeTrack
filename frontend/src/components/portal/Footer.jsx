@@ -7,7 +7,7 @@ const Footer = () => {
             <div className="container mx-auto px-4 grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
                 {/* Columna 1 */}
                 <div>
-                    <h3 className="text-2xl font-bold mb-4">TimeTrack<span className="text-green-400">Medical</span></h3>
+                    <h3 className="text-2xl font-bold mb-4">Idefnova<span className="text-green-400">Medical</span></h3>
                     <p className="text-blue-200 text-sm">
                         Servicios Asociados Integrados. Tu aliado en salud con más de 17 años de experiencia cuidando de ti y tu familia.
                     </p>
@@ -36,7 +36,7 @@ const Footer = () => {
             </div>
             
             <div className="border-t border-blue-800 pt-6 text-center text-sm text-blue-300">
-                <p>&copy; {new Date().getFullYear()} TimeTrack Medical. Todos los derechos reservados.</p>
+                <p>&copy; {new Date().getFullYear()} Idefnova. Todos los derechos reservados.</p>
             </div>
         </footer>
     );

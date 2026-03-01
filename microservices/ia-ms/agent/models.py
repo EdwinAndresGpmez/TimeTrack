@@ -25,7 +25,7 @@ class AIConfiguration(models.Model):
     # El "Cerebro" (System Prompt)
     system_prompt = models.TextField(
         default=(
-            "Eres un asistente médico virtual de la Clínica TimeTrack. "
+            "Eres un asistente médico virtual de la Clínica idefnova. "
             "Tu objetivo es ayudar a agendar citas. Sé amable, conciso y profesional."
         ),
         help_text="Instrucciones base para el comportamiento del bot.",

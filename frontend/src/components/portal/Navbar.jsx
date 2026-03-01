@@ -69,7 +69,7 @@ const Navbar = () => {
                         <div className="flex-1 p-4 bg-gray-50 overflow-y-auto space-y-3">
                             <div className="flex gap-2 items-start">
                                 <div className="bg-blue-100 p-2 rounded-lg rounded-tl-none text-sm text-gray-800 max-w-[85%] shadow-sm">
-                                    ¡Hola! 👋 Bienvenido a TimeTrack Medical. ¿En qué puedo ayudarte hoy?
+                                    ¡Hola! 👋 Bienvenido a Idefnova. ¿En qué puedo ayudarte hoy?
                                 </div>
                             </div>
                             <div className="flex gap-2 items-end justify-end">
@@ -135,7 +135,7 @@ const Navbar = () => {
 
                 <nav className="container mx-auto px-4 py-3 md:py-4 flex justify-between items-center">
                     <Link to="/" className="text-2xl md:text-3xl font-extrabold text-blue-900 tracking-tight">
-                        TimeTrack<span className="text-blue-500">Medical</span>
+                        Idefnova<span className="text-blue-500">Medical</span>
                     </Link>
 
                     <div className="hidden md:flex gap-8 items-center font-medium text-gray-600">

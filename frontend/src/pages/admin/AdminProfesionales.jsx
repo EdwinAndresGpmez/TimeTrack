@@ -4,8 +4,9 @@ import { authService } from '../../services/authService';
 import Swal from 'sweetalert2';
 import { 
     FaPlus, FaEdit, FaToggleOn, FaToggleOff, FaUserMd, 
-    FaSearch, FaChevronLeft, FaChevronRight, FaLink, FaIdCard, FaEnvelope 
+    FaSearch, FaChevronLeft, FaChevronRight, FaLink, FaIdCard, FaEnvelope, FaPlusCircle
 } from 'react-icons/fa';
+import AnimatedActionButton from '../../components/system/AnimatedActionButton';
 
 const ITEMS_PER_PAGE = 10;
 
@@ -150,10 +151,12 @@ const AdminProfesionales = () => {
                     </h1>
                     <p className="text-gray-500 font-medium">Gestión de profesionales y servicios habilitados.</p>
                 </div>
-                <button onClick={() => { setEditing(null); setForm({ nombre: '', numero_documento: '', registro_medico: '', email_profesional: '', telefono_profesional: '', especialidades: [], lugares_atencion: [], servicios_habilitados: [], activo: true, user_id: null }); setModalOpen(true); }}
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg transition-all active:scale-95">
-                    <FaPlus /> Nuevo Profesional
-                </button>
+                <AnimatedActionButton
+                    onClick={() => { setEditing(null); setForm({ nombre: '', numero_documento: '', registro_medico: '', email_profesional: '', telefono_profesional: '', especialidades: [], lugares_atencion: [], servicios_habilitados: [], activo: true, user_id: null }); setModalOpen(true); }}
+                    icon={<FaPlusCircle />}
+                    label="Nuevo Profesional"
+                    sublabel="Agregar"
+                />
             </div>
 
             <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-6 flex flex-col md:flex-row gap-4">

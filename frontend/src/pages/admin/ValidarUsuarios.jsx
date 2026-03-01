@@ -9,8 +9,9 @@ import {
     FaIdCard, 
     FaExclamationTriangle, 
     FaCheckCircle, 
-    FaUsers 
+    FaUsers, FaPlusCircle 
 } from 'react-icons/fa';
+import AnimatedActionButton from '../../components/system/AnimatedActionButton';
 import { Link } from 'react-router-dom';
 
 const ValidarUsuarios = () => {
@@ -192,9 +193,18 @@ const ValidarUsuarios = () => {
                     </h1>
                     <p className="text-gray-500 font-medium mt-2">Gestiona ingresos y correcciones de identidad.</p>
                 </div>
-                <Link to="/dashboard/admin/pacientes" className="px-6 py-3 font-bold text-blue-600 bg-blue-50 rounded-xl hover:bg-blue-100 border border-blue-200">
-                    <FaUsers className="mr-2 inline"/> Ver Todos
-                </Link>
+                <div className="flex flex-col gap-2 md:flex-row md:gap-4">
+                    <AnimatedActionButton
+                        onClick={() => Swal.fire('Función no implementada', 'Aquí podrías abrir un modal para crear usuario manualmente.', 'info')}
+                        icon={<FaPlusCircle />}
+                        label="Nuevo Usuario"
+                        sublabel="Crear"
+                        className="!bg-blue-600 hover:!bg-blue-700"
+                    />
+                    <Link to="/dashboard/admin/pacientes" className="px-6 py-3 font-bold text-blue-600 bg-blue-50 rounded-xl hover:bg-blue-100 border border-blue-200">
+                        <FaUsers className="mr-2 inline"/> Ver Todos
+                    </Link>
+                </div>
             </div>
             
             <div className="bg-white shadow-xl rounded-2xl overflow-hidden border border-gray-100">

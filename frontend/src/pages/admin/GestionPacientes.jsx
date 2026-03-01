@@ -7,8 +7,9 @@ import Swal from 'sweetalert2';
 import { 
     FaPlus, FaEdit, FaToggleOn, FaToggleOff, FaUserTie, 
     FaSearch, FaChevronLeft, FaChevronRight, FaKey, FaUserCheck, FaDownload,
-    FaLock, FaLockOpen, FaHistory 
+    FaLock, FaLockOpen, FaHistory, FaPlusCircle 
 } from 'react-icons/fa';
+import AnimatedActionButton from '../../components/system/AnimatedActionButton';
 
 const ITEMS_PER_PAGE = 10;
 
@@ -403,9 +404,13 @@ const GestionPacientes = () => {
                     <input type="text" placeholder="Buscar por nombre o documento..." className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500 outline-none transition-all"
                         value={query} onChange={e => { setQuery(e.target.value); setPage(1); }} />
                 </div>
-                <button onClick={openCreate} className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 shadow-md transition-all whitespace-nowrap">
-                    <FaPlus /> Crear Paciente
-                </button>
+                <AnimatedActionButton
+                    onClick={openCreate}
+                    icon={<FaPlusCircle />}
+                    label="Crear Paciente"
+                    sublabel="Nuevo"
+                    className="!bg-teal-600 hover:!bg-teal-700"
+                />
             </div>
 
             <div className="bg-white shadow-lg rounded-xl overflow-hidden border border-gray-200">

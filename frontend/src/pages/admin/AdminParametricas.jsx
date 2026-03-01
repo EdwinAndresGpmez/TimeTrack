@@ -2,10 +2,12 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { staffService } from '../../services/staffService';
 import { patientService } from '../../services/patientService';
 import Swal from 'sweetalert2';
+
 import { 
     FaHospital, FaStethoscope, FaNotesMedical, FaEdit, 
     FaCheck, FaToggleOn, FaToggleOff, FaUsers, FaIdCard, FaPlusCircle
 } from 'react-icons/fa';
+import AnimatedActionButton from '../../components/system/AnimatedActionButton';
 
 const AdminParametricas = () => {
     // Tabs: sedes | especialidades | servicios | tipos
@@ -176,18 +178,12 @@ const AdminParametricas = () => {
                     <p className="text-gray-500 font-medium mt-1 ml-1">Configura las bases maestras de tu aplicación.</p>
                 </div>
 
-                {/* BOTÓN ANIMADO TIPO "AGENDAR ADMIN" */}
-                <button 
+                <AnimatedActionButton
                     onClick={() => openModal()}
-                    className="group relative inline-flex items-center justify-center px-8 py-3 font-bold text-white transition-all duration-200 bg-blue-600 rounded-2xl hover:bg-blue-700 shadow-xl shadow-blue-200 overflow-hidden active:scale-95"
-                >
-                    <div className="absolute inset-0 w-full h-full transition-all duration-300 scale-0 group-hover:scale-100 group-hover:bg-white/10 rounded-2xl"></div>
-                    <FaPlusCircle className="mr-3 text-xl animate-bounce" />
-                    <div className="flex flex-col items-start leading-tight">
-                        <span className="text-[10px] uppercase tracking-widest opacity-80 font-black">Crear</span>
-                        <span className="text-lg">{getButtonLabel().title}</span>
-                    </div>
-                </button>
+                    icon={<FaPlusCircle />}
+                    label={getButtonLabel().title}
+                    sublabel={getButtonLabel().subtitle || 'Crear'}
+                />
             </div>
 
             {/* Navegación de Tabs */}

@@ -1,5 +1,6 @@
 import React, { useRef } from 'react';
 import { FaPalette, FaImage, FaLayerGroup, FaMagic, FaUpload, FaSyncAlt } from 'react-icons/fa';
+import AnimatedActionButton from '../../components/system/AnimatedActionButton';
 
 const AdminSidebarBranding = ({ brandingConfig, setBrandingConfig }) => {
     const fileInputRef = useRef(null);
@@ -67,28 +68,39 @@ const AdminSidebarBranding = ({ brandingConfig, setBrandingConfig }) => {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <div className="space-y-6">
                     <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm space-y-6">
-                        {/* LOGO */}
+                        {/* LOGO Y NOMBRE DE EMPRESA */}
                         <div className="space-y-4">
                             <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                                <FaImage className="text-blue-500" /> Logo de Empresa
+                                <FaImage className="text-blue-500" /> Logo y Nombre de Empresa
                             </h4>
-                            <div className="flex gap-4">
-                                <input 
-                                    type="text" 
-                                    name="logo_url"
-                                    value={brandingConfig.logo_url || ''}
+                            <div className="flex flex-col gap-2">
+                                <input
+                                    type="text"
+                                    name="empresa_nombre"
+                                    value={brandingConfig.empresa_nombre || ''}
                                     onChange={handleChange}
-                                    placeholder="URL del Logo o sube uno -->"
-                                    className="flex-1 bg-gray-50 border-none rounded-xl p-3 text-xs focus:ring-2 focus:ring-emerald-500 outline-none"
+                                    placeholder="Nombre de la empresa"
+                                    className="bg-gray-50 border-none rounded-xl p-3 text-xs focus:ring-2 focus:ring-emerald-500 outline-none mb-1"
                                 />
-                                <button 
-                                    type="button"
-                                    onClick={() => fileInputRef.current.click()}
-                                    className="bg-indigo-600 text-white p-3 rounded-xl hover:bg-indigo-700 transition-colors"
-                                >
-                                    <FaUpload />
-                                </button>
-                                <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileUpload} />
+                                <div className="flex gap-4">
+                                    <input 
+                                        type="text" 
+                                        name="logo_url"
+                                        value={brandingConfig.logo_url || ''}
+                                        onChange={handleChange}
+                                        placeholder="URL del Logo o sube uno -->"
+                                        className="flex-1 bg-gray-50 border-none rounded-xl p-3 text-xs focus:ring-2 focus:ring-emerald-500 outline-none"
+                                    />
+                                    <AnimatedActionButton
+                                        type="button"
+                                        onClick={() => fileInputRef.current.click()}
+                                        icon={<FaUpload />}
+                                        label="Subir Logo"
+                                        sublabel="Logo"
+                                        className="!bg-indigo-600 hover:!bg-indigo-700 !py-2 !px-4"
+                                    />
+                                    <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileUpload} />
+                                </div>
                             </div>
                         </div>
 
@@ -98,26 +110,28 @@ const AdminSidebarBranding = ({ brandingConfig, setBrandingConfig }) => {
                                 <label className="text-[10px] font-black text-gray-400 uppercase">Fondo Sidebar</label>
                                 <div className="flex items-center gap-2 bg-gray-50 p-2 rounded-xl border">
                                     <input type="color" name="bg_color" value={brandingConfig.bg_color || '#0f172a'} onChange={handleChange} className="w-8 h-8 rounded-lg cursor-pointer border-none bg-transparent" />
-                                    <span className="text-[10px] font-mono font-bold">{brandingConfig.bg_color}</span>
+                                    <input type="text" name="bg_color" value={brandingConfig.bg_color || ''} onChange={handleChange} maxLength={9} placeholder="#0f172a" className="w-20 text-[10px] font-mono font-bold bg-transparent border-none outline-none" />
                                 </div>
                             </div>
                             <div className="space-y-2">
                                 <label className="text-[10px] font-black text-gray-400 uppercase">Color Acento (Iconos)</label>
                                 <div className="flex items-center gap-2 bg-gray-50 p-2 rounded-xl border">
                                     <input type="color" name="accent_color" value={brandingConfig.accent_color || '#34d399'} onChange={handleChange} className="w-8 h-8 rounded-lg cursor-pointer border-none bg-transparent" />
-                                    <span className="text-[10px] font-mono font-bold">{brandingConfig.accent_color}</span>
+                                    <input type="text" name="accent_color" value={brandingConfig.accent_color || ''} onChange={handleChange} maxLength={9} placeholder="#34d399" className="w-20 text-[10px] font-mono font-bold bg-transparent border-none outline-none" />
                                 </div>
                             </div>
                         </div>
 
                         {/* VARIANTES - AQUÍ DEFINIMOS LA DIFERENCIA REAL */}
                         <div className="space-y-4 pt-4 border-t">
-                            <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest">Variantes de Estructura</h4>
                             <div className="grid grid-cols-1 gap-2">
                                 {[
                                     {id: 'classic', label: 'Clásico (Recto)', desc: 'Sin bordes redondeados, pegado al lateral.'},
                                     {id: 'floating', label: 'Flotante (Curvo)', desc: 'Bordes redondeados y separado de los extremos.'},
-                                    {id: 'minimalist', label: 'Minimalista (Slim)', desc: 'Ancho reducido, ideal para paneles densos.'}
+                                    {id: 'sidebar-right', label: 'Sidebar Derecha', desc: 'Barra lateral fija a la derecha.'},
+                                    {id: 'compact', label: 'Compacto', desc: 'Sidebar angosto, solo iconos y tooltip.'},
+                                    {id: 'glassmorphism', label: 'Glassmorphism', desc: 'Efecto vidrio moderno y difuminado.'},
+                                    {id: 'topbar', label: 'Menú Superior (Topbar)', desc: 'Menú horizontal en la parte superior.'}
                                 ].map((variant) => (
                                     <button
                                         key={variant.id}
@@ -136,31 +150,65 @@ const AdminSidebarBranding = ({ brandingConfig, setBrandingConfig }) => {
 
                 {/* PREVIEW DINÁMICO */}
                 <div className="bg-slate-200 rounded-[3rem] p-12 border-8 border-white shadow-inner flex items-center justify-center">
-                    <div 
-                        style={{ 
+                    {/* Preview dinámico según variante */}
+                    {brandingConfig.variant === 'topbar' ? (
+                        <div style={{
                             backgroundColor: brandingConfig.bg_color,
-                            borderRadius: brandingConfig.variant === 'floating' ? '2.5rem' : (brandingConfig.variant === 'minimalist' ? '1.5rem' : '0px'),
-                            color: textColor
-                        }}
-                        className={`shadow-2xl transition-all duration-700 flex flex-col overflow-hidden h-[450px] ${brandingConfig.variant === 'minimalist' ? 'w-20' : 'w-60'}`}
-                    >
-                        <div className="p-6 flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center shrink-0 overflow-hidden border border-white/10">
+                            color: textColor,
+                            borderRadius: '1.5rem',
+                            width: '320px',
+                            height: '70px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            padding: '0 2rem',
+                            boxShadow: '0 4px 24px 0 rgba(0,0,0,0.08)'
+                        }}>
+                            <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center shrink-0 overflow-hidden border border-white/10 mr-4">
                                 {brandingConfig.logo_url ? <img src={brandingConfig.logo_url} className="w-full h-full object-cover" /> : "TT"}
                             </div>
-                            <div className={`transition-all duration-500 ${brandingConfig.variant === 'minimalist' ? 'opacity-0 w-0' : 'opacity-100'}`}>
-                                <h1 className="font-black text-xs">PREVIEW</h1>
+                            <span className="font-black text-xs uppercase tracking-widest">TOPBAR PREVIEW</span>
+                        </div>
+                    ) : (
+                        <div
+                            style={{
+                                backgroundColor: brandingConfig.bg_color,
+                                borderRadius:
+                                    brandingConfig.variant === 'floating' ? '2.5rem'
+                                    : brandingConfig.variant === 'minimalist' ? '1.5rem'
+                                    : brandingConfig.variant === 'sidebar-right' ? '2rem 0 0 2rem'
+                                    : brandingConfig.variant === 'compact' ? '1rem'
+                                    : brandingConfig.variant === 'glassmorphism' ? '2rem' : '0px',
+                                color: textColor,
+                                boxShadow: brandingConfig.variant === 'glassmorphism' ? '0 8px 32px 0 rgba(31, 38, 135, 0.37)' : undefined,
+                                backdropFilter: brandingConfig.variant === 'glassmorphism' ? 'blur(8px)' : undefined,
+                                border: brandingConfig.variant === 'glassmorphism' ? '1px solid rgba(255,255,255,0.18)' : undefined,
+                                opacity: brandingConfig.variant === 'glassmorphism' ? 0.95 : 1
+                            }}
+                            className={`shadow-2xl transition-all duration-700 flex flex-col overflow-hidden h-[450px] ${
+                                brandingConfig.variant === 'minimalist' ? 'w-20'
+                                : brandingConfig.variant === 'sidebar-right' ? 'w-60 ml-20'
+                                : brandingConfig.variant === 'compact' ? 'w-14'
+                                : 'w-60'
+                            }`}
+                        >
+                            <div className="p-6 flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center shrink-0 overflow-hidden border border-white/10">
+                                    {brandingConfig.logo_url ? <img src={brandingConfig.logo_url} className="w-full h-full object-cover" /> : "TT"}
+                                </div>
+                                <div className={`transition-all duration-500 ${brandingConfig.variant === 'minimalist' || brandingConfig.variant === 'compact' ? 'opacity-0 w-0' : 'opacity-100'}`}>
+                                    <h1 className="font-black text-xs">PREVIEW</h1>
+                                </div>
+                            </div>
+                            <div className="flex-1 px-4 space-y-4 pt-4">
+                                {[1, 2, 3].map(i => (
+                                    <div key={i} className="flex items-center gap-4 p-2">
+                                        <div className="w-5 h-5 rounded-lg shrink-0" style={{ backgroundColor: i === 1 ? brandingConfig.accent_color : textColor, opacity: i === 1 ? 1 : 0.2 }} />
+                                        <div className={`h-2 bg-current rounded-full transition-all ${brandingConfig.variant === 'minimalist' || brandingConfig.variant === 'compact' ? 'w-0 opacity-0' : 'w-24 opacity-20'}`} />
+                                    </div>
+                                ))}
                             </div>
                         </div>
-                        <div className="flex-1 px-4 space-y-4 pt-4">
-                            {[1, 2, 3].map(i => (
-                                <div key={i} className="flex items-center gap-4 p-2">
-                                    <div className="w-5 h-5 rounded-lg shrink-0" style={{ backgroundColor: i === 1 ? brandingConfig.accent_color : textColor, opacity: i === 1 ? 1 : 0.2 }} />
-                                    <div className={`h-2 bg-current rounded-full transition-all ${brandingConfig.variant === 'minimalist' ? 'w-0 opacity-0' : 'w-24 opacity-20'}`} />
-                                </div>
-                            ))}
-                        </div>
-                    </div>
+                    )}
                 </div>
             </div>
         </div>

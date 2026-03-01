@@ -133,7 +133,7 @@ const PatientOnboarding = () => {
 
     const showRegistrationModal = useCallback(async () => {
         const { isConfirmed, isDenied, isDismissed } = await Swal.fire({
-            title: 'Bienvenido a TimeTrack',
+            title: 'Bienvenido a Idefnova',
             html: `
                 <div class="text-left text-gray-600">
                     <p class="mb-3">Para agendar citas médicas, necesitamos configurar tu perfil clínico.</p>

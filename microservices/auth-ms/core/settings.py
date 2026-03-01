@@ -10,7 +10,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 env = environ.Env(DEBUG=(bool, False))
 
-# 2. Leer .env (Asegura que la ruta suba a la raíz TimeTrack si es necesario)
+# 2. Leer .env (Asegura que la ruta suba a la raíz IdefNova si es necesario)
 environ.Env.read_env(os.path.join(BASE_DIR, ".env"))
 
 SECRET_KEY = env("SECRET_KEY")

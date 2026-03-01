@@ -77,29 +77,43 @@ const DashboardLayout = () => {
     // Verificar si es admin para mostrar campana
     const isAdmin = user?.is_superuser || user?.is_staff || user?.roles?.includes('Administrador');
 
+    // Detectar variante de sidebar para desplazar contenido correctamente
+    let sidebarBranding = JSON.parse(localStorage.getItem('branding') || '{}');
+    let sidebarVariant = sidebarBranding.variant || 'floating';
+    let sidebarWidth = isSidebarOpen ? 288 : 96; // w-72 o w-24 en px
+    if (sidebarVariant === 'compact') sidebarWidth = 80; // w-20
+    if (sidebarVariant === 'sidebar-right') sidebarWidth = isSidebarOpen ? 288 : 96;
+
+    // Forzar re-render del layout al cambiar la variante del sidebar
+    const [sidebarKey, setSidebarKey] = useState(sidebarVariant);
+    useEffect(() => { setSidebarKey(sidebarVariant); }, [sidebarVariant]);
+
+    // Para topbar, altura fija
+    let topbarHeight = sidebarVariant === 'topbar' ? 70 : 0;
+
     return (
-        <div className="min-h-screen bg-gray-50 flex">
-            
-            {/* Vigilante de Datos */}
+        <div className="min-h-screen bg-gray-50 flex" key={sidebarKey}>
             <DataUpdateEnforcer />
-
-            <Sidebar isOpen={isSidebarOpen} logout={logout} />
-
-            <div className={`flex-1 transition-all duration-300 ${isSidebarOpen ? 'md:ml-64' : 'md:ml-20'}`}>
-                
+            {/* Sidebar o Topbar */}
+            {sidebarVariant !== 'sidebar-right' && <Sidebar isOpen={isSidebarOpen} logout={logout} />}
+            <div
+                className={`flex-1 transition-all duration-300 ${sidebarVariant === 'sidebar-right' ? 'order-1' : ''}`}
+                style={{
+                    marginLeft: sidebarVariant !== 'topbar' && sidebarVariant !== 'sidebar-right' ? sidebarWidth : 0,
+                    marginRight: sidebarVariant === 'sidebar-right' ? sidebarWidth : 0,
+                    minHeight: '100vh',
+                    paddingTop: topbarHeight
+                }}
+            >
                 <header className="bg-white shadow-sm h-20 flex items-center justify-between px-8 sticky top-0 z-40 backdrop-blur-md bg-white/90">
-                    <button 
+                    <button
                         onClick={() => setSidebarOpen(!isSidebarOpen)}
                         className="text-gray-500 hover:text-blue-900 text-2xl focus:outline-none transition-transform active:scale-95"
                     >
                         <FaBars />
                     </button>
-
                     <div className="flex items-center gap-2">
-                        
-                        {/* CAMPANA DE NOTIFICACIONES (Solo Admins) */}
                         {isAdmin && <NotificationBell />}
-
                         <div className="text-right hidden sm:block mr-2">
                             <p className="font-bold text-gray-800 text-sm">{user?.nombre}</p>
                             <p className="text-[10px] text-gray-500 uppercase tracking-wider font-bold">{user?.roles?.[0] || 'Usuario'}</p>
@@ -109,11 +123,12 @@ const DashboardLayout = () => {
                         </div>
                     </div>
                 </header>
-
                 <main className="p-8 fade-in">
-                    <Outlet /> 
+                    <Outlet />
                 </main>
             </div>
+            {/* Sidebar derecho */}
+            {sidebarVariant === 'sidebar-right' && <Sidebar isOpen={isSidebarOpen} logout={logout} />}
         </div>
     );
 };

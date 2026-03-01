@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FaUserCircle, FaSearch, FaTimes, FaSave, FaPlus, FaLink, FaUnlink, FaIdCard, FaEnvelope } from 'react-icons/fa';
+import { FaUserCircle, FaSearch, FaTimes, FaSave, FaPlus, FaLink, FaUnlink, FaIdCard, FaEnvelope, FaPlusCircle } from 'react-icons/fa';
+import AnimatedActionButton from '../../components/system/AnimatedActionButton';
 import Swal from 'sweetalert2';
 import { authService } from '../../services/authService';
 
@@ -152,14 +153,14 @@ const MapaFamiliar = ({ targetUser, onClose }) => {
                         </div>
                     )}
                 </div>
-                <button 
-                    onClick={handleSave} 
+                <AnimatedActionButton
+                    onClick={handleSave}
                     disabled={saving || loading}
-                    className="pointer-events-auto bg-purple-600 hover:bg-purple-700 text-white px-8 py-3.5 rounded-2xl font-black shadow-xl shadow-purple-100 flex items-center gap-3 transition-all transform hover:-translate-y-1 active:scale-95"
-                >
-                    {saving ? <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div> : <FaSave size={18}/>}
-                    Guardar Conexiones
-                </button>
+                    icon={saving ? <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div> : <FaSave size={18}/>} 
+                    label="Guardar Conexiones"
+                    sublabel="Guardar"
+                    className="!bg-purple-600 hover:!bg-purple-700"
+                />
             </div>
 
             {/* LIENZO PRINCIPAL */}

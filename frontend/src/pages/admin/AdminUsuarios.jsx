@@ -5,8 +5,9 @@ import Swal from 'sweetalert2';
 import { 
     FaEdit, FaKey, FaUserShield, FaSearch, FaChevronLeft, FaChevronRight, 
     FaFilter, FaStethoscope, FaEnvelope, FaPhone, FaIdCard, FaPen, 
-    FaUsers, FaSitemap, FaTimes 
+    FaUsers, FaSitemap, FaTimes, FaPlusCircle 
 } from 'react-icons/fa';
+import AnimatedActionButton from '../../components/system/AnimatedActionButton';
 import { Link } from 'react-router-dom';
 
 // IMPORTACIÓN DEL NUEVO COMPONENTE
@@ -298,10 +299,19 @@ const AdminUsuarios = () => {
                 </div>
 
                 {/* BOTÓN CON DISEÑO NUEVO */}
-                <Link to="/dashboard/admin/pacientes" className="group relative inline-flex items-center justify-center px-8 py-3 font-bold text-white transition-all duration-200 bg-teal-600 rounded-2xl hover:bg-teal-700 shadow-xl active:scale-95">
-                    <FaUsers className="mr-3 text-xl group-hover:scale-110 transition-transform" />
-                    <span className="text-lg">Gestión de Pacientes</span>
-                </Link>
+                <div className="flex flex-col gap-2 md:flex-row md:gap-4">
+                    <AnimatedActionButton
+                        onClick={() => { setEditingUser(null); setFormData({ nombre: '', email: '', tipo_documento: 'CC', documento: '', numero: '' }); setIsModalOpen(true); }}
+                        icon={<FaPlusCircle />}
+                        label="Nuevo Usuario"
+                        sublabel="Crear"
+                        className="!bg-blue-600 hover:!bg-blue-700"
+                    />
+                    <Link to="/dashboard/admin/pacientes" className="group relative inline-flex items-center justify-center px-8 py-3 font-bold text-white transition-all duration-200 bg-teal-600 rounded-2xl hover:bg-teal-700 shadow-xl active:scale-95">
+                        <FaUsers className="mr-3 text-xl group-hover:scale-110 transition-transform" />
+                        <span className="text-lg">Gestión de Pacientes</span>
+                    </Link>
+                </div>
             </div>
 
             {/* Filtros */}

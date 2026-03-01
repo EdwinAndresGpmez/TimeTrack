@@ -107,7 +107,7 @@ class MenuItem(models.Model):
         return f"{self.category_name or 'Sin Cat'} - {self.label}"
 
 class SidebarBranding(models.Model):
-    empresa_nombre = models.CharField(max_length=100, default="TimeTrack")
+    empresa_nombre = models.CharField(max_length=100, default="Idefnova")
     # CAMBIO: De URLField a TextField para soportar Base64
     logo_url = models.TextField(blank=True, null=True) 
     bg_color = models.CharField(max_length=20, default="#0f172a")

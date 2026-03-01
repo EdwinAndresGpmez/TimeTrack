@@ -4,6 +4,7 @@ import { staffService } from '../../services/staffService';
 import { patientService } from '../../services/patientService'; 
 import { AuthContext } from '../../context/AuthContext'; 
 import { FaCalendarPlus, FaNotesMedical, FaTimesCircle, FaCheckCircle, FaMapMarkerAlt, FaUserMd, FaStethoscope } from 'react-icons/fa';
+import AnimatedActionButton from '../../components/system/AnimatedActionButton';
 import Swal from 'sweetalert2'; 
 import { Link } from 'react-router-dom';
 import DataUpdateEnforcer from '../../components/system/DataUpdateEnforcer'; 
@@ -163,10 +164,14 @@ const MisCitas = () => {
                     <h1 className="text-3xl font-black text-gray-800">Mis Citas</h1>
                     <p className="text-gray-500 mt-1">Consulta y administra tus próximos agendamientos.</p>
                 </div>
-                <Link to="/dashboard/citas/nueva" className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl flex items-center gap-2 shadow-lg shadow-blue-200 transition transform hover:-translate-y-1">
-                    <FaCalendarPlus />
-                    <span className="font-bold">Agendar Nueva Cita</span>
-                </Link>
+                <AnimatedActionButton
+                    as={Link}
+                    to="/dashboard/citas/nueva"
+                    label="Agendar Nueva Cita"
+                    icon={<FaCalendarPlus />}
+                    color="blue"
+                    className="px-6 py-3"
+                />
             </div>
 
             {citas.length === 0 ? (
@@ -176,7 +181,14 @@ const MisCitas = () => {
                     </div>
                     <h3 className="text-xl font-bold text-gray-700">Aún no tienes citas</h3>
                     <p className="text-gray-500 mt-2 mb-6">Cuando agendes una cita, aparecerá aquí.</p>
-                    <Link to="/dashboard/citas/nueva" className="text-blue-600 font-bold hover:underline">¡Agenda tu primera cita ahora!</Link>
+                    <AnimatedActionButton
+                        as={Link}
+                        to="/dashboard/citas/nueva"
+                        label="¡Agenda tu primera cita ahora!"
+                        color="blue"
+                        size="sm"
+                        className="mt-4"
+                    />
                 </div>
             ) : (
                 <div className="bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-100">
@@ -230,12 +242,14 @@ const MisCitas = () => {
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                             {(cita.estado === 'PENDIENTE' || cita.estado === 'ACEPTADA') ? (
-                                                <button 
+                                                <AnimatedActionButton
                                                     onClick={() => handleCancelar(cita.id)}
-                                                    className="text-red-500 hover:text-red-700 hover:bg-red-50 px-3 py-1.5 rounded-lg transition flex items-center gap-1 ml-auto text-xs font-bold border border-transparent hover:border-red-100"
-                                                >
-                                                    <FaTimesCircle /> Cancelar
-                                                </button>
+                                                    label="Cancelar"
+                                                    color="red"
+                                                    size="sm"
+                                                    icon={<FaTimesCircle />}
+                                                    className="ml-auto"
+                                                />
                                             ) : (
                                                 <span className="text-gray-300 italic text-xs">--</span>
                                             )}

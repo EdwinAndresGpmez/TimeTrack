@@ -5,8 +5,9 @@ import * as FaIcons from 'react-icons/fa';
 import { 
     FaSave, FaBars, FaLock, FaPlus, FaTrash, FaCircle, 
     FaChevronDown, FaStethoscope, FaUserMd, FaHospital, FaCalendarAlt, FaBriefcaseMedical,
-    FaLayerGroup
+    FaLayerGroup, FaPlusCircle
 } from 'react-icons/fa';
+import AnimatedActionButton from '../../components/system/AnimatedActionButton';
 
 // Lista de iconos para el selector
 const ICON_OPTIONS = [
@@ -165,10 +166,9 @@ const AdminMenu = () => {
     const handleDelete = async (e, id, type) => {
         e.preventDefault();
         e.stopPropagation();
-
         const result = await Swal.fire({
             title: '¿Eliminar?',
-            text: "Esta acción borrará el registro de la base de datos.",
+            text: 'Esta acción borrará el registro de la base de datos.',
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#d33',
@@ -209,11 +209,15 @@ const AdminMenu = () => {
                         <div className="p-3 bg-indigo-600 text-white rounded-xl shadow-lg shadow-indigo-100"><FaBars size={20} /></div>
                         <h2 className="text-xl font-black text-gray-800 uppercase tracking-tighter">Arquitectura del Sidebar</h2>
                     </div>
-                    <button type="button" onClick={(e) => handleCreateItem(e, 'menu')} className="bg-indigo-600 text-white px-5 py-2.5 rounded-2xl font-bold flex items-center gap-2 hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 active:scale-95">
-                        <FaPlus size={14} /> Nuevo Ítem
-                    </button>
+                    <AnimatedActionButton
+                        type="button"
+                        onClick={(e) => handleCreateItem(e, 'menu')}
+                        icon={<FaPlusCircle />}
+                        label="Nuevo Ítem"
+                        sublabel="Crear"
+                        className="!py-2.5 !px-5"
+                    />
                 </div>
-
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-separate border-spacing-y-2">
                         <thead>
@@ -304,9 +308,14 @@ const AdminMenu = () => {
                         <div className="p-3 bg-red-600 text-white rounded-xl shadow-lg shadow-red-100"><FaLock size={20} /></div>
                         <h2 className="text-xl font-black text-gray-800 uppercase tracking-tighter">Reglas de Seguridad (App.jsx)</h2>
                     </div>
-                    <button type="button" onClick={(e) => handleCreateItem(e, 'permiso')} className="bg-gray-800 text-white px-5 py-2.5 rounded-2xl font-bold flex items-center gap-2 hover:bg-black transition-all shadow-lg active:scale-95">
-                        <FaPlus size={14} /> Nuevo Permiso
-                    </button>
+                    <AnimatedActionButton
+                        type="button"
+                        onClick={(e) => handleCreateItem(e, 'permiso')}
+                        icon={<FaPlusCircle />}
+                        label="Nuevo Permiso"
+                        sublabel="Crear"
+                        className="!bg-gray-800 hover:!bg-black !py-2.5 !px-5"
+                    />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

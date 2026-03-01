@@ -13,7 +13,7 @@ const AuthLayout = ({ children, title }) => {
             <div className="bg-white/95 backdrop-blur-md p-8 rounded-2xl shadow-2xl w-full max-w-md z-10 mx-4 border border-white/50">
                 <div className="text-center mb-6">
                     {/* Asegúrate de tener tu logo en public/ o src/assets/ */}
-                    <h2 className="text-3xl font-bold text-blue-900 mb-2">TimeTrack</h2>
+                    <h2 className="text-3xl font-bold text-blue-900 mb-2">Idefnova</h2>
                     <h3 className="text-xl font-semibold text-gray-700">{title}</h3>
                 </div>
 
