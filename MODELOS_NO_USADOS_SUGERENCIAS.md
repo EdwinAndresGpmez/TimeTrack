@@ -26,7 +26,7 @@ Este documento identifica los modelos de cada microservicio y su uso real en bac
 - Revisar las transiciones de los estados y agregar la transicion rechazada. 
 - hacer 2FA y autenticacion con google o outlook
 
-
+# NOTA IMPORTANTE: Programar el borrado de la auditoria de 90 dias docker exec -it auth_service python manage.py purge_auditoria --days 90 --batch 5000
 # PARA REVISAR:
 - En los perfiles en "Perfil" Mi información Personal debo revisar ya que en Nombres esta saliendo todo incluyendo los apellidos 
 - Revisar en modulo "Profesionales" para que en la tabla se vea toda la información del profesional ademas no esta sincronizando o buscando automaticamente los usuarios que corresponden al profesional creado. ya que en todos asi lo vincule esta saliendo Sin cuenta de acceso.

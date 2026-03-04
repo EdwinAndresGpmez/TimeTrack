@@ -64,7 +64,7 @@ class CrearCuenta(AbstractBaseUser, PermissionsMixin):
 class Auditoria(models.Model):
     descripcion = models.TextField()
     usuario_id = models.BigIntegerField(null=True, db_index=True)
-    fecha = models.DateTimeField(auto_now_add=True)
+    fecha = models.DateTimeField(auto_now_add=True, db_index=True)
     modulo = models.CharField(max_length=100, default="GENERAL", db_index=True)
     # Mejoras recomendadas:
     accion = models.CharField(max_length=100, blank=True, null=True, help_text="Tipo de acción: LOGIN, UPDATE, DELETE, etc.", db_index=True)

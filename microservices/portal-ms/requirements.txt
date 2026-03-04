@@ -1,6 +1,7 @@
 Django>=5.0
 djangorestframework
 django-cors-headers
+django-environ
 psycopg2-binary
 dj-database-url
 Pillow          

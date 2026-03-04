@@ -18,6 +18,7 @@ from .serializers import (
     HistoricoCitaSerializer,
     NotaMedicaSerializer,
 )
+from .utils.audit_client import audit_log
 
 # URLs de Microservicios
 PATIENTS_MS_URL = "http://patients-ms:8001/api/v1/pacientes/internal/bulk-info/"
@@ -35,6 +36,24 @@ def _internal_headers():
     """
     token = os.getenv("INTERNAL_SERVICE_TOKEN", "").strip()
     return {"X-INTERNAL-TOKEN": token} if token else {}
+
+
+def _uid(request):
+    return request.user.id if getattr(request, "user", None) and request.user.is_authenticated else None
+
+
+def _audit_from_view(request, *, descripcion, accion, recurso, recurso_id=None, metadata=None):
+    audit_log(
+        descripcion=descripcion,
+        modulo="APPOINTMENTS",
+        accion=accion,
+        usuario_id=_uid(request),
+        recurso=recurso,
+        recurso_id=str(recurso_id) if recurso_id is not None else None,
+        metadata=metadata or {},
+        ip=request.META.get("REMOTE_ADDR"),
+        user_agent=request.META.get("HTTP_USER_AGENT"),
+    )
 
 
 class ConfiguracionViewSet(viewsets.ModelViewSet):
@@ -80,15 +99,130 @@ class CitaViewSet(viewsets.ModelViewSet):
             }
         return Response(resultado)
 
-    # ✅ CLAVE: setear usuario_id en el MISMO save del CREATE (sin signals)
+    # ✅ CREATE: set usuario_id + auditar
     def perform_create(self, serializer):
-        uid = self.request.user.id if getattr(self.request, "user", None) and self.request.user.is_authenticated else None
-        serializer.save(usuario_id=uid)
+        uid = _uid(self.request)
+        obj = serializer.save(usuario_id=uid)
 
-    # ✅ CLAVE: setear usuario_id en el MISMO save del UPDATE (sin tocar request._data)
+        _audit_from_view(
+            self.request,
+            descripcion=f"CREATE Cita #{obj.pk}",
+            accion="CREATE",
+            recurso="Cita",
+            recurso_id=obj.pk,
+            metadata={
+                "id": obj.pk,
+                "estado": obj.estado,
+                "paciente_id": obj.paciente_id,
+                "profesional_id": obj.profesional_id,
+                "servicio_id": obj.servicio_id,
+                "lugar_id": obj.lugar_id,
+                "fecha": str(obj.fecha),
+                "hora_inicio": str(obj.hora_inicio),
+                "hora_fin": str(obj.hora_fin),
+            },
+        )
+        return obj
+
+    # ✅ UPDATE: set usuario_id + auditar (y si cambia estado, evento extra)
     def perform_update(self, serializer):
-        uid = self.request.user.id if getattr(self.request, "user", None) and self.request.user.is_authenticated else None
-        serializer.save(usuario_id=uid)
+        uid = _uid(self.request)
+
+        old = None
+        try:
+            old = Cita.objects.get(pk=serializer.instance.pk)
+        except Exception:
+            old = None
+
+        obj = serializer.save(usuario_id=uid)
+
+        changed = {}
+        if old:
+            campos = [
+                "estado",
+                "profesional_id",
+                "paciente_id",
+                "servicio_id",
+                "lugar_id",
+                "fecha",
+                "hora_inicio",
+                "hora_fin",
+                "nota_interna",
+            ]
+            for f in campos:
+                ov = getattr(old, f, None)
+                nv = getattr(obj, f, None)
+                if ov != nv:
+                    changed[f] = {
+                        "from": str(ov) if ov is not None else None,
+                        "to": str(nv) if nv is not None else None,
+                    }
+
+        _audit_from_view(
+            self.request,
+            descripcion=f"UPDATE Cita #{obj.pk}",
+            accion="UPDATE",
+            recurso="Cita",
+            recurso_id=obj.pk,
+            metadata={
+                "id": obj.pk,
+                "estado": obj.estado,
+                "paciente_id": obj.paciente_id,
+                "profesional_id": obj.profesional_id,
+                "servicio_id": obj.servicio_id,
+                "lugar_id": obj.lugar_id,
+                "fecha": str(obj.fecha),
+                "hora_inicio": str(obj.hora_inicio),
+                "hora_fin": str(obj.hora_fin),
+                "changed": changed,
+            },
+        )
+
+        # Evento más semántico si cambia estado
+        if old and old.estado != obj.estado:
+            _audit_from_view(
+                self.request,
+                descripcion=f"STATE_CHANGE Cita #{obj.pk}: {old.estado} -> {obj.estado}",
+                accion="STATE_CHANGE",
+                recurso="Cita",
+                recurso_id=obj.pk,
+                metadata={
+                    "from": old.estado,
+                    "to": obj.estado,
+                    "paciente_id": obj.paciente_id,
+                    "profesional_id": obj.profesional_id,
+                    "fecha": str(obj.fecha),
+                    "hora_inicio": str(obj.hora_inicio),
+                },
+            )
+
+        return obj
+
+    # ✅ DELETE: auditar
+    def perform_destroy(self, instance):
+        pk = instance.pk
+        meta = {
+            "id": pk,
+            "estado": instance.estado,
+            "paciente_id": instance.paciente_id,
+            "profesional_id": instance.profesional_id,
+            "servicio_id": instance.servicio_id,
+            "lugar_id": instance.lugar_id,
+            "fecha": str(instance.fecha),
+            "hora_inicio": str(instance.hora_inicio),
+            "hora_fin": str(instance.hora_fin),
+        }
+
+        instance.delete()
+
+        _audit_from_view(
+            self.request,
+            descripcion=f"DELETE Cita #{pk}",
+            accion="DELETE",
+            recurso="Cita",
+            recurso_id=pk,
+            metadata=meta,
+        )
 
     def create(self, request, *args, **kwargs):
         data = request.data.copy()
@@ -142,7 +276,6 @@ class CitaViewSet(viewsets.ModelViewSet):
                         g.strip() for g in (config.grupos_excepcion_antelacion or "").split(",") if g.strip()
                     ]
 
-                    # En stateless user no hay groups (no existe DB auth). Protegemos:
                     user_groups = []
                     try:
                         if hasattr(request.user, "groups"):
@@ -184,7 +317,7 @@ class CitaViewSet(viewsets.ModelViewSet):
                 h_fin_dt = datetime.strptime(hora_inicio_str, fmt) + timedelta(minutes=duracion)
                 data["hora_fin"] = h_fin_dt.strftime("%H:%M:%S")
 
-                # ACTUALIZACIÓN: Incluimos LLAMADO en validación de cruces
+                # Cruces
                 cruce_medico = (
                     Cita.objects.select_for_update()
                     .filter(
@@ -226,7 +359,7 @@ class CitaViewSet(viewsets.ModelViewSet):
 
                 serializer = self.get_serializer(data=data)
                 serializer.is_valid(raise_exception=True)
-                self.perform_create(serializer)  # setea usuario_id aquí
+                self.perform_create(serializer)
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
 
         except Exception as e:
@@ -276,16 +409,27 @@ class CitaViewSet(viewsets.ModelViewSet):
         if nuevo_estado == "NO_ASISTIO" and fecha_cita > ahora:
             return Response({"detalle": "No puedes marcar asistencia futura."}, status=400)
 
+        # Nota interna
         nota_interna = request.data.get("nota_interna")
         if nota_interna:
             instance.nota_interna = f"{instance.nota_interna or ''} | {nota_interna}".strip(" |")
             instance.save(update_fields=["nota_interna"])
 
+        # Nota médica (audit aquí porque es un side-effect)
         notas_medicas = request.data.get("notas_medicas") or request.data.get("nota_medica")
         if notas_medicas:
-            NotaMedica.objects.update_or_create(cita=instance, defaults={"contenido": notas_medicas})
+            nota_obj, created = NotaMedica.objects.update_or_create(
+                cita=instance, defaults={"contenido": notas_medicas}
+            )
+            _audit_from_view(
+                request,
+                descripcion=f"{'CREATE' if created else 'UPDATE'} NotaMedica #{nota_obj.pk} (cita #{instance.pk})",
+                accion="NOTE_CREATE" if created else "NOTE_UPDATE",
+                recurso="NotaMedica",
+                recurso_id=nota_obj.pk,
+                metadata={"cita_id": instance.pk},
+            )
 
-        # ✅ NO tocamos request._data. Dejamos que DRF actualice normal.
         return super().update(request, *args, **kwargs)
 
     def list(self, request, *args, **kwargs):
@@ -345,9 +489,15 @@ class CitaViewSet(viewsets.ModelViewSet):
                 c["paciente_nombre"] = "DESCONOCIDO"
                 c["paciente_doc"] = "N/A"
 
-            c["profesional_nombre"] = info_profesionales.get(str(c.get("profesional_id")), {}).get("nombre", "No asignado")
-            c["servicio_nombre"] = info_servicios.get(str(c.get("servicio_id")), {}).get("nombre", "No especificado")
-            c["lugar_nombre"] = info_lugares.get(str(c.get("lugar_id")), {}).get("nombre", "Sede Principal")
+            c["profesional_nombre"] = info_profesionales.get(str(c.get("profesional_id")), {}).get(
+                "nombre", "No asignado"
+            )
+            c["servicio_nombre"] = info_servicios.get(str(c.get("servicio_id")), {}).get(
+                "nombre", "No especificado"
+            )
+            c["lugar_nombre"] = info_lugares.get(str(c.get("lugar_id")), {}).get(
+                "nombre", "Sede Principal"
+            )
 
         return citas
 

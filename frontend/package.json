@@ -15,6 +15,8 @@
     "@mui/icons-material": "^7.3.7",
     "@mui/lab": "^7.0.1-beta.21",
     "@mui/material": "^7.3.7",
+    "@react-three/drei": "^10.7.7",
+    "@react-three/fiber": "^9.5.0",
     "axios": "^1.13.2",
     "framer-motion": "^12.26.2",
     "jwt-decode": "^4.0.0",
@@ -26,7 +28,8 @@
     "react-router-dom": "^7.12.0",
     "sweetalert2": "^11.26.17",
     "sweetalert2-react-content": "^5.1.1",
-    "swiper": "^12.0.3"
+    "swiper": "^12.0.3",
+    "three": "^0.183.2"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

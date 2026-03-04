@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import Navbar from '../../components/portal/Navbar';
 import Footer from '../../components/portal/Footer';
 import { portalService } from '../../services/portalService';
+import { FaBriefcaseMedical, FaCheckCircle, FaExclamationTriangle, FaPaperclip, FaSpinner } from 'react-icons/fa';
 
 const TrabajeConNosotros = () => {
     const [formData, setFormData] = useState({
@@ -9,35 +10,66 @@ const TrabajeConNosotros = () => {
         correo: '',
         telefono: '',
         perfil_profesional: '',
+        archivo_hv: null,
         mensaje_adicional: '',
-        archivo_hv: null
     });
-    const [status, setStatus] = useState(null);
+
+    const [status, setStatus] = useState(null); // 'success' | 'error' | 'loading'
+
+    const inputBase =
+        'w-full rounded-2xl border border-slate-900/10 bg-white/70 backdrop-blur px-4 py-3 text-slate-900 placeholder-slate-400 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400/40 focus:border-indigo-400/40';
+    const labelBase = 'block text-slate-700 font-extrabold text-sm mb-2';
+
+    const isValidFile = useMemo(() => {
+        if (!formData.archivo_hv) return true;
+        // Preferimos PDF, pero permitimos doc/docx si lo usan
+        const okTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+        return okTypes.includes(formData.archivo_hv.type) || formData.archivo_hv.name?.toLowerCase().endswith('.pdf');
+    }, [formData.archivo_hv]);
 
     const handleChange = (e) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
+        const { name, value } = e.target;
+        setFormData((prev) => ({ ...prev, [name]: value }));
     };
 
     const handleFileChange = (e) => {
-        setFormData({ ...formData, archivo_hv: e.target.files[0] });
+        const file = e.target.files?.[0] || null;
+        setFormData((prev) => ({ ...prev, archivo_hv: file }));
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        
+
         if (!formData.archivo_hv) {
-            alert("Por favor adjunta tu Hoja de Vida");
+            setStatus('error');
+            return;
+        }
+
+        if (!isValidFile) {
+            setStatus('error');
             return;
         }
 
         setStatus('loading');
-        const data = new FormData();
-        Object.keys(formData).forEach(key => data.append(key, formData[key]));
+
+        const dataToSend = new FormData();
+        Object.keys(formData).forEach((key) => {
+            if (formData[key]) dataToSend.append(key, formData[key]);
+        });
 
         try {
-            await portalService.createHV(data);
+            // ✅ Mantiene tu contrato: createHV(FormData)
+            await portalService.createHV(dataToSend);
+
             setStatus('success');
-            setFormData({ nombre_completo: '', correo: '', telefono: '', perfil_profesional: '', mensaje_adicional: '', archivo_hv: null });
+            setFormData({
+                nombre_completo: '',
+                correo: '',
+                telefono: '',
+                perfil_profesional: '',
+                archivo_hv: null,
+                mensaje_adicional: '',
+            });
         } catch (error) {
             console.error(error);
             setStatus('error');
@@ -47,34 +79,213 @@ const TrabajeConNosotros = () => {
     return (
         <>
             <Navbar />
-            <div className="container mx-auto px-4 py-24 md:py-32 max-w-3xl">
-                <h1 className="text-3xl font-bold text-blue-900 mb-6 text-center">Trabaje con Nosotros</h1>
-                <p className="text-center text-gray-600 mb-8">
-                    ¿Quieres ser parte de nuestro equipo? Envíanos tu hoja de vida y te tendremos en cuenta para futuras vacantes.
-                </p>
 
-                {status === 'success' && <div className="bg-green-100 text-green-700 p-4 rounded mb-4 text-center">¡Hoja de vida enviada con éxito!</div>}
-                {status === 'error' && <div className="bg-red-100 text-red-700 p-4 rounded mb-4 text-center">Error al enviar. Intenta nuevamente.</div>}
+            <div className="relative pt-24 md:pt-28 pb-16 overflow-hidden">
+                {/* Ambient background claro */}
+                <div className="pointer-events-none absolute inset-0 -z-10">
+                    <div className="absolute -top-56 -left-56 h-[720px] w-[720px] rounded-full bg-gradient-to-br from-sky-200/65 via-indigo-200/30 to-emerald-100/45 blur-3xl" />
+                    <div className="absolute -bottom-72 -right-72 h-[820px] w-[820px] rounded-full bg-gradient-to-tr from-indigo-200/55 via-cyan-100/45 to-white/70 blur-3xl" />
+                    <div
+                        className="absolute inset-0 opacity-[0.06]"
+                        style={{
+                            backgroundImage:
+                                'linear-gradient(to right, rgba(15,23,42,0.12) 1px, transparent 1px), linear-gradient(to bottom, rgba(15,23,42,0.12) 1px, transparent 1px)',
+                            backgroundSize: '64px 64px',
+                        }}
+                    />
+                    <div className="absolute inset-0 bg-white/70" />
+                </div>
 
-                <form onSubmit={handleSubmit} className="bg-white shadow-lg rounded-xl p-8 border border-gray-200">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                        <input type="text" name="nombre_completo" placeholder="Nombre Completo" required value={formData.nombre_completo} onChange={handleChange} className="w-full p-3 border rounded" />
-                        <input type="text" name="perfil_profesional" placeholder="Perfil (Ej: Enfermera, Médico)" required value={formData.perfil_profesional} onChange={handleChange} className="w-full p-3 border rounded" />
-                        <input type="email" name="correo" placeholder="Correo Electrónico" required value={formData.correo} onChange={handleChange} className="w-full p-3 border rounded" />
-                        <input type="tel" name="telefono" placeholder="Teléfono" required value={formData.telefono} onChange={handleChange} className="w-full p-3 border rounded" />
+                <div className="container mx-auto px-4 max-w-4xl">
+                    {/* Header */}
+                    <div className="text-center mb-8">
+                        <div className="inline-flex items-center gap-2 rounded-full border border-slate-900/10 bg-white/70 backdrop-blur px-4 py-2 shadow-sm">
+                            <span className="h-2 w-2 rounded-full bg-emerald-400" />
+                            <span className="uppercase tracking-widest text-[11px] md:text-xs font-black text-slate-700">
+                                Trabaje con nosotros
+                            </span>
+                        </div>
+
+                        <h1 className="mt-4 text-3xl md:text-4xl font-black text-slate-900">
+                            Envíanos tu hoja de vida
+                        </h1>
+
+                        <p className="mt-3 text-slate-600 max-w-2xl mx-auto leading-relaxed">
+                            Queremos conocerte. Completa tus datos, el perfil al que aplicas y adjunta tu hoja de vida (PDF recomendado).
+                        </p>
                     </div>
-                    <div className="mb-6">
-                        <textarea name="mensaje_adicional" placeholder="Mensaje adicional o perfil resumido..." rows="3" value={formData.mensaje_adicional} onChange={handleChange} className="w-full p-3 border rounded"></textarea>
-                    </div>
-                    <div className="mb-8">
-                        <label className="block text-gray-700 font-bold mb-2">Hoja de Vida (PDF)</label>
-                        <input type="file" accept=".pdf,.doc,.docx" required onChange={handleFileChange} className="w-full p-2 bg-gray-50 border rounded" />
-                    </div>
-                    <button type="submit" disabled={status === 'loading'} className="w-full bg-blue-900 text-white font-bold py-3 rounded hover:bg-blue-800 transition">
-                        {status === 'loading' ? 'Enviando...' : 'Postularme'}
-                    </button>
-                </form>
+
+                    {/* Status banners */}
+                    {status === 'success' && (
+                        <div className="mb-6 rounded-2xl border border-emerald-500/20 bg-emerald-50/80 backdrop-blur px-4 py-4 text-emerald-800 flex items-start gap-3">
+                            <div className="mt-0.5">
+                                <FaCheckCircle className="text-emerald-600" />
+                            </div>
+                            <div>
+                                <div className="font-black">¡Enviado!</div>
+                                <div className="text-sm">
+                                    Tu hoja de vida fue recibida correctamente. Te contactaremos si tu perfil avanza en el proceso.
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {status === 'error' && (
+                        <div className="mb-6 rounded-2xl border border-rose-500/20 bg-rose-50/80 backdrop-blur px-4 py-4 text-rose-800 flex items-start gap-3">
+                            <div className="mt-0.5">
+                                <FaExclamationTriangle className="text-rose-600" />
+                            </div>
+                            <div>
+                                <div className="font-black">Revisa tu información</div>
+                                <div className="text-sm">
+                                    No se pudo enviar. Verifica que hayas adjuntado tu hoja de vida (PDF recomendado) e intenta de nuevo.
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Form card */}
+                    <form
+                        onSubmit={handleSubmit}
+                        className="relative overflow-hidden rounded-3xl border border-slate-900/10 bg-white/65 backdrop-blur-xl shadow-[0_30px_80px_rgba(15,23,42,0.08)]"
+                    >
+                        {/* internal halos */}
+                        <div className="pointer-events-none absolute inset-0">
+                            <div className="absolute -top-24 -left-24 h-64 w-64 rounded-full bg-cyan-200/40 blur-3xl" />
+                            <div className="absolute -bottom-28 -right-28 h-72 w-72 rounded-full bg-emerald-200/35 blur-3xl" />
+                        </div>
+
+                        <div className="relative p-6 md:p-10">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label className={labelBase}>Nombre completo</label>
+                                    <input
+                                        type="text"
+                                        name="nombre_completo"
+                                        required
+                                        value={formData.nombre_completo}
+                                        onChange={handleChange}
+                                        className={inputBase}
+                                        placeholder="Ej: Juan David Gómez"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className={labelBase}>Correo electrónico</label>
+                                    <input
+                                        type="email"
+                                        name="correo"
+                                        required
+                                        value={formData.correo}
+                                        onChange={handleChange}
+                                        className={inputBase}
+                                        placeholder="tucorreo@dominio.com"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className={labelBase}>Teléfono</label>
+                                    <input
+                                        type="tel"
+                                        name="telefono"
+                                        required
+                                        value={formData.telefono}
+                                        onChange={handleChange}
+                                        className={inputBase}
+                                        placeholder="Ej: 300 123 4567"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className={labelBase}>Perfil profesional</label>
+                                    <input
+                                        type="text"
+                                        name="perfil_profesional"
+                                        required
+                                        value={formData.perfil_profesional}
+                                        onChange={handleChange}
+                                        className={inputBase}
+                                        placeholder="Ej: Enfermera, Médico General, Contador"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="mt-6">
+                                <label className={labelBase}>Mensaje adicional (opcional)</label>
+                                <textarea
+                                    name="mensaje_adicional"
+                                    rows="4"
+                                    value={formData.mensaje_adicional}
+                                    onChange={handleChange}
+                                    className={inputBase}
+                                    placeholder="Cuéntanos sobre tu experiencia, disponibilidad o área de interés..."
+                                />
+                            </div>
+
+                            <div className="mt-6">
+                                <label className={labelBase}>Adjuntar hoja de vida</label>
+
+                                <div className="rounded-2xl border border-slate-900/10 bg-white/60 backdrop-blur p-4 shadow-sm">
+                                    <div className="flex items-center gap-3 text-slate-700">
+                                        <div className="h-10 w-10 rounded-2xl bg-white/70 border border-slate-900/10 flex items-center justify-center">
+                                            <FaPaperclip />
+                                        </div>
+
+                                        <div className="flex-1">
+                                            <div className="font-extrabold text-sm flex items-center gap-2">
+                                                <FaBriefcaseMedical className="text-emerald-600" />
+                                                Hoja de vida (PDF recomendado)
+                                            </div>
+                                            <div className="text-xs text-slate-500">
+                                                Puedes adjuntar PDF (recomendado) o DOC/DOCX.
+                                            </div>
+                                        </div>
+
+                                        <label className="inline-flex cursor-pointer items-center justify-center rounded-full bg-slate-900 text-white px-5 py-2 text-sm font-extrabold shadow-sm hover:opacity-90 transition">
+                                            Seleccionar
+                                            <input type="file" onChange={handleFileChange} className="hidden" />
+                                        </label>
+                                    </div>
+
+                                    {formData.archivo_hv && (
+                                        <div className="mt-3 text-sm text-slate-600">
+                                            <span className="font-bold">Archivo:</span> {formData.archivo_hv.name}
+                                        </div>
+                                    )}
+
+                                    {!isValidFile && formData.archivo_hv && (
+                                        <div className="mt-2 text-xs text-rose-600 font-bold">
+                                            Formato no recomendado. Sube un PDF o documento Word.
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="mt-8 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+                                <div className="text-xs text-slate-500 leading-relaxed">
+                                    Al enviar, autorizas el tratamiento de datos para fines de selección.
+                                </div>
+
+                                <button
+                                    type="submit"
+                                    disabled={status === 'loading'}
+                                    className="inline-flex items-center justify-center gap-2 rounded-full bg-slate-900 text-white px-7 py-3 font-extrabold shadow-lg shadow-slate-900/10 transition hover:-translate-y-0.5 disabled:opacity-60 disabled:hover:translate-y-0"
+                                >
+                                    {status === 'loading' ? (
+                                        <>
+                                            <FaSpinner className="animate-spin" />
+                                            Enviando...
+                                        </>
+                                    ) : (
+                                        'Enviar hoja de vida'
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
             </div>
+
             <Footer />
         </>
     );

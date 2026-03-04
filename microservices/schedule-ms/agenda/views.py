@@ -1,9 +1,10 @@
 import logging
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, time
 
 import requests
 from django.db import models, transaction
 from django.db.models import Q
+from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, status, viewsets
 from rest_framework.decorators import action
@@ -13,13 +14,33 @@ from rest_framework.views import APIView
 
 from .models import BloqueoAgenda, Disponibilidad
 from .serializers import BloqueoAgendaSerializer, DisponibilidadSerializer
-
-from rest_framework_simplejwt.authentication import JWTAuthentication
+from .utils.audit_client import audit_log
 
 logger = logging.getLogger(__name__)
 
 # Ajusta la URL si tu docker-compose usa otro nombre
 APPOINTMENTS_API_URL = "http://appointments-ms:8000/api/v1/citas/"
+
+
+def _uid(request):
+    return request.user.id if getattr(request, "user", None) and request.user.is_authenticated else None
+
+
+def _audit_from_view(request, *, descripcion, accion, recurso, recurso_id=None, metadata=None):
+    """
+    Auditoría centralizada desde las vistas.
+    """
+    audit_log(
+        descripcion=descripcion,
+        modulo="SCHEDULE",
+        accion=accion,
+        usuario_id=_uid(request),
+        recurso=recurso,
+        recurso_id=str(recurso_id) if recurso_id is not None else None,
+        metadata=metadata or {},
+        ip=request.META.get("REMOTE_ADDR"),
+        user_agent=request.META.get("HTTP_USER_AGENT"),
+    )
 
 
 class DisponibilidadViewSet(viewsets.ModelViewSet):
@@ -49,24 +70,119 @@ class DisponibilidadViewSet(viewsets.ModelViewSet):
         except Exception as e:
             logger.error(f"Error contactando Appointments MS: {e}")
             return []
-        
-    def initial(self, request, *args, **kwargs):
-        logger.debug("AUTH_HEADER=%s", request.META.get("HTTP_AUTHORIZATION"))
-        super().initial(request, *args, **kwargs)
-        logger.debug("user=%s auth=%s id=%s", request.user, request.user.is_authenticated, getattr(request.user, "id", None))
-        
-    # ✅ CLAVE: setear usuario_id en el MISMO save que dispara el post_save del CREATE
-    def perform_create(self, serializer):
-        uid = self.request.user.id if self.request.user and self.request.user.is_authenticated else None
-        serializer.save(usuario_id=uid)
 
-    # ✅ CLAVE: setear usuario_id en el MISMO save que dispara el post_save del UPDATE
+    # ✅ Guardar usuario_id en el MISMO save
+    def perform_create(self, serializer):
+        uid = _uid(self.request)
+        obj = serializer.save(usuario_id=uid)
+
+        _audit_from_view(
+            self.request,
+            descripcion=f"CREATE Disponibilidad #{obj.pk}",
+            accion="CREATE",
+            recurso="Disponibilidad",
+            recurso_id=obj.pk,
+            metadata={
+                "id": obj.pk,
+                "tipo": "RECURRENTE" if obj.fecha is None else "ESPECIFICA",
+                "profesional_id": obj.profesional_id,
+                "lugar_id": obj.lugar_id,
+                "servicio_id": obj.servicio_id,
+                "dia_semana": obj.dia_semana,
+                "hora_inicio": str(obj.hora_inicio),
+                "hora_fin": str(obj.hora_fin),
+                "fecha": str(obj.fecha) if obj.fecha else None,
+                "fecha_fin_vigencia": str(obj.fecha_fin_vigencia) if obj.fecha_fin_vigencia else None,
+                "activo": obj.activo,
+            },
+        )
+        return obj
+
     def perform_update(self, serializer):
-        uid = self.request.user.id if self.request.user and self.request.user.is_authenticated else None
-        serializer.save(usuario_id=uid)
+        uid = _uid(self.request)
+
+        # Snapshot previo para metadata changed (sin signals)
+        old = None
+        try:
+            old = Disponibilidad.objects.get(pk=serializer.instance.pk)
+        except Exception:
+            old = None
+
+        obj = serializer.save(usuario_id=uid)
+
+        changed = {}
+        if old:
+            campos = [
+                "profesional_id",
+                "lugar_id",
+                "servicio_id",
+                "dia_semana",
+                "hora_inicio",
+                "hora_fin",
+                "fecha",
+                "fecha_fin_vigencia",
+                "activo",
+            ]
+            for f in campos:
+                ov = getattr(old, f, None)
+                nv = getattr(obj, f, None)
+                if ov != nv:
+                    changed[f] = {
+                        "from": str(ov) if ov is not None else None,
+                        "to": str(nv) if nv is not None else None,
+                    }
+
+        _audit_from_view(
+            self.request,
+            descripcion=f"UPDATE Disponibilidad #{obj.pk}",
+            accion="UPDATE",
+            recurso="Disponibilidad",
+            recurso_id=obj.pk,
+            metadata={
+                "id": obj.pk,
+                "tipo": "RECURRENTE" if obj.fecha is None else "ESPECIFICA",
+                "profesional_id": obj.profesional_id,
+                "lugar_id": obj.lugar_id,
+                "servicio_id": obj.servicio_id,
+                "dia_semana": obj.dia_semana,
+                "hora_inicio": str(obj.hora_inicio),
+                "hora_fin": str(obj.hora_fin),
+                "fecha": str(obj.fecha) if obj.fecha else None,
+                "fecha_fin_vigencia": str(obj.fecha_fin_vigencia) if obj.fecha_fin_vigencia else None,
+                "activo": obj.activo,
+                "changed": changed,
+            },
+        )
+        return obj
+
+    def perform_destroy(self, instance):
+        pk = instance.pk
+        meta = {
+            "id": pk,
+            "tipo": "RECURRENTE" if instance.fecha is None else "ESPECIFICA",
+            "profesional_id": instance.profesional_id,
+            "lugar_id": instance.lugar_id,
+            "servicio_id": instance.servicio_id,
+            "dia_semana": instance.dia_semana,
+            "hora_inicio": str(instance.hora_inicio),
+            "hora_fin": str(instance.hora_fin),
+            "fecha": str(instance.fecha) if instance.fecha else None,
+            "fecha_fin_vigencia": str(instance.fecha_fin_vigencia) if instance.fecha_fin_vigencia else None,
+            "activo": instance.activo,
+        }
+        instance.delete()
+        _audit_from_view(
+            self.request,
+            descripcion=f"DELETE Disponibilidad #{pk}",
+            accion="DELETE",
+            recurso="Disponibilidad",
+            recurso_id=pk,
+            metadata=meta,
+        )
 
     def create(self, request, *args, **kwargs):
         data = request.data.copy()
+
         # Lógica para convertir recurrencia "HOY" en fecha fija
         f_ini = data.get("fecha_inicio_vigencia")
         f_fin = data.get("fecha_fin_vigencia")
@@ -82,13 +198,18 @@ class DisponibilidadViewSet(viewsets.ModelViewSet):
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
     def destroy(self, request, *args, **kwargs):
+        """
+        Mantengo tu lógica de:
+        - recurrente -> cortar vigencia (soft delete)
+        - específica -> hard delete
+        + auditoría desde aquí
+        """
         try:
             instance = self.get_object()
             hoy = date.today()
 
-            # --- CASO A: Es una regla RECURRENTE (Semanal) ---
+            # --- CASO A: RECURRENTE (Semanal) ---
             if instance.fecha is None:
-                # 1. Validar Citas Futuras
                 citas_futuras = self._obtener_citas_activas(instance.profesional_id, hoy)
                 conflictos = []
 
@@ -97,10 +218,8 @@ class DisponibilidadViewSet(viewsets.ModelViewSet):
                         c_date = datetime.strptime(c["fecha"], "%Y-%m-%d").date()
                         c_time = datetime.strptime(c["hora_inicio"], "%H:%M:%S").time()
 
-                        # Si coincide día semana y hora
                         if c_date.weekday() == instance.dia_semana:
                             if c_time >= instance.hora_inicio and c_time < instance.hora_fin:
-                                # Y está dentro de la vigencia actual
                                 if instance.fecha_fin_vigencia is None or c_date <= instance.fecha_fin_vigencia:
                                     conflictos.append(f"{c['fecha']} {c['hora_inicio']}")
                     except Exception:
@@ -108,49 +227,64 @@ class DisponibilidadViewSet(viewsets.ModelViewSet):
 
                 if conflictos:
                     return Response(
-                        {
-                            "error": "No se puede eliminar la serie: Hay pacientes citados.",
-                            "detalle": conflictos,
-                        },
+                        {"error": "No se puede eliminar la serie: Hay pacientes citados.", "detalle": conflictos},
                         status=409,
                     )
 
                 bloqueos_futuros = BloqueoAgenda.objects.filter(
                     profesional_id=instance.profesional_id,
-                    fecha_inicio__date__gt=hoy,  # Solo bloqueos del futuro
+                    fecha_inicio__date__gt=hoy,
                 )
 
                 count_bloqueos = 0
                 for b in bloqueos_futuros:
-                    # Coincide el día de la semana? (0=Lunes, etc)
                     if b.fecha_inicio.weekday() == instance.dia_semana:
-                        # Coincide el rango horario? (Si el bloqueo está DENTRO del horario que borramos)
                         b_hora = b.fecha_inicio.time()
                         if b_hora >= instance.hora_inicio and b_hora < instance.hora_fin:
                             b.delete()
                             count_bloqueos += 1
 
-                # 3. Soft Delete (Cortar Vigencia)
+                # Soft delete = cortar vigencia
                 ayer = hoy - timedelta(days=1)
+                old_vig = instance.fecha_fin_vigencia
                 instance.fecha_fin_vigencia = ayer
 
-                # ✅ set usuario_id en este save manual
-                if request.user and request.user.is_authenticated:
-                    instance.usuario_id = request.user.id
+                # set actor
+                instance.usuario_id = _uid(request)
+                instance.save(update_fields=["fecha_fin_vigencia", "usuario_id"])
 
-                instance.save()
+                _audit_from_view(
+                    request,
+                    descripcion=f"SERIES_END Disponibilidad #{instance.pk} (vigente hasta {instance.fecha_fin_vigencia})",
+                    accion="SERIES_END",
+                    recurso="Disponibilidad",
+                    recurso_id=instance.pk,
+                    metadata={
+                        "profesional_id": instance.profesional_id,
+                        "dia_semana": instance.dia_semana,
+                        "hora_inicio": str(instance.hora_inicio),
+                        "hora_fin": str(instance.hora_fin),
+                        "vigente_hasta": str(instance.fecha_fin_vigencia),
+                        "bloqueos_eliminados": count_bloqueos,
+                        "changed": {
+                            "fecha_fin_vigencia": {
+                                "from": str(old_vig) if old_vig else None,
+                                "to": str(instance.fecha_fin_vigencia),
+                            }
+                        },
+                    },
+                )
 
                 return Response(
                     {"mensaje": f"Serie finalizada. Se limpiaron {count_bloqueos} bloqueos futuros huérfanos."},
                     status=200,
                 )
 
-            # --- CASO B: Es una fecha ESPECÍFICA (Override) ---
+            # --- CASO B: ESPECÍFICA (Override) ---
             else:
                 if instance.fecha < hoy:
                     return Response({"error": "No se puede borrar historial pasado."}, status=400)
 
-                # 1. Validar Citas
                 citas = self._obtener_citas_activas(instance.profesional_id, instance.fecha, instance.fecha)
                 ocupado = any(
                     instance.hora_inicio <= datetime.strptime(c["hora_inicio"], "%H:%M:%S").time() < instance.hora_fin
@@ -160,17 +294,16 @@ class DisponibilidadViewSet(viewsets.ModelViewSet):
                 if ocupado:
                     return Response({"error": "Hay pacientes citados en este horario."}, status=409)
 
-                # 2. LIMPIEZA DE BLOQUEOS (CRÍTICO)
                 ini_dt = datetime.combine(instance.fecha, instance.hora_inicio)
                 fin_dt = datetime.combine(instance.fecha, instance.hora_fin)
 
                 BloqueoAgenda.objects.filter(
                     profesional_id=instance.profesional_id,
-                    fecha_inicio__gte=ini_dt,  # Empieza después o igual al inicio del turno
-                    fecha_inicio__lt=fin_dt,  # Y empieza antes de que acabe el turno
+                    fecha_inicio__gte=ini_dt,
+                    fecha_inicio__lt=fin_dt,
                 ).delete()
 
-                # 3. Borrar el horario
+                # Hard delete normal (usa perform_destroy -> audita)
                 return super().destroy(request, *args, **kwargs)
 
         except Exception as e:
@@ -179,10 +312,6 @@ class DisponibilidadViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["post"], url_path="duplicar_dia")
     def duplicar_dia(self, request):
-        """
-        Copia la estructura de horarios de una fecha origen a una fecha destino.
-        Crea registros con fecha específica (override) en el destino.
-        """
         profesional_id = request.data.get("profesional_id")
         fecha_origen_str = request.data.get("fecha_origen")
         fecha_destino_str = request.data.get("fecha_destino")
@@ -225,12 +354,12 @@ class DisponibilidadViewSet(viewsets.ModelViewSet):
                 return Response({"error": "No hay horarios para copiar en el día origen."}, status=404)
 
             count_creados = 0
-            uid = request.user.id if (request.user and request.user.is_authenticated) else None
+            uid = _uid(request)
 
             with transaction.atomic():
                 for h in horarios_origen:
                     Disponibilidad.objects.create(
-                        usuario_id=uid,  # ✅ guarda el actor
+                        usuario_id=uid,
                         profesional_id=profesional_id,
                         lugar_id=h.lugar_id if not lugar_id else lugar_id,
                         servicio_id=h.servicio_id,
@@ -243,6 +372,21 @@ class DisponibilidadViewSet(viewsets.ModelViewSet):
                     )
                     count_creados += 1
 
+            _audit_from_view(
+                request,
+                descripcion=f"DUPLICAR_DIA profesional={profesional_id} {fecha_origen_str}->{fecha_destino_str}",
+                accion="DUPLICAR_DIA",
+                recurso="Disponibilidad",
+                recurso_id=None,
+                metadata={
+                    "profesional_id": profesional_id,
+                    "lugar_id": lugar_id,
+                    "fecha_origen": fecha_origen_str,
+                    "fecha_destino": fecha_destino_str,
+                    "creados": count_creados,
+                },
+            )
+
             return Response({"mensaje": f"Se copiaron {count_creados} bloques horarios."}, status=200)
 
         except Exception as e:
@@ -250,7 +394,6 @@ class DisponibilidadViewSet(viewsets.ModelViewSet):
             return Response({"error": str(e)}, status=500)
 
 
-# --- VIEWSETS DE SOPORTE ---
 class BloqueoAgendaViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     queryset = BloqueoAgenda.objects.all()
@@ -259,16 +402,91 @@ class BloqueoAgendaViewSet(viewsets.ModelViewSet):
     filterset_fields = ["profesional_id"]
 
     def perform_create(self, serializer):
-        uid = self.request.user.id if self.request.user and self.request.user.is_authenticated else None
-        serializer.save(usuario_id=uid)
+        uid = _uid(self.request)
+        obj = serializer.save(usuario_id=uid)
+
+        _audit_from_view(
+            self.request,
+            descripcion=f"CREATE BloqueoAgenda #{obj.pk}",
+            accion="CREATE",
+            recurso="BloqueoAgenda",
+            recurso_id=obj.pk,
+            metadata={
+                "id": obj.pk,
+                "profesional_id": obj.profesional_id,
+                "fecha_inicio": str(obj.fecha_inicio),
+                "fecha_fin": str(obj.fecha_fin),
+                "motivo": obj.motivo,
+            },
+        )
+        return obj
 
     def perform_update(self, serializer):
-        uid = self.request.user.id if self.request.user and self.request.user.is_authenticated else None
-        serializer.save(usuario_id=uid)
+        uid = _uid(self.request)
+
+        old = None
+        try:
+            old = BloqueoAgenda.objects.get(pk=serializer.instance.pk)
+        except Exception:
+            old = None
+
+        obj = serializer.save(usuario_id=uid)
+
+        changed = {}
+        if old:
+            for f in ["profesional_id", "fecha_inicio", "fecha_fin", "motivo"]:
+                ov = getattr(old, f, None)
+                nv = getattr(obj, f, None)
+                if ov != nv:
+                    changed[f] = {
+                        "from": str(ov) if ov is not None else None,
+                        "to": str(nv) if nv is not None else None,
+                    }
+
+        _audit_from_view(
+            self.request,
+            descripcion=f"UPDATE BloqueoAgenda #{obj.pk}",
+            accion="UPDATE",
+            recurso="BloqueoAgenda",
+            recurso_id=obj.pk,
+            metadata={
+                "id": obj.pk,
+                "profesional_id": obj.profesional_id,
+                "fecha_inicio": str(obj.fecha_inicio),
+                "fecha_fin": str(obj.fecha_fin),
+                "motivo": obj.motivo,
+                "changed": changed,
+            },
+        )
+        return obj
+
+    def perform_destroy(self, instance):
+        pk = instance.pk
+        meta = {
+            "id": pk,
+            "profesional_id": instance.profesional_id,
+            "fecha_inicio": str(instance.fecha_inicio),
+            "fecha_fin": str(instance.fecha_fin),
+            "motivo": instance.motivo,
+        }
+        instance.delete()
+        _audit_from_view(
+            self.request,
+            descripcion=f"DELETE BloqueoAgenda #{pk}",
+            accion="DELETE",
+            recurso="BloqueoAgenda",
+            recurso_id=pk,
+            metadata=meta,
+        )
 
 
 class SlotGeneratorView(APIView):
-    # Si quieres que sea público, pon permission_classes = [AllowAny]
+    """
+    Slots: normalmente es GET.
+    No audito aquí para no generar ruido.
+    """
+    permission_classes = [IsAuthenticated]
+
     def get(self, request):
         profesional_id = request.query_params.get("profesional_id")
         fecha_str = request.query_params.get("fecha")
@@ -281,15 +499,17 @@ class SlotGeneratorView(APIView):
         fecha_obj = datetime.strptime(fecha_str, "%Y-%m-%d").date()
         dia_semana = fecha_obj.weekday()
 
-        # 1. BLOQUEOS
+        # ✅ FIX warnings naive datetime: comparar con rango aware del día
+        start_dt = timezone.make_aware(datetime.combine(fecha_obj, time.min))
+        end_dt = timezone.make_aware(datetime.combine(fecha_obj, time.max))
+
         if BloqueoAgenda.objects.filter(
             profesional_id=profesional_id,
-            fecha_inicio__lte=fecha_obj,
-            fecha_fin__gte=fecha_obj,
+            fecha_inicio__lte=end_dt,
+            fecha_fin__gte=start_dt,
         ).exists():
             return Response([], status=200)
 
-        # 2. HORARIOS (Vigencia + Recurrencia)
         horarios = Disponibilidad.objects.filter(
             profesional_id=profesional_id, dia_semana=dia_semana, activo=True
         ).filter(
@@ -303,19 +523,17 @@ class SlotGeneratorView(APIView):
         if servicio_id:
             horarios = horarios.filter(models.Q(servicio_id__isnull=True) | models.Q(servicio_id=servicio_id))
 
-        # 3. CITAS
         url_citas = f"{APPOINTMENTS_API_URL}?profesional_id={profesional_id}&fecha={fecha_str}"
         citas_ocupadas = []
         try:
             resp = requests.get(url_citas, timeout=3)
             if resp.status_code == 200:
                 for c in resp.json():
-                    if c["estado"] not in ["CANCELADA", "RECHAZADA"]:
+                    if c.get("estado") not in ["CANCELADA", "RECHAZADA"]:
                         citas_ocupadas.append((c["hora_inicio"], c["hora_fin"]))
         except Exception:
             pass
 
-        # 4. SLOTS
         slots_disponibles = []
         for horario in horarios:
             inicio_turno = datetime.combine(fecha_obj, horario.hora_inicio)

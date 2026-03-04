@@ -50,7 +50,7 @@ docker-compose run --rm ia-ms python manage.py migrate
 
 6. Crear un super usuario:
 
-docker-compose run --rm ia-ms python manage.py createsuperuser
+docker-compose run --rm portal-ms python manage.py createsuperuser
 
 7. Prueba de json microservicios para user:
 

@@ -1,125 +1,202 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { FaUserCircle, FaSearch, FaTimes, FaSave, FaPlus, FaLink, FaUnlink, FaIdCard, FaEnvelope, FaPlusCircle } from 'react-icons/fa';
-import AnimatedActionButton from '../../components/system/AnimatedActionButton';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Swal from 'sweetalert2';
 import { authService } from '../../services/authService';
+import { FaLink, FaSave, FaSearch, FaTimes } from 'react-icons/fa';
+import AnimatedActionButton from '../../components/system/AnimatedActionButton';
 
 const MapaFamiliar = ({ targetUser, onClose }) => {
+    const [availableUsers, setAvailableUsers] = useState([]);
     const [dependientes, setDependientes] = useState([]);
-    const [searchQuery, setSearchQuery] = useState('');
-    const [searchResults, setSearchResults] = useState([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
 
-    // Estado para el manejo del arrastre
-    const [draggingNode, setDraggingNode] = useState(null);
-    const containerRef = useRef(null);
+    const [searchQuery, setSearchQuery] = useState('');
 
-    // --- MATEMÁTICA PARA POSICIÓN INICIAL ---
-    const radius = 35; 
-    const getInitialOrbitalPosition = (index, total) => {
-        const angle = (index / total) * 2 * Math.PI - (Math.PI / 2); 
-        return {
-            x: 50 + radius * Math.cos(angle),
-            y: 50 + radius * Math.sin(angle)
-        };
+    const [nodes, setNodes] = useState([]);
+    const [edges, setEdges] = useState([]);
+
+    const canvasRef = useRef(null);
+    const draggingRef = useRef(null);
+    const offsetRef = useRef({ x: 0, y: 0 });
+
+    const searchResults = useMemo(() => {
+        const q = searchQuery.trim().toLowerCase();
+        if (!q) return [];
+        return availableUsers
+            .filter(u => {
+                const name = (u.nombre || '').toLowerCase();
+                const doc = String(u.documento || '').toLowerCase();
+                return name.includes(q) || doc.includes(q);
+            })
+            .slice(0, 10);
+    }, [searchQuery, availableUsers]);
+
+    const cargarRed = async () => {
+        try {
+            setLoading(true);
+            const [usersData, red] = await Promise.all([
+                authService.getAllUsers(),
+                authService.getRedFamiliar(targetUser.id),
+            ]);
+
+            setAvailableUsers(Array.isArray(usersData) ? usersData : (usersData?.results || []));
+
+            // red viene como array de dependientes_detalle
+            const deps = Array.isArray(red) ? red : (red?.results || []);
+            setDependientes(deps);
+
+            // --- Crear nodos iniciales ---
+            const center = { x: 520, y: 280 };
+            const parentNode = {
+                id: String(targetUser.id),
+                user: targetUser,
+                x: center.x,
+                y: center.y,
+                type: 'target',
+            };
+
+            const childNodes = deps.map((d, idx) => ({
+                id: String(d.id),
+                user: d,
+                x: center.x + 260 * Math.cos((2 * Math.PI * idx) / Math.max(1, deps.length)),
+                y: center.y + 180 * Math.sin((2 * Math.PI * idx) / Math.max(1, deps.length)),
+                type: 'child',
+            }));
+
+            const newNodes = [parentNode, ...childNodes];
+
+            const newEdges = childNodes.map(n => ({
+                from: parentNode.id,
+                to: n.id,
+            }));
+
+            setNodes(newNodes);
+            setEdges(newEdges);
+        } catch (e) {
+            console.error(e);
+            Swal.fire('Error', 'No se pudo cargar la red familiar.', 'error');
+        } finally {
+            setLoading(false);
+        }
     };
 
     useEffect(() => {
-        const cargarRed = async () => {
-            try {
-                const data = await authService.getRedFamiliar(targetUser.id);
-                // Al cargar, asignamos posiciones orbitales iniciales a cada nodo
-                const nodosConPosicion = (data || []).map((dep, idx, arr) => {
-                    const pos = getInitialOrbitalPosition(idx, arr.length);
-                    return { ...dep, x: pos.x, y: pos.y };
-                });
-                setDependientes(nodosConPosicion);
-            } catch (error) {
-                console.error("Error cargando red:", error);
-                Swal.fire('Error', 'No se pudo cargar la red familiar', 'error');
-            } finally {
-                setLoading(false);
-            }
-        };
+        if (!targetUser?.id) return;
         cargarRed();
-    }, [targetUser.id]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [targetUser?.id]);
 
-    // Búsqueda con filtro local garantizado
-    useEffect(() => {
-        const delaySearch = setTimeout(async () => {
-            if (searchQuery.length >= 3) {
-                try {
-                    const results = await authService.getAllUsers(searchQuery);
-                    const queryLower = searchQuery.toLowerCase();
-                    const filtrados = results.filter(u => {
-                        if (u.id === targetUser.id) return false;
-                        if (dependientes.some(d => d.id === u.id)) return false;
-                        const nombreMatch = u.nombre && u.nombre.toLowerCase().includes(queryLower);
-                        const docMatch = u.documento && u.documento.toLowerCase().includes(queryLower);
-                        return nombreMatch || docMatch;
-                    });
-                    setSearchResults(filtrados);
-                } catch (error) { console.error(error); }
-            } else {
-                setSearchResults([]);
-            }
-        }, 400);
-        return () => clearTimeout(delaySearch);
-    }, [searchQuery, dependientes, targetUser.id]);
+    const addNode = (u) => {
+        if (!u?.id) return;
 
-    // --- LÓGICA DE ARRASTRE (DRAG) ---
-    const handleMouseDown = (id) => setDraggingNode(id);
-
-    const handleMouseMove = (e) => {
-        if (!draggingNode || !containerRef.current) return;
-
-        const rect = containerRef.current.getBoundingClientRect();
-        // Calculamos la posición relativa en porcentaje dentro del contenedor
-        const x = ((e.clientX - rect.left) / rect.width) * 100;
-        const y = ((e.clientY - rect.top) / rect.height) * 100;
-
-        setDependientes(prev => prev.map(node => 
-            node.id === draggingNode ? { ...node, x, y } : node
-        ));
-    };
-
-    const handleMouseUp = () => setDraggingNode(null);
-
-    const addNode = async (user) => {
-        if (user.dependientes && user.dependientes.length > 0) {
-            Swal.fire('No permitido', `${user.nombre} ya tiene personas a su cargo.`, 'warning');
+        // evitar duplicados
+        const exists = nodes.some(n => n.id === String(u.id));
+        if (exists) {
+            setSearchQuery('');
             return;
         }
-        // Agregamos el nuevo nodo en una posición libre cerca del centro
-        const newPos = getInitialOrbitalPosition(dependientes.length, dependientes.length + 1);
-        setDependientes(prev => [...prev, {
-            id: user.id,
-            nombre: user.nombre,
-            documento: user.documento,
-            correo: user.email || user.correo || 'Sin correo',
-            tipo_documento: user.tipo_documento || 'CC',
-            x: newPos.x,
-            y: newPos.y
-        }]);
+
+        const center = { x: 520, y: 280 };
+        const newNode = {
+            id: String(u.id),
+            user: u,
+            x: center.x + (Math.random() * 280 - 140),
+            y: center.y + (Math.random() * 220 - 110),
+            type: 'child',
+        };
+
+        setNodes(prev => [...prev, newNode]);
+        setEdges(prev => [...prev, { from: String(targetUser.id), to: String(u.id) }]);
+
+        setDependientes(prev => [...prev, u]);
         setSearchQuery('');
-        setSearchResults([]);
+    };
+
+    const removeNode = (nodeId) => {
+        const idStr = String(nodeId);
+        if (idStr === String(targetUser.id)) return;
+
+        setNodes(prev => prev.filter(n => n.id !== idStr));
+        setEdges(prev => prev.filter(e => e.to !== idStr));
+        setDependientes(prev => prev.filter(d => String(d.id) !== idStr));
+    };
+
+    const handleMouseDown = (e, nodeId) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        draggingRef.current = nodeId;
+
+        const canvasRect = canvasRef.current?.getBoundingClientRect();
+        if (!canvasRect) return;
+
+        // Mouse dentro del lienzo
+        const mouseX = e.clientX - canvasRect.left;
+        const mouseY = e.clientY - canvasRect.top;
+
+        // Nodo actual (para evitar saltos)
+        const node = nodes.find(n => n.id === nodeId);
+        const nodeX = node?.x ?? 0;
+        const nodeY = node?.y ?? 0;
+
+        offsetRef.current = {
+            x: mouseX - nodeX,
+            y: mouseY - nodeY,
+        };
+    };
+
+    const handleMouseMove = (e) => {
+        if (!draggingRef.current) return;
+        const nodeId = draggingRef.current;
+
+        const canvasRect = canvasRef.current?.getBoundingClientRect();
+        if (!canvasRect) return;
+
+        const x = e.clientX - canvasRect.left - offsetRef.current.x;
+        const y = e.clientY - canvasRect.top - offsetRef.current.y;
+
+        setNodes(prev =>
+            prev.map(n => {
+                if (n.id !== nodeId) return n;
+                return {
+                    ...n,
+                    x,
+                    y,
+                };
+            })
+        );
+    };
+
+    const handleMouseUp = () => {
+        draggingRef.current = null;
     };
 
     const handleSave = async () => {
-        setSaving(true);
+        if (!targetUser?.id) return;
+
         try {
+            setSaving(true);
+            Swal.fire({
+                title: 'Guardando...',
+                text: 'Actualizando conexiones familiares',
+                allowOutsideClick: false,
+                didOpen: () => Swal.showLoading(),
+            });
+
             const ids = dependientes.map(d => d.id);
             await authService.updateRedFamiliar(targetUser.id, ids);
-            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Conexiones Guardadas Exitosamente', showConfirmButton: false, timer: 2000 });
-            onClose(); 
-        } catch (error) {
-            Swal.fire('Error', 'Error al guardar conexiones', 'error');
-        } finally { setSaving(false); }
+
+            Swal.fire('Listo', 'Conexiones guardadas correctamente.', 'success');
+        } catch (e) {
+            console.error(e);
+            Swal.fire('Error', 'No se pudo guardar la red familiar.', 'error');
+        } finally {
+            setSaving(false);
+        }
     };
 
     return (
-        <div 
+        <div
             className="flex flex-col h-full bg-[#f8fafc] relative overflow-hidden select-none"
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
@@ -130,22 +207,34 @@ const MapaFamiliar = ({ targetUser, onClose }) => {
                 <div className="w-96 pointer-events-auto relative">
                     <div className="bg-white rounded-2xl shadow-2xl border border-purple-100 flex items-center p-3 focus-within:ring-4 focus-within:ring-purple-500/20 transition-all">
                         <FaSearch className="text-purple-400 ml-2 mr-3 text-lg" />
-                        <input 
-                            type="text" 
-                            placeholder="Buscar familiar por nombre o documento..." 
+                        <input
+                            type="text"
+                            placeholder="Buscar familiar por nombre o documento..."
                             className="w-full bg-transparent outline-none text-sm font-semibold text-slate-700"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
-                        {searchQuery && <FaTimes className="text-slate-300 hover:text-red-500 cursor-pointer mr-2 pointer-events-auto" onClick={() => setSearchQuery('')}/>}
+                        {searchQuery && (
+                            <FaTimes
+                                className="text-slate-300 hover:text-red-500 cursor-pointer mr-2 pointer-events-auto"
+                                onClick={() => setSearchQuery('')}
+                            />
+                        )}
                     </div>
+
                     {searchResults.length > 0 && (
                         <div className="absolute top-full mt-2 w-full bg-white rounded-2xl shadow-2xl border border-slate-100 max-h-64 overflow-y-auto ring-1 ring-black/5 pointer-events-auto">
                             {searchResults.map(u => (
-                                <div key={u.id} className="p-4 hover:bg-purple-50 cursor-pointer border-b border-slate-50 flex justify-between items-center group transition-colors" onClick={() => addNode(u)}>
+                                <div
+                                    key={u.id}
+                                    className="p-4 hover:bg-purple-50 cursor-pointer border-b border-slate-50 flex justify-between items-center group transition-colors"
+                                    onClick={() => addNode(u)}
+                                >
                                     <div>
                                         <p className="text-sm font-bold text-slate-800">{u.nombre}</p>
-                                        <p className="text-[10px] text-slate-400 font-mono uppercase">{u.tipo_documento} {u.documento}</p>
+                                        <p className="text-[10px] text-slate-400 font-mono uppercase">
+                                            {u.tipo_documento} {u.documento}
+                                        </p>
                                     </div>
                                     <FaLink className="text-purple-400 opacity-0 group-hover:opacity-100" />
                                 </div>
@@ -153,114 +242,103 @@ const MapaFamiliar = ({ targetUser, onClose }) => {
                         </div>
                     )}
                 </div>
+
+                {/* ✅ FIX: pointer-events-auto para que reciba clicks dentro del contenedor pointer-events-none */}
                 <AnimatedActionButton
                     onClick={handleSave}
                     disabled={saving || loading}
-                    icon={saving ? <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div> : <FaSave size={18}/>} 
+                    icon={
+                        saving
+                            ? <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                            : <FaSave size={18} />
+                    }
                     label="Guardar Conexiones"
                     sublabel="Guardar"
-                    className="!bg-purple-600 hover:!bg-purple-700"
+                    className="!bg-purple-600 hover:!bg-purple-700 pointer-events-auto"
                 />
             </div>
 
-            {/* LIENZO PRINCIPAL */}
-            <div className="flex-1 relative" ref={containerRef}>
-                {loading ? (
-                    <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-[200]">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
-                    </div>
-                ) : (
-                    <div className="w-full h-full relative">
-                        {/* CAPA DE LÍNEAS (SVG) */}
-                        <svg className="absolute inset-0 w-full h-full" style={{ zIndex: 5 }}>
-                            <defs>
-                                <linearGradient id="lineGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                                    <stop offset="0%" stopColor="#a855f7" />
-                                    <stop offset="100%" stopColor="#6366f1" />
-                                </linearGradient>
-                            </defs>
-                            {dependientes.map((dep) => (
-                                <g key={`line-group-${dep.id}`}>
-                                    <line 
-                                        x1="50%" y1="50%" x2={`${dep.x}%`} y2={`${dep.y}%`} 
-                                        stroke="url(#lineGrad)" strokeWidth="4" strokeDasharray="10,6"
-                                    >
-                                        <animate attributeName="stroke-dashoffset" from="100" to="0" dur="4s" repeatCount="indefinite" />
-                                    </line>
-                                    <circle cx={`${dep.x}%`} cy={`${dep.y}%`} r="5" fill="#6366f1" />
-                                </g>
-                            ))}
-                        </svg>
+            {/* LIENZO */}
+            <div className="flex-1 relative" ref={canvasRef}>
+                <div className="absolute inset-0 bg-gradient-to-br from-purple-50 to-white" />
 
-                        {/* CAPA DE NODOS (HTML) */}
-                        <div className="absolute inset-0 w-full h-full" style={{ zIndex: 10 }}>
-                            {/* TITULAR PRINCIPAL (CENTRO) - FIJO */}
-                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
-                                <div className="bg-white p-6 rounded-[2.5rem] shadow-[0_20px_50px_rgba(168,85,247,0.15)] border-4 border-purple-500 w-52 h-52 flex flex-col items-center justify-center text-center transition-transform hover:scale-105">
-                                    <div className="bg-purple-100 text-purple-600 p-4 rounded-full mb-3 shadow-inner">
-                                        <FaUserCircle size={45} />
-                                    </div>
-                                    <h3 className="text-sm font-black text-slate-800 leading-tight uppercase px-2 line-clamp-2">{targetUser.nombre}</h3>
-                                    <span className="mt-3 bg-purple-600 text-[10px] text-white font-black px-4 py-1.5 rounded-full uppercase tracking-tighter shadow-md">
-                                        Titular Principal
-                                    </span>
-                                </div>
-                            </div>
+                <svg className="absolute inset-0 w-full h-full" style={{ zIndex: 5 }}>
+                    {edges.map((e, idx) => {
+                        const from = nodes.find(n => n.id === e.from);
+                        const to = nodes.find(n => n.id === e.to);
+                        if (!from || !to) return null;
 
-                            {/* DELEGADOS (MOVIBLES) */}
-                            {dependientes.map((dep) => (
-                                <div 
-                                    key={`node-${dep.id}`} 
-                                    className={`absolute -translate-x-1/2 -translate-y-1/2 group cursor-move ${draggingNode === dep.id ? 'z-50' : 'z-20'}`} 
-                                    style={{ top: `${dep.y}%`, left: `${dep.x}%` }}
-                                    onMouseDown={() => handleMouseDown(dep.id)}
-                                >
-                                    <div className={`bg-white p-4 rounded-3xl shadow-xl border-2 transition-all ${draggingNode === dep.id ? 'border-purple-500 scale-110 shadow-2xl' : 'border-indigo-100 hover:border-indigo-400'} w-48 flex flex-col items-center hover:-translate-y-2`}>
-                                        <button 
-                                            onMouseDown={(e) => e.stopPropagation()} 
-                                            onClick={() => setDependientes(prev => prev.filter(d => d.id !== dep.id))} 
-                                            className="absolute -top-3 -right-3 bg-red-500 text-white p-2.5 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity transform hover:scale-110 pointer-events-auto"
-                                        >
-                                            <FaUnlink size={14}/>
-                                        </button>
-                                        
-                                        <div className="bg-indigo-50 text-indigo-600 w-12 h-12 rounded-2xl flex items-center justify-center mb-3 font-black text-xl shadow-inner uppercase pointer-events-none rotate-3 group-hover:rotate-0 transition-transform">
-                                            {dep.nombre.charAt(0)}
-                                        </div>
-                                        
-                                        <h4 className="text-xs font-black text-slate-700 text-center mb-2 truncate w-full px-1 pointer-events-none">{dep.nombre}</h4>
-                                        
-                                        {/* INFORMACIÓN ADICIONAL RESTAURADA */}
-                                        <div className="w-full space-y-1.5 pointer-events-none">
-                                            <div className="bg-slate-50 p-2 rounded-xl border border-slate-100 flex items-center gap-2">
-                                                <FaIdCard className="text-indigo-400 text-xs shrink-0"/>
-                                                <span className="text-[9px] font-mono font-bold text-slate-500">{dep.documento}</span>
-                                            </div>
-                                            <div className="bg-slate-50 p-2 rounded-xl border border-slate-100 flex items-center gap-2 overflow-hidden">
-                                                <FaEnvelope className="text-indigo-400 text-xs shrink-0"/>
-                                                <span className="text-[9px] font-bold text-slate-500 truncate">{dep.correo}</span>
-                                            </div>
-                                        </div>
-                                        
-                                        <div className="mt-3 text-[9px] font-black text-indigo-700 bg-indigo-50 px-3 py-1 rounded-full uppercase tracking-tighter border border-white shadow-sm pointer-events-none">
-                                            Delegado
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
+                        const x1 = from.x + 40;
+                        const y1 = from.y + 40;
+                        const x2 = to.x + 40;
+                        const y2 = to.y + 40;
 
-                            {/* MENSAJE DE BIENVENIDA ANIMADO RESTAURADO */}
-                            {dependientes.length === 0 && !loading && (
-                                <div className="absolute bottom-12 left-1/2 transform -translate-x-1/2 bg-white/90 backdrop-blur-md px-8 py-4 rounded-2xl shadow-xl border border-purple-100 text-slate-600 text-sm font-bold flex items-center gap-3 animate-bounce z-10">
-                                    <div className="bg-purple-100 p-2 rounded-full text-purple-600">
-                                        <FaPlus size={16}/>
-                                    </div> 
-                                    Usa la barra superior para agregar familiares a esta red.
-                                </div>
-                            )}
+                        return (
+                            <line
+                                key={idx}
+                                x1={x1}
+                                y1={y1}
+                                x2={x2}
+                                y2={y2}
+                                stroke="rgba(147,51,234,0.35)"
+                                strokeWidth="4"
+                                strokeLinecap="round"
+                            />
+                        );
+                    })}
+                </svg>
+
+                {/* NODOS */}
+                {nodes.map(n => (
+                    <div
+                        key={n.id}
+                        onMouseDown={(e) => handleMouseDown(e, n.id)}
+                        className={`absolute cursor-move select-none rounded-2xl shadow-xl border flex flex-col items-center justify-center px-4 py-3 transition-all ${
+                            n.type === 'target'
+                                ? 'bg-indigo-600 text-white border-indigo-300'
+                                : 'bg-white text-slate-800 border-purple-100 hover:border-purple-300'
+                        }`}
+                        style={{
+                            left: n.x,
+                            top: n.y,
+                            width: 160,
+                            zIndex: 20,
+                        }}
+                    >
+                        <div className="text-sm font-black text-center leading-tight">
+                            {n.user?.nombre || 'Usuario'}
                         </div>
+                        <div className={`text-[10px] mt-1 font-mono ${
+                            n.type === 'target' ? 'text-indigo-100' : 'text-slate-400'
+                        }`}>
+                            {n.user?.tipo_documento} {n.user?.documento}
+                        </div>
+
+                        {n.type !== 'target' && (
+                            <button
+                                className="mt-2 text-[10px] font-black uppercase px-3 py-1 rounded-full bg-red-50 text-red-600 hover:bg-red-100"
+                                onClick={(e) => { e.stopPropagation(); removeNode(n.id); }}
+                                type="button"
+                            >
+                                Quitar
+                            </button>
+                        )}
                     </div>
-                )}
+                ))}
+            </div>
+
+            {/* FOOTER */}
+            <div className="p-4 bg-white border-t border-slate-100 flex items-center justify-between">
+                <div className="text-xs text-slate-500 font-semibold">
+                    {loading ? 'Cargando red…' : `Conexiones actuales: ${dependientes.length}`}
+                </div>
+                <button
+                    onClick={onClose}
+                    className="text-xs font-black uppercase px-4 py-2 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200"
+                    type="button"
+                >
+                    Cerrar
+                </button>
             </div>
         </div>
     );
