@@ -2,40 +2,42 @@ import React, { createContext, useState, useEffect, useCallback } from 'react';
 import { jwtDecode } from "jwt-decode";
 import { authService } from '../services/authService';
 
-// eslint-disable-next-line react-refresh/only-export-components
 export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
-    const [roles, setRoles] = useState([]);      
-    const [permisos, setPermisos] = useState([]); 
+    const [roles, setRoles] = useState([]);
+    const [permisos, setPermisos] = useState([]);
     const [loading, setLoading] = useState(true);
 
     const logout = useCallback(() => {
         authService.logout();
+        localStorage.removeItem("access");
+        localStorage.removeItem("refresh");
         setUser(null);
-        setRoles([]);    
-        setPermisos([]);  
+        setRoles([]);
+        setPermisos([]);
         window.location.href = '/login';
     }, []);
 
     const fetchRolesYPermisos = useCallback(async () => {
         try {
             const data = await authService.getMisPermisos();
-            
-            setPermisos(Array.isArray(data.codenames) ? data.codenames : []); 
-            setRoles(Array.isArray(data.roles) ? data.roles : []);        
-            
+
+            setPermisos(Array.isArray(data.codenames) ? data.codenames : []);
+            setRoles(Array.isArray(data.roles) ? data.roles : []);
+
             setUser(prevUser => {
                 if (prevUser) {
-                    return { 
-                        ...prevUser, 
-                        is_superuser: data.is_superuser, 
-                        is_staff: data.is_staff 
+                    return {
+                        ...prevUser,
+                        is_superuser: data.is_superuser,
+                        is_staff: data.is_staff
                     };
                 }
                 return prevUser;
             });
+
         } catch (error) {
             console.error("Error cargando roles y permisos:", error);
         }
@@ -43,45 +45,56 @@ export const AuthProvider = ({ children }) => {
 
     useEffect(() => {
         const checkSession = async () => {
-            const token = localStorage.getItem('token');
-            if (token) {
+            const access = localStorage.getItem('access');
+
+            if (access) {
                 try {
-                    const decoded = jwtDecode(token);
+                    const decoded = jwtDecode(access);
+
                     if (decoded.exp * 1000 < Date.now()) {
                         logout();
                     } else {
                         setUser(decoded);
-                        await fetchRolesYPermisos(); 
+                        await fetchRolesYPermisos();
                     }
                 } catch (error) {
                     console.error("Token inválido", error);
                     logout();
                 }
             }
+
             setLoading(false);
         };
+
         checkSession();
-    }, [logout, fetchRolesYPermisos]); 
+    }, [logout, fetchRolesYPermisos]);
 
     const login = async (credentials) => {
         const data = await authService.login(credentials);
+
         if (data.access) {
+            localStorage.setItem("access", data.access);
+            localStorage.setItem("refresh", data.refresh);
+
             const decoded = jwtDecode(data.access);
             setUser(decoded);
-            await fetchRolesYPermisos(); 
+
+            await fetchRolesYPermisos();
+
             return true;
         }
+
+        return false;
     };
 
     return (
-        <AuthContext.Provider value={{ 
-            user, 
-            setUser, 
-            login, 
-            logout, 
+        <AuthContext.Provider value={{
+            user,
+            login,
+            logout,
             loading,
             permissions: {
-                roles: roles,
+                roles,
                 codenames: permisos
             }
         }}>

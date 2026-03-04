@@ -63,9 +63,19 @@ class CrearCuenta(AbstractBaseUser, PermissionsMixin):
 
 class Auditoria(models.Model):
     descripcion = models.TextField()
-    usuario_id = models.BigIntegerField(null=True)  # ID del usuario que hizo la acción
+    usuario_id = models.BigIntegerField(null=True, db_index=True)
     fecha = models.DateTimeField(auto_now_add=True)
-    modulo = models.CharField(max_length=100, default="GENERAL")
+    modulo = models.CharField(max_length=100, default="GENERAL", db_index=True)
+    # Mejoras recomendadas:
+    accion = models.CharField(max_length=100, blank=True, null=True, help_text="Tipo de acción: LOGIN, UPDATE, DELETE, etc.", db_index=True)
+    ip = models.GenericIPAddressField(blank=True, null=True)
+    user_agent = models.TextField(blank=True, null=True)
+    metadata = models.JSONField(blank=True, null=True, help_text="Datos adicionales (antes/después, ids, etc.)")
+    recurso = models.CharField(max_length=100, blank=True, null=True, help_text="Nombre del recurso afectado", db_index=True)
+    recurso_id = models.CharField(max_length=100, blank=True, null=True, help_text="ID del recurso afectado", db_index=True)
+
+    def __str__(self):
+        return f"{self.fecha} - {self.modulo} - {self.accion or ''} - {self.descripcion[:40]}"
 
 
 class PermisoVista(models.Model):

@@ -1,4 +1,5 @@
 import logging
+import os
 from datetime import datetime, timedelta
 
 import requests
@@ -27,12 +28,21 @@ LUGARES_MS_URL = "http://professionals-ms:8002/api/v1/staff/lugares/internal/bul
 logger = logging.getLogger(__name__)
 
 
+def _internal_headers():
+    """
+    Token interno para llamados entre microservicios.
+    Debe coincidir con lo que validas en staff-ms/patients-ms en endpoints internos.
+    """
+    token = os.getenv("INTERNAL_SERVICE_TOKEN", "").strip()
+    return {"X-INTERNAL-TOKEN": token} if token else {}
+
+
 class ConfiguracionViewSet(viewsets.ModelViewSet):
     queryset = ConfiguracionGlobal.objects.all()
     serializer_class = ConfiguracionGlobalSerializer
 
     def list(self, request, *args, **kwargs):
-        obj, created = ConfiguracionGlobal.objects.get_or_create(pk=1)
+        obj, _ = ConfiguracionGlobal.objects.get_or_create(pk=1)
         serializer = self.get_serializer(obj)
         return Response(serializer.data)
 
@@ -61,7 +71,6 @@ class CitaViewSet(viewsets.ModelViewSet):
             cantidad = item["total"]
             bloqueado = (limite > 0) and (cantidad >= limite)
 
-            # CORRECCIÓN: Serialización manual de la fecha para evitar Error 500
             fecha_str = item["ultima_falta"].isoformat() if item["ultima_falta"] else None
 
             resultado[pid] = {
@@ -71,9 +80,23 @@ class CitaViewSet(viewsets.ModelViewSet):
             }
         return Response(resultado)
 
+    # ✅ CLAVE: setear usuario_id en el MISMO save del CREATE (sin signals)
+    def perform_create(self, serializer):
+        uid = self.request.user.id if getattr(self.request, "user", None) and self.request.user.is_authenticated else None
+        serializer.save(usuario_id=uid)
+
+    # ✅ CLAVE: setear usuario_id en el MISMO save del UPDATE (sin tocar request._data)
+    def perform_update(self, serializer):
+        uid = self.request.user.id if getattr(self.request, "user", None) and self.request.user.is_authenticated else None
+        serializer.save(usuario_id=uid)
+
     def create(self, request, *args, **kwargs):
         data = request.data.copy()
         es_modo_admin_front = data.pop("is_admin_mode", False)
+
+        # Evitar spoofing desde el frontend
+        data.pop("usuario_id", None)
+
         paciente_id = data.get("paciente_id")
         fecha_solicitada = data.get("fecha")
         servicio_id = data.get("servicio_id")
@@ -87,7 +110,7 @@ class CitaViewSet(viewsets.ModelViewSet):
                     fecha_corte = None
                     try:
                         url = f"http://patients-ms:8001/api/v1/pacientes/listado/{paciente_id}/"
-                        resp = requests.get(url, timeout=2)
+                        resp = requests.get(url, timeout=2, headers=_internal_headers())
                         if resp.status_code == 200:
                             p_data = resp.json()
                             f_str = p_data.get("ultima_fecha_desbloqueo")
@@ -116,15 +139,23 @@ class CitaViewSet(viewsets.ModelViewSet):
                     cita_dt = timezone.make_aware(datetime.combine(f_ini, h_ini))
 
                     grupos_excepcion = [
-                        g.strip() for g in config.grupos_excepcion_antelacion.split(",") if g.strip()
+                        g.strip() for g in (config.grupos_excepcion_antelacion or "").split(",") if g.strip()
                     ]
-                    user_groups = request.user.groups.values_list("name", flat=True)
+
+                    # En stateless user no hay groups (no existe DB auth). Protegemos:
+                    user_groups = []
+                    try:
+                        if hasattr(request.user, "groups"):
+                            user_groups = request.user.groups.values_list("name", flat=True)
+                    except Exception:
+                        user_groups = []
 
                     tiene_privilegio = (
-                        request.user.is_superuser
+                        getattr(request.user, "is_superuser", False)
                         or any(g in grupos_excepcion for g in user_groups)
                         or es_modo_admin_front is True
                     )
+
                     if not tiene_privilegio:
                         if cita_dt < (timezone.now() + timedelta(hours=1)):
                             return Response(
@@ -138,7 +169,11 @@ class CitaViewSet(viewsets.ModelViewSet):
                 duracion = 20
                 try:
                     if servicio_id:
-                        r = requests.get(f"{SERVICES_MS_URL}?ids={servicio_id}", timeout=2)
+                        r = requests.get(
+                            f"{SERVICES_MS_URL}?ids={servicio_id}",
+                            timeout=2,
+                            headers=_internal_headers(),
+                        )
                         if r.status_code == 200:
                             d = r.json()
                             if str(servicio_id) in d:
@@ -175,7 +210,8 @@ class CitaViewSet(viewsets.ModelViewSet):
                 )
                 if cruce_paciente:
                     return Response(
-                        {"detalle": "El paciente ya tiene cita o está en atención en ese horario."}, status=400
+                        {"detalle": "El paciente ya tiene cita o está en atención en ese horario."},
+                        status=status.HTTP_400_BAD_REQUEST,
                     )
 
                 # 3. LÍMITES DIARIOS
@@ -183,14 +219,14 @@ class CitaViewSet(viewsets.ModelViewSet):
                     estado__in=["CANCELADA", "NO_ASISTIO", "RECHAZADA"]
                 )
                 if citas_dia.count() >= config.max_citas_dia_paciente:
-                    return Response({"detalle": "Límite diario alcanzado."}, status=400)
+                    return Response({"detalle": "Límite diario alcanzado."}, status=status.HTTP_400_BAD_REQUEST)
 
                 if (not config.permitir_mismo_servicio_dia) and citas_dia.filter(servicio_id=servicio_id).exists():
-                    return Response({"detalle": "Ya tiene cita de este servicio hoy."}, status=400)
+                    return Response({"detalle": "Ya tiene cita de este servicio hoy."}, status=status.HTTP_400_BAD_REQUEST)
 
                 serializer = self.get_serializer(data=data)
                 serializer.is_valid(raise_exception=True)
-                self.perform_create(serializer)
+                self.perform_create(serializer)  # setea usuario_id aquí
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
 
         except Exception as e:
@@ -207,28 +243,30 @@ class CitaViewSet(viewsets.ModelViewSet):
         if nuevo_estado and nuevo_estado not in estados_validos:
             return Response({"detalle": f"El estado '{nuevo_estado}' no es válido."}, status=400)
 
-        # Estados finales: los que no tienen acciones
         estados_finales = [st["slug"] for st in workflow if not st.get("acciones")]
         if instance.estado in estados_finales and nuevo_estado != instance.estado:
-            if not (request.user.is_staff or request.user.is_superuser):
+            if not (getattr(request.user, "is_staff", False) or getattr(request.user, "is_superuser", False)):
                 return Response({"detalle": "Cita en estado final."}, status=400)
-            
+
         if nuevo_estado == instance.estado == "LLAMADO":
-            # guarda igual para que se dispare updated_at
             instance.save(update_fields=["updated_at"])
             return Response(self.get_serializer(instance).data)
 
-        # ✅ VALIDACIÓN DE TRANSICIÓN SEGÚN WORKFLOW (bloquea saltos como ACEPTADA -> LLAMADO)
         if nuevo_estado and nuevo_estado != instance.estado:
-           st_actual = next((s for s in workflow if s.get("slug") == instance.estado), None)
-           allowed = [a.get("target") for a in (st_actual.get("acciones", []) if st_actual else []) if a.get("target")]
+            st_actual = next((s for s in workflow if s.get("slug") == instance.estado), None)
+            allowed = [
+                a.get("target")
+                for a in (st_actual.get("acciones", []) if st_actual else [])
+                if a.get("target")
+            ]
 
-           es_admin = request.user.is_staff or request.user.is_superuser
-           if (nuevo_estado not in allowed) and (not es_admin):
-               return Response(
-                   {"detalle": f"Transición no permitida: {instance.estado} -> {nuevo_estado}"},
-                   status=400,
-               )
+            es_admin = getattr(request.user, "is_staff", False) or getattr(request.user, "is_superuser", False)
+            if (nuevo_estado not in allowed) and (not es_admin):
+                return Response(
+                    {"detalle": f"Transición no permitida: {instance.estado} -> {nuevo_estado}"},
+                    status=400,
+                )
+
         ahora = timezone.now()
         try:
             fecha_cita = timezone.make_aware(datetime.combine(instance.fecha, instance.hora_inicio))
@@ -238,26 +276,21 @@ class CitaViewSet(viewsets.ModelViewSet):
         if nuevo_estado == "NO_ASISTIO" and fecha_cita > ahora:
             return Response({"detalle": "No puedes marcar asistencia futura."}, status=400)
 
-        # Manejo de notas y evoluciones médicas
         nota_interna = request.data.get("nota_interna")
         if nota_interna:
             instance.nota_interna = f"{instance.nota_interna or ''} | {nota_interna}".strip(" |")
             instance.save(update_fields=["nota_interna"])
 
-        # Compatibilidad: aceptar 'notas_medicas' o 'nota_medica'
         notas_medicas = request.data.get("notas_medicas") or request.data.get("nota_medica")
         if notas_medicas:
             NotaMedica.objects.update_or_create(cita=instance, defaults={"contenido": notas_medicas})
 
+        # ✅ NO tocamos request._data. Dejamos que DRF actualice normal.
         return super().update(request, *args, **kwargs)
 
     def list(self, request, *args, **kwargs):
         response = super().list(request, *args, **kwargs)
-        data = (
-            response.data.get("results")
-            if isinstance(response.data, dict) and "results" in response.data
-            else response.data
-        )
+        data = response.data.get("results") if isinstance(response.data, dict) and "results" in response.data else response.data
         data_enriquecida = self._enrich_data(data)
         if isinstance(response.data, dict) and "results" in response.data:
             response.data["results"] = data_enriquecida
@@ -268,6 +301,7 @@ class CitaViewSet(viewsets.ModelViewSet):
     def _enrich_data(self, citas):
         if not citas:
             return citas
+
         ids = {"paciente": set(), "profesional": set(), "servicio": set(), "lugar": set()}
         for c in citas:
             if c.get("paciente_id"):
@@ -286,7 +320,11 @@ class CitaViewSet(viewsets.ModelViewSet):
                 clean_ids = [i for i in id_set if i and i != "None"]
                 if not clean_ids:
                     return {}
-                r = requests.get(f"{url}?ids={','.join(clean_ids)}", timeout=2)
+                r = requests.get(
+                    f"{url}?ids={','.join(clean_ids)}",
+                    timeout=2,
+                    headers=_internal_headers(),
+                )
                 return r.json() if r.status_code == 200 else {}
             except Exception:
                 return {}
@@ -300,24 +338,17 @@ class CitaViewSet(viewsets.ModelViewSet):
             p_id = str(c.get("paciente_id"))
             p_info = info_pacientes.get(p_id)
             if p_info:
-                nombre = p_info.get("nombre", "")
-                apellido = p_info.get("apellido", "")
-                c["paciente_nombre"] = p_info.get("nombre_completo") or f"{nombre} {apellido}".strip()
-                c["paciente_doc"] = p_info.get("numero_documento") or p_info.get("documento", "N/A")
+                c["paciente_nombre"] = p_info.get("nombre_completo") or "DESCONOCIDO"
+                c["paciente_doc"] = p_info.get("numero_documento") or "N/A"
                 c["paciente_fecha_nacimiento"] = p_info.get("fecha_nacimiento")
             else:
                 c["paciente_nombre"] = "DESCONOCIDO"
                 c["paciente_doc"] = "N/A"
 
-            c["profesional_nombre"] = info_profesionales.get(str(c.get("profesional_id")), {}).get(
-                "nombre", "No asignado"
-            )
-            c["servicio_nombre"] = info_servicios.get(str(c.get("servicio_id")), {}).get(
-                "nombre", "No especificado"
-            )
-            c["lugar_nombre"] = info_lugares.get(str(c.get("lugar_id")), {}).get(
-                "nombre", "Sede Principal"
-            )
+            c["profesional_nombre"] = info_profesionales.get(str(c.get("profesional_id")), {}).get("nombre", "No asignado")
+            c["servicio_nombre"] = info_servicios.get(str(c.get("servicio_id")), {}).get("nombre", "No especificado")
+            c["lugar_nombre"] = info_lugares.get(str(c.get("lugar_id")), {}).get("nombre", "Sede Principal")
+
         return citas
 
 

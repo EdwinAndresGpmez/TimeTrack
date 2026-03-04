@@ -9,3 +9,4 @@ pytest
 pytest-django
 requests-mock
 ruff
+djangorestframework-simplejwt>=5.5.1,<6.0

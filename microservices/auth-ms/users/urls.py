@@ -13,7 +13,8 @@ from .views import (
     PermisoVistaAdminViewSet,
     GroupViewSet,
     SidebarBrandingView,
-    MiRedFamiliarView
+    MiRedFamiliarView,
+    AuditoriaViewSet
 )
 
 # Configuración del Router para el ViewSet de Admin
@@ -22,6 +23,7 @@ router.register(r"admin/users", UserAdminViewSet, basename="admin_users")
 router.register(r"admin/menu-items", MenuItemAdminViewSet, basename="admin_menu_items")
 router.register(r"admin/permisos-vista", PermisoVistaAdminViewSet, basename="admin_permisos_vista")
 router.register(r"admin/groups", GroupViewSet, basename="admin_groups")
+router.register(r"admin/auditoria", AuditoriaViewSet, basename="admin_auditoria")
 
 urlpatterns = [
     # Rutas manuales existentes

@@ -4,7 +4,7 @@ from django.contrib.auth.models import Group
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
-from .models import CrearCuenta, MenuItem, PermisoVista, SidebarBranding
+from .models import CrearCuenta, MenuItem, PermisoVista, SidebarBranding, Auditoria
 
 class DependienteSerializer(serializers.ModelSerializer):
     class Meta:
@@ -134,3 +134,20 @@ class SidebarBrandingSerializer(serializers.ModelSerializer):
     class Meta:
         model = SidebarBranding
         fields = '__all__'
+
+class AuditoriaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Auditoria
+        fields = [
+            "id",
+            "descripcion",
+            "usuario_id",
+            "fecha",
+            "modulo",
+            "accion",
+            "ip",
+            "user_agent",
+            "metadata",
+            "recurso",
+            "recurso_id",
+        ]

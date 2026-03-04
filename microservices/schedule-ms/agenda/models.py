@@ -17,6 +17,7 @@ class Disponibilidad(models.Model):
         (6, "Domingo"),
     ]
 
+    usuario_id = models.BigIntegerField(null=True, blank=True, db_index=True)
     profesional_id = models.BigIntegerField(db_index=True)
     lugar_id = models.BigIntegerField()
     servicio_id = models.BigIntegerField(null=True, blank=True)

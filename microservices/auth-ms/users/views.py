@@ -1,3 +1,4 @@
+import hmac
 from django.contrib.auth.models import Group
 from django.db.models import Q
 from rest_framework import generics, permissions, status, viewsets
@@ -6,8 +7,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView
-
-from .models import CrearCuenta, MenuItem, PermisoVista, SidebarBranding
+from .models import CrearCuenta, MenuItem, PermisoVista, SidebarBranding, Auditoria
 from .serializers import (
     CustomTokenObtainPairSerializer,
     MenuItemSerializer,
@@ -17,7 +17,13 @@ from .serializers import (
     PermisoVistaAdminSerializer,
     GroupSerializer,
     SidebarBrandingSerializer,
+    AuditoriaSerializer,
 )
+from django.utils import timezone
+from django.conf import settings
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import filters
+
 
 # --- VISTAS PÚBLICAS Y DE USUARIO ---
 
@@ -250,4 +256,86 @@ class MiRedFamiliarView(APIView):
         # Usamos el serializador que ya creamos con dependientes_detalle
         # Se filtra automáticamente por el usuario que envía el Token (request.user)
         serializer = UserSerializer(request.user)
-        return Response(serializer.data.get("dependientes_detalle", []))  
+        return Response(serializer.data.get("dependientes_detalle", []))
+    
+
+def _get_ip(request):
+    xff = request.META.get("HTTP_X_FORWARDED_FOR")
+    if xff:
+        return xff.split(",")[0].strip()
+    return request.META.get("REMOTE_ADDR")
+
+class AuditoriaViewSet(viewsets.ModelViewSet):
+    queryset = Auditoria.objects.all().order_by("-fecha")
+    serializer_class = AuditoriaSerializer
+    permission_classes = [permissions.IsAdminUser]
+
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = {
+        "usuario_id": ["exact"],
+        "modulo": ["exact"],
+        "accion": ["exact"],
+        "recurso": ["exact"],
+        "recurso_id": ["exact"],
+        "fecha": ["gte", "lte"],
+    }
+    search_fields = ["descripcion", "modulo", "accion", "recurso", "recurso_id"]
+    ordering_fields = ["fecha"]
+    ordering = ["-fecha"]
+
+    @action(detail=False, methods=["post"], url_path="registrar", permission_classes=[AllowAny])
+    def registrar(self, request):
+        """
+        Endpoint para registrar auditoría desde otros microservicios (protegido por token interno).
+        """
+        token = request.headers.get("X-INTERNAL-TOKEN", "")
+        expected = getattr(settings, "INTERNAL_AUDIT_TOKEN", "") or ""
+
+        # ✅ comparación segura
+        if not token or not expected or not hmac.compare_digest(token, expected):
+            return Response({"detail": "Token inválido"}, status=status.HTTP_403_FORBIDDEN)
+
+        # ✅ opcional: completar ip/user_agent si el emisor no lo manda
+        data = request.data.copy() if hasattr(request.data, "copy") else dict(request.data)
+        data.setdefault("ip", _get_ip(request))
+        data.setdefault("user_agent", request.META.get("HTTP_USER_AGENT"))
+
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        obj = serializer.save()
+        return Response(self.get_serializer(obj).data, status=status.HTTP_201_CREATED)
+
+
+def guardar_auditoria(
+    request,
+    descripcion,
+    modulo="GENERAL",
+    accion=None,
+    recurso=None,
+    recurso_id=None,
+    metadata=None,
+    usuario_id=None,
+):
+    """
+    Helper centralizado para guardar auditoría desde cualquier view.
+    - usuario_id: si no se pasa, se intenta tomar de request.user
+    - ip: respeta X-Forwarded-For
+    """
+    uid = usuario_id
+    if uid is None and hasattr(request, "user") and getattr(request.user, "is_authenticated", False):
+        uid = request.user.id
+
+    ip = _get_ip(request)
+    user_agent = request.META.get("HTTP_USER_AGENT")
+
+    Auditoria.objects.create(
+        descripcion=descripcion,
+        usuario_id=uid,
+        modulo=modulo,
+        accion=accion,
+        ip=ip,
+        user_agent=user_agent,
+        metadata=metadata,
+        recurso=recurso,
+        recurso_id=str(recurso_id) if recurso_id is not None else None,
+    )

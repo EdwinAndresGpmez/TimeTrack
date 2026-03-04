@@ -9,7 +9,8 @@ import {
     FaIdCard, 
     FaExclamationTriangle, 
     FaCheckCircle, 
-    FaUsers, FaPlusCircle 
+    FaUsers, 
+    FaPlusCircle 
 } from 'react-icons/fa';
 import AnimatedActionButton from '../../components/system/AnimatedActionButton';
 import { Link } from 'react-router-dom';
@@ -39,6 +40,125 @@ const ValidarUsuarios = () => {
         const timer = setTimeout(() => { cargarDatos(); }, 0);
         return () => clearTimeout(timer);
     }, [cargarDatos]);
+
+    // --- ACCIÓN 0: CREAR USUARIO MANUAL (y forzar solicitud si queda huérfano) ---
+    const handleCrearUsuarioManual = async () => {
+        const { value: formValues } = await Swal.fire({
+            title: `<h3 class="text-xl font-bold">Crear Usuario Manual</h3>`,
+            html: `
+                <div class="text-left bg-blue-50 p-4 rounded-lg mb-4 text-sm border border-blue-100">
+                    <p class="font-bold text-blue-800">Usuarios creados manualmente</p>
+                    <p class="text-xs text-gray-600 mt-1">Si el usuario no tiene paciente asociado, se creará automáticamente una solicitud y aparecerá aquí en <b>Pendientes</b>.</p>
+                </div>
+
+                <div class="text-left mb-1 ml-1"><label class="text-xs font-bold text-gray-500">Nombre completo</label></div>
+                <input id="nu-nombre" class="swal2-input m-0 w-full mb-3" placeholder="Ej: Juan Pérez" />
+
+                <div class="grid grid-cols-3 gap-2">
+                    <div class="text-left col-span-1">
+                        <label class="text-xs font-bold text-gray-500">Tipo</label>
+                        <select id="nu-tipo" class="swal2-select m-0 w-full">
+                            <option value="CC">CC</option>
+                            <option value="TI">TI</option>
+                            <option value="CE">CE</option>
+                            <option value="PAS">PAS</option>
+                        </select>
+                    </div>
+                    <div class="text-left col-span-2">
+                        <label class="text-xs font-bold text-gray-500">Documento</label>
+                        <input id="nu-doc" class="swal2-input m-0 w-full" placeholder="Ej: 10203040" />
+                    </div>
+                </div>
+
+                <div class="text-left mt-3 mb-1 ml-1"><label class="text-xs font-bold text-gray-500">Email</label></div>
+                <input id="nu-email" type="email" class="swal2-input m-0 w-full mb-3" placeholder="correo@dominio.com" />
+
+                <div class="text-left mb-1 ml-1"><label class="text-xs font-bold text-gray-500">Teléfono</label></div>
+                <input id="nu-tel" class="swal2-input m-0 w-full mb-3" placeholder="Ej: 3001234567" />
+
+                <div class="text-left mb-1 ml-1"><label class="text-xs font-bold text-gray-500">Contraseña</label></div>
+                <input id="nu-pass" type="password" class="swal2-input m-0 w-full" placeholder="Mínimo 6 caracteres" />
+            `,
+            showCancelButton: true,
+            confirmButtonText: 'Crear Usuario',
+            confirmButtonColor: '#2563eb',
+            cancelButtonText: 'Cancelar',
+            focusConfirm: false,
+            preConfirm: () => {
+                const nombre = document.getElementById('nu-nombre')?.value?.trim();
+                const tipo_documento = document.getElementById('nu-tipo')?.value;
+                const documento = document.getElementById('nu-doc')?.value?.trim();
+                const correo = document.getElementById('nu-email')?.value?.trim();
+                const numero = document.getElementById('nu-tel')?.value?.trim();
+                const password = document.getElementById('nu-pass')?.value;
+
+                if (!nombre || !documento || !correo || !password) {
+                    Swal.showValidationMessage('⚠️ Nombre, Documento, Email y Contraseña son obligatorios');
+                    return false;
+                }
+                if (String(password).length < 6) {
+                    Swal.showValidationMessage('⚠️ La contraseña debe tener mínimo 6 caracteres');
+                    return false;
+                }
+
+                // username: por defecto derivado del documento (evita campo extra)
+                const username = `user_${documento}`;
+
+                return { nombre, tipo_documento, documento, correo, numero, password, username };
+            }
+        });
+
+        if (!formValues) return;
+
+        Swal.fire({ title: 'Creando usuario...', didOpen: () => Swal.showLoading() });
+
+        try {
+            // 1) Crear usuario en Auth
+            const created = await authService.register({
+                nombre: formValues.nombre,
+                username: formValues.username,
+                correo: formValues.correo,
+                tipo_documento: formValues.tipo_documento,
+                documento: formValues.documento,
+                numero: formValues.numero || '',
+                password: formValues.password,
+                acepta_tratamiento_datos: true,
+            });
+
+            // El backend retorna { mensaje, usuario }
+            const usuario = created?.usuario || created;
+            const userId = usuario?.id;
+
+            // 2) Forzar solicitud en Patients si quedó huérfano (paciente_id null)
+            //    OJO: signals.py también intenta crearla; esto garantiza que el admin la vea de inmediato.
+            if (userId && !usuario?.paciente_id) {
+                try {
+                    // Evitar duplicados: si ya está en la lista, no creamos otra
+                    const yaExiste = (solicitudes || []).some(s => String(s.user_id) === String(userId));
+                    if (!yaExiste) {
+                        await patientService.crearSolicitudValidacion({
+                            user_id: userId,
+                            nombre: formValues.nombre,
+                            email: formValues.correo,
+                            user_doc: formValues.documento,
+                            procesado: false,
+                        });
+                    }
+                } catch (e) {
+                    // Si patients-ms ya la creó por señal (o hay validación), no bloqueamos el flujo
+                    console.warn('No se pudo crear solicitud (puede ya existir):', e?.response?.data || e?.message || e);
+                }
+            }
+
+            Swal.fire('¡Listo!', 'Usuario creado. Si no tiene paciente asociado, aparecerá en Pendientes.', 'success');
+            window.dispatchEvent(new CustomEvent('tt:audit-notifications-refresh'));
+            // 3) Recargar datos
+            cargarDatos();
+        } catch (error) {
+            console.error(error);
+            Swal.fire('Error', 'No se pudo crear el usuario. Verifica documento/correo duplicado.', 'error');
+        }
+    };
 
     // --- ACCIÓN 1: VALIDAR Y CORREGIR ---
     const handleValidar = async (solicitud) => {
@@ -112,6 +232,7 @@ const ValidarUsuarios = () => {
                 await patientService.updateSolicitud(solicitud.id, { ...solicitud, procesado: true });
 
                 Swal.fire('¡Éxito!', 'Datos sincronizados y paciente creado.', 'success');
+                window.dispatchEvent(new CustomEvent('tt:audit-notifications-refresh'));
                 cargarDatos(); 
 
             } catch (error) {
@@ -127,6 +248,7 @@ const ValidarUsuarios = () => {
                             await authService.updateUserAdmin(solicitud.user_id, { paciente_id: sync.paciente_id });
                             await patientService.updateSolicitud(solicitud.id, { ...solicitud, procesado: true });
                             Swal.fire('Vinculado', 'El paciente ya existía. Se vinculó la cuenta exitosamente.', 'success');
+                            window.dispatchEvent(new CustomEvent('tt:audit-notifications-refresh'));
                             cargarDatos();
                             return;
                         }
@@ -170,6 +292,7 @@ const ValidarUsuarios = () => {
                 await patientService.updateSolicitud(solicitud.id, { ...solicitud, procesado: true });
 
                 Swal.fire('Rechazado', 'El usuario ha sido eliminado y la solicitud cerrada.', 'success');
+                window.dispatchEvent(new CustomEvent('tt:audit-notifications-refresh'));
                 cargarDatos();
             } catch (error) {
                 console.error(error);
@@ -177,6 +300,7 @@ const ValidarUsuarios = () => {
                 if (error.response && error.response.status === 404) {
                      await patientService.updateSolicitud(solicitud.id, { ...solicitud, procesado: true });
                      Swal.fire('Listo', 'El usuario ya no existía, solicitud cerrada.', 'success');
+                     window.dispatchEvent(new CustomEvent('tt:audit-notifications-refresh'));
                      cargarDatos();
                 } else {
                     Swal.fire('Error', 'No se pudo rechazar la solicitud.', 'error');
@@ -184,6 +308,7 @@ const ValidarUsuarios = () => {
             }
         }
     };
+
     return (
         <div className="max-w-7xl mx-auto p-6">
             <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-6">
@@ -195,7 +320,7 @@ const ValidarUsuarios = () => {
                 </div>
                 <div className="flex flex-col gap-2 md:flex-row md:gap-4">
                     <AnimatedActionButton
-                        onClick={() => Swal.fire('Función no implementada', 'Aquí podrías abrir un modal para crear usuario manualmente.', 'info')}
+                        onClick={handleCrearUsuarioManual}
                         icon={<FaPlusCircle />}
                         label="Nuevo Usuario"
                         sublabel="Crear"

@@ -31,6 +31,7 @@ import RecepcionConsultorio from './pages/system/RecepcionConsultorio';
 // ---> NUEVAS PÁGINAS OPERATIVAS <---
 import DashboardProfesional from './pages/system/DashboardProfesional';
 import SalaEsperaPantalla from './pages/system/SalaEsperaPantalla';
+import Auditoria from './pages/admin/Auditoria';
 
 function App() {
   return (
@@ -140,6 +141,12 @@ function App() {
                         <RecepcionConsultorio />
                     </ProtectedRoute>
                  } />
+
+                 <Route path="/dashboard/admin/auditoria" element={
+                      <ProtectedRoute requiredPermission="admin_auditoria">
+                        <Auditoria />
+                      </ProtectedRoute>
+                    } />
              </Route>
           </Route>
 

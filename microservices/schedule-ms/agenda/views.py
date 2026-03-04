@@ -1,17 +1,20 @@
 import logging
 from datetime import date, datetime, timedelta
-from django.db import transaction
-from django.db.models import Q
-from rest_framework.decorators import action
+
 import requests
-from django.db import models
+from django.db import models, transaction
+from django.db.models import Q
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, status, viewsets
+from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .models import BloqueoAgenda, Disponibilidad
 from .serializers import BloqueoAgendaSerializer, DisponibilidadSerializer
+
+from rest_framework_simplejwt.authentication import JWTAuthentication
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +23,7 @@ APPOINTMENTS_API_URL = "http://appointments-ms:8000/api/v1/citas/"
 
 
 class DisponibilidadViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
     queryset = Disponibilidad.objects.all()
     serializer_class = DisponibilidadSerializer
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
@@ -45,6 +49,21 @@ class DisponibilidadViewSet(viewsets.ModelViewSet):
         except Exception as e:
             logger.error(f"Error contactando Appointments MS: {e}")
             return []
+        
+    def initial(self, request, *args, **kwargs):
+        logger.debug("AUTH_HEADER=%s", request.META.get("HTTP_AUTHORIZATION"))
+        super().initial(request, *args, **kwargs)
+        logger.debug("user=%s auth=%s id=%s", request.user, request.user.is_authenticated, getattr(request.user, "id", None))
+        
+    # ✅ CLAVE: setear usuario_id en el MISMO save que dispara el post_save del CREATE
+    def perform_create(self, serializer):
+        uid = self.request.user.id if self.request.user and self.request.user.is_authenticated else None
+        serializer.save(usuario_id=uid)
+
+    # ✅ CLAVE: setear usuario_id en el MISMO save que dispara el post_save del UPDATE
+    def perform_update(self, serializer):
+        uid = self.request.user.id if self.request.user and self.request.user.is_authenticated else None
+        serializer.save(usuario_id=uid)
 
     def create(self, request, *args, **kwargs):
         data = request.data.copy()
@@ -114,6 +133,11 @@ class DisponibilidadViewSet(viewsets.ModelViewSet):
                 # 3. Soft Delete (Cortar Vigencia)
                 ayer = hoy - timedelta(days=1)
                 instance.fecha_fin_vigencia = ayer
+
+                # ✅ set usuario_id en este save manual
+                if request.user and request.user.is_authenticated:
+                    instance.usuario_id = request.user.id
+
                 instance.save()
 
                 return Response(
@@ -137,13 +161,10 @@ class DisponibilidadViewSet(viewsets.ModelViewSet):
                     return Response({"error": "Hay pacientes citados en este horario."}, status=409)
 
                 # 2. LIMPIEZA DE BLOQUEOS (CRÍTICO)
-                # Aquí borramos cualquier bloqueo que caiga DENTRO de este horario específico que estamos eliminando.
-                # Usamos __gte y __lt para atrapar cualquier bloqueo en ese rango.
-
                 ini_dt = datetime.combine(instance.fecha, instance.hora_inicio)
                 fin_dt = datetime.combine(instance.fecha, instance.hora_fin)
 
-                deleted_blocks, _ = BloqueoAgenda.objects.filter(
+                BloqueoAgenda.objects.filter(
                     profesional_id=instance.profesional_id,
                     fecha_inicio__gte=ini_dt,  # Empieza después o igual al inicio del turno
                     fecha_inicio__lt=fin_dt,  # Y empieza antes de que acabe el turno
@@ -155,20 +176,20 @@ class DisponibilidadViewSet(viewsets.ModelViewSet):
         except Exception as e:
             logger.error(f"Error crítico destroy agenda: {e}")
             return Response({"error": "Error interno del servidor."}, status=500)
-        
-    @action(detail=False, methods=['post'], url_path='duplicar_dia')
+
+    @action(detail=False, methods=["post"], url_path="duplicar_dia")
     def duplicar_dia(self, request):
         """
         Copia la estructura de horarios de una fecha origen a una fecha destino.
         Crea registros con fecha específica (override) en el destino.
         """
-        profesional_id = request.data.get('profesional_id')
-        fecha_origen_str = request.data.get('fecha_origen')
-        fecha_destino_str = request.data.get('fecha_destino')
-        lugar_id = request.data.get('lugar_id')
+        profesional_id = request.data.get("profesional_id")
+        fecha_origen_str = request.data.get("fecha_origen")
+        fecha_destino_str = request.data.get("fecha_destino")
+        lugar_id = request.data.get("lugar_id")
 
         if not all([profesional_id, fecha_origen_str, fecha_destino_str]):
-            return Response({'error': 'Faltan datos requeridos.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "Faltan datos requeridos."}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             f_origen = datetime.strptime(fecha_origen_str, "%Y-%m-%d").date()
@@ -176,77 +197,78 @@ class DisponibilidadViewSet(viewsets.ModelViewSet):
             dia_semana_origen = f_origen.weekday()
             dia_semana_destino = f_destino.weekday()
 
-            # 1. Validar que el destino esté vacío (para no duplicar sobre lo existente)
-            # Buscamos si ya hay horarios ESPECÍFICOS en esa fecha destino
             ocupado = Disponibilidad.objects.filter(
                 profesional_id=profesional_id,
                 fecha=f_destino,
-                activo=True
+                activo=True,
             ).exists()
 
             if ocupado:
                 return Response(
-                    {'error': 'El día destino ya tiene horarios asignados manualmente. Borralos antes de pegar.'}, 
-                    status=status.HTTP_409_CONFLICT
+                    {"error": "El día destino ya tiene horarios asignados manualmente. Borralos antes de pegar."},
+                    status=status.HTTP_409_CONFLICT,
                 )
 
-            # 2. Obtener horarios del ORIGEN
-            # Debemos traer:
-            # A) Horarios específicos de esa fecha (fecha=f_origen)
-            # B) Horarios recurrentes de ese día de semana (dia_semana=dia_origen, fecha=None) vigentes
-            
             horarios_origen = Disponibilidad.objects.filter(
                 profesional_id=profesional_id,
-                activo=True
+                activo=True,
             ).filter(
-                # Caso A: Fecha específica
-                Q(fecha=f_origen) |
-                # Caso B: Recurrente vigente
-                (
-                    Q(fecha__isnull=True) & 
-                    Q(dia_semana=dia_semana_origen) &
-                    (Q(fecha_fin_vigencia__isnull=True) | Q(fecha_fin_vigencia__gte=f_origen))
+                Q(fecha=f_origen)
+                | (
+                    Q(fecha__isnull=True)
+                    & Q(dia_semana=dia_semana_origen)
+                    & (Q(fecha_fin_vigencia__isnull=True) | Q(fecha_fin_vigencia__gte=f_origen))
                 )
             )
 
             if not horarios_origen.exists():
-                return Response({'error': 'No hay horarios para copiar en el día origen.'}, status=404)
+                return Response({"error": "No hay horarios para copiar en el día origen."}, status=404)
 
             count_creados = 0
+            uid = request.user.id if (request.user and request.user.is_authenticated) else None
 
             with transaction.atomic():
                 for h in horarios_origen:
-                    # Creamos una copia exacta pero asignada a la FECHA DESTINO ESPECÍFICA
-                    # Esto asegura que el día destino quede igual, sin importar si es lunes o domingo.
                     Disponibilidad.objects.create(
+                        usuario_id=uid,  # ✅ guarda el actor
                         profesional_id=profesional_id,
-                        lugar_id=h.lugar_id, # O usar el lugar_id del request si quieres forzar sede
+                        lugar_id=h.lugar_id if not lugar_id else lugar_id,
                         servicio_id=h.servicio_id,
-                        dia_semana=dia_semana_destino, # Ajustamos al día de la semana del destino
+                        dia_semana=dia_semana_destino,
                         hora_inicio=h.hora_inicio,
                         hora_fin=h.hora_fin,
-                        fecha=f_destino, # <--- CLAVE: Lo hacemos específico para ese día
-                        fecha_fin_vigencia=None, # Al ser fecha específica, no tiene vigencia
-                        activo=True
+                        fecha=f_destino,
+                        fecha_fin_vigencia=None,
+                        activo=True,
                     )
                     count_creados += 1
 
-            return Response({'mensaje': f'Se copiaron {count_creados} bloques horarios.'}, status=200)
+            return Response({"mensaje": f"Se copiaron {count_creados} bloques horarios."}, status=200)
 
         except Exception as e:
             logger.error(f"Error duplicando agenda: {e}")
-            return Response({'error': str(e)}, status=500)
+            return Response({"error": str(e)}, status=500)
 
 
 # --- VIEWSETS DE SOPORTE ---
 class BloqueoAgendaViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
     queryset = BloqueoAgenda.objects.all()
     serializer_class = BloqueoAgendaSerializer
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
     filterset_fields = ["profesional_id"]
 
+    def perform_create(self, serializer):
+        uid = self.request.user.id if self.request.user and self.request.user.is_authenticated else None
+        serializer.save(usuario_id=uid)
+
+    def perform_update(self, serializer):
+        uid = self.request.user.id if self.request.user and self.request.user.is_authenticated else None
+        serializer.save(usuario_id=uid)
+
 
 class SlotGeneratorView(APIView):
+    # Si quieres que sea público, pon permission_classes = [AllowAny]
     def get(self, request):
         profesional_id = request.query_params.get("profesional_id")
         fecha_str = request.query_params.get("fecha")

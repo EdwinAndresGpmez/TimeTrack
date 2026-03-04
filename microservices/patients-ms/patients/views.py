@@ -1,4 +1,5 @@
 from django.utils import timezone
+from django.db.models import Q
 from rest_framework import filters, permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -10,145 +11,279 @@ from .serializers import (
     SolicitudValidacionSerializer,
     TipoPacienteSerializer,
 )
+from .utils.audit_client import audit_log
 
 
-# 1. ViewSet para Tipos de Paciente (EPS, Prepagada, etc.)
+def _uid(request):
+    return request.user.id if getattr(request, "user", None) and request.user.is_authenticated else None
+
+
+def _audit_from_view(request, *, descripcion, accion, recurso, recurso_id=None, metadata=None):
+    audit_log(
+        descripcion=descripcion,
+        modulo="PATIENTS",
+        accion=accion,
+        usuario_id=_uid(request),
+        recurso=recurso,
+        recurso_id=str(recurso_id) if recurso_id is not None else None,
+        metadata=metadata or {},
+        ip=request.META.get("REMOTE_ADDR"),
+        user_agent=request.META.get("HTTP_USER_AGENT"),
+    )
+
+
+# 1) Tipos de Paciente
 class TipoPacienteViewSet(viewsets.ModelViewSet):
+    permission_classes = [permissions.IsAuthenticated]
     queryset = TipoPaciente.objects.all()
     serializer_class = TipoPacienteSerializer
 
+    def perform_create(self, serializer):
+        obj = serializer.save()
+        _audit_from_view(
+            self.request,
+            descripcion=f"CREATE TipoPaciente #{obj.pk}",
+            accion="CREATE",
+            recurso="TipoPaciente",
+            recurso_id=obj.pk,
+            metadata={"nombre": getattr(obj, "nombre", None)},
+        )
 
-# 2. ViewSet Principal de Pacientes
+    def perform_update(self, serializer):
+        obj = serializer.save()
+        _audit_from_view(
+            self.request,
+            descripcion=f"UPDATE TipoPaciente #{obj.pk}",
+            accion="UPDATE",
+            recurso="TipoPaciente",
+            recurso_id=obj.pk,
+            metadata={"nombre": getattr(obj, "nombre", None)},
+        )
+
+    def perform_destroy(self, instance):
+        pk = instance.pk
+        meta = {"nombre": getattr(instance, "nombre", None)}
+        instance.delete()
+        _audit_from_view(
+            self.request,
+            descripcion=f"DELETE TipoPaciente #{pk}",
+            accion="DELETE",
+            recurso="TipoPaciente",
+            recurso_id=pk,
+            metadata=meta,
+        )
+
+
+# 2) Pacientes
 class PacienteViewSet(viewsets.ModelViewSet):
+    permission_classes = [permissions.IsAuthenticated]  # ✅ clave para usuario_id real
     queryset = Paciente.objects.all()
     serializer_class = PacienteSerializer
     filter_backends = [filters.SearchFilter]
     search_fields = ["numero_documento", "nombre", "apellido"]
 
-    permission_classes = [permissions.AllowAny]
-
     def get_queryset(self):
-        # 1. Iniciamos con el queryset base
         queryset = Paciente.objects.all()
-
-        # 2. Recuperamos los parámetros de la URL
         user_id = self.request.query_params.get("user_id")
         search_query = self.request.query_params.get("search")
         admin_mode = self.request.query_params.get("admin_mode")
 
-        # CASO A: Filtro por User ID (Para el perfil del paciente logueado)
+        # Perfil de paciente (por user_id)
         if user_id:
             return queryset.filter(user_id=user_id)
 
-        # CASO B: Buscador del Administrador
+        # Buscador admin: si no hay texto, retorna vacío
         if admin_mode:
             if search_query:
-                # Si hay texto de búsqueda, aplicamos el filtro manualmente
-                # para asegurar que no devuelva todo
-                from django.db.models import Q
-
                 return queryset.filter(
                     Q(numero_documento__icontains=search_query)
                     | Q(nombre__icontains=search_query)
                     | Q(apellido__icontains=search_query)
                 )
-            else:
-                # Si es modo admin pero no ha escrito nada, retornamos vacío
-                # Esto evita que al cargar la página salgan todos los pacientes
-                return queryset.none()
+            return queryset.none()
 
-        # CASO C: Por defecto (si no es admin ni perfil, ej: listados generales)
         return queryset
+
+    def perform_create(self, serializer):
+        obj = serializer.save()
+        _audit_from_view(
+            self.request,
+            descripcion=f"CREATE Paciente #{obj.pk}",
+            accion="CREATE",
+            recurso="Paciente",
+            recurso_id=obj.pk,
+            metadata={
+                "numero_documento": getattr(obj, "numero_documento", None),
+                "nombre": getattr(obj, "nombre", None),
+                "apellido": getattr(obj, "apellido", None),
+                "user_id": getattr(obj, "user_id", None),
+            },
+        )
+
+    def perform_update(self, serializer):
+        obj = serializer.save()
+        _audit_from_view(
+            self.request,
+            descripcion=f"UPDATE Paciente #{obj.pk}",
+            accion="UPDATE",
+            recurso="Paciente",
+            recurso_id=obj.pk,
+            metadata={
+                "numero_documento": getattr(obj, "numero_documento", None),
+                "nombre": getattr(obj, "nombre", None),
+                "apellido": getattr(obj, "apellido", None),
+                "user_id": getattr(obj, "user_id", None),
+            },
+        )
+
+    def perform_destroy(self, instance):
+        pk = instance.pk
+        meta = {
+            "numero_documento": getattr(instance, "numero_documento", None),
+            "nombre": getattr(instance, "nombre", None),
+            "apellido": getattr(instance, "apellido", None),
+            "user_id": getattr(instance, "user_id", None),
+        }
+        instance.delete()
+        _audit_from_view(
+            self.request,
+            descripcion=f"DELETE Paciente #{pk}",
+            accion="DELETE",
+            recurso="Paciente",
+            recurso_id=pk,
+            metadata=meta,
+        )
 
     @action(detail=True, methods=["post"], url_path="reset-inasistencias")
     def reset_inasistencias(self, request, pk=None):
-        """
-        No borra citas. Solo marca la fecha actual como el nuevo "punto de partida"
-        para el conteo de penalizaciones.
-        """
         paciente = self.get_object()
         paciente.ultima_fecha_desbloqueo = timezone.now()
         paciente.save()
 
+        _audit_from_view(
+            request,
+            descripcion=f"RESET_INASISTENCIAS Paciente #{paciente.pk}",
+            accion="RESET_INASISTENCIAS",
+            recurso="Paciente",
+            recurso_id=paciente.pk,
+            metadata={"nueva_fecha_corte": paciente.ultima_fecha_desbloqueo.isoformat()},
+        )
+
         return Response(
-            {
-                "mensaje": "Contador reiniciado.",
-                "nueva_fecha_corte": paciente.ultima_fecha_desbloqueo,
-            }
+            {"mensaje": "Contador reiniciado.", "nueva_fecha_corte": paciente.ultima_fecha_desbloqueo}
         )
 
 
-# 3. NUEVO: ViewSet para Solicitudes de Validación (Para el Admin)
+# 3) Solicitudes de Validación (antes AllowAny)
 class SolicitudValidacionViewSet(viewsets.ModelViewSet):
     queryset = SolicitudValidacion.objects.all()
     serializer_class = SolicitudValidacionSerializer
 
-    # 2. IMPORTANTE: PERMITIR ACCESO INTERNO SIN TOKEN
+    # ⚠️ lo dejaste AllowAny para acceso interno: lo respeto para no romper.
+    # Si quieres usuario_id aquí, cámbialo a IsAuthenticated o usa token interno.
     permission_classes = [permissions.AllowAny]
 
-    # Filtro para ver solo las "No Procesadas"
     def get_queryset(self):
         queryset = super().get_queryset()
         procesado = self.request.query_params.get("procesado")
 
         if procesado is not None:
-            # Convertimos el string 'false'/'true' a booleano
             is_processed = procesado.lower() == "true"
             queryset = queryset.filter(procesado=is_processed)
 
         return queryset.order_by("-fecha_solicitud")
 
+    def perform_create(self, serializer):
+        obj = serializer.save()
+        _audit_from_view(
+            self.request,
+            descripcion=f"CREATE SolicitudValidacion #{obj.pk}",
+            accion="CREATE",
+            recurso="SolicitudValidacion",
+            recurso_id=obj.pk,
+            metadata={"procesado": getattr(obj, "procesado", None)},
+        )
 
-# 4. Endpoint de Autocorrección (Self-Healing)
+    def perform_update(self, serializer):
+        obj = serializer.save()
+        _audit_from_view(
+            self.request,
+            descripcion=f"UPDATE SolicitudValidacion #{obj.pk}",
+            accion="UPDATE",
+            recurso="SolicitudValidacion",
+            recurso_id=obj.pk,
+            metadata={"procesado": getattr(obj, "procesado", None)},
+        )
+
+    def perform_destroy(self, instance):
+        pk = instance.pk
+        meta = {"procesado": getattr(instance, "procesado", None)}
+        instance.delete()
+        _audit_from_view(
+            self.request,
+            descripcion=f"DELETE SolicitudValidacion #{pk}",
+            accion="DELETE",
+            recurso="SolicitudValidacion",
+            recurso_id=pk,
+            metadata=meta,
+        )
+
+
+# 4) Sync (Self-healing) - lo dejo AllowAny como lo tenías
 class SyncPacienteUserView(APIView):
-    """
-    Endpoint de Autocorrección e Integridad de Datos.
-    Regla de Oro: Si el documento coincide, el Usuario reclamando ES el dueño.
-    """
+    permission_classes = [permissions.AllowAny]
 
     def post(self, request):
         documento = request.data.get("documento")
         user_id = request.data.get("user_id")
 
         if not documento or not user_id:
-            return Response(
-                {"error": "Faltan datos críticos (doc/user_id)"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return Response({"error": "Faltan datos críticos (doc/user_id)"}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            # A. Buscamos al paciente por su "Huella Digital" (Documento)
             paciente = Paciente.objects.get(numero_documento=documento)
-            cambios_realizados = []
+            cambios = []
 
-            # B. VALIDACIÓN Y CORRECCIÓN: ¿El paciente apunta al usuario correcto?
-            # Nota: Convertimos a string por si vienen tipos diferentes
             if str(paciente.user_id) != str(user_id):
                 old_user = paciente.user_id
                 paciente.user_id = user_id
                 paciente.save()
-                cambios_realizados.append(f"Corregido user_id de {old_user} a {user_id}")
+                cambios.append(f"Corregido user_id de {old_user} a {user_id}")
 
-            # C. Retornamos ÉXITO y el ID del paciente para que Auth se corrija
+            _audit_from_view(
+                request,
+                descripcion=f"SYNC_PACIENTE_USER Paciente #{paciente.pk}",
+                accion="SYNC_USER",
+                recurso="Paciente",
+                recurso_id=paciente.pk,
+                metadata={"documento": documento, "user_id": user_id, "cambios": cambios},
+            )
+
             return Response(
                 {
                     "status": "found",
                     "paciente_id": paciente.id,
-                    "corrected": len(cambios_realizados) > 0,
-                    "details": cambios_realizados,
+                    "corrected": len(cambios) > 0,
+                    "details": cambios,
                 },
                 status=status.HTTP_200_OK,
             )
 
         except Paciente.DoesNotExist:
-            # D. Si no existe, avisamos al Frontend para que proceda a CREARLO
+            _audit_from_view(
+                request,
+                descripcion="SYNC_PACIENTE_USER not_found",
+                accion="SYNC_USER_NOT_FOUND",
+                recurso="Paciente",
+                recurso_id=None,
+                metadata={"documento": documento, "user_id": user_id},
+            )
             return Response({"status": "not_found"}, status=status.HTTP_404_NOT_FOUND)
 
 
+# 5) Bulk info (internal) - lo dejo público para no romper llamadas de otros ms
 class BulkPacienteView(APIView):
-    """
-    Internal endpoint to return patient names by ID list.
-    """
+    permission_classes = [permissions.AllowAny]
 
     def get(self, request):
         ids_param = request.query_params.get("ids", "")
@@ -164,6 +299,6 @@ class BulkPacienteView(APIView):
                 "nombre_completo": f"{p.nombre} {p.apellido}",
                 "numero_documento": p.numero_documento,
                 "tipo_doc": p.tipo_documento,
-                "fecha_nacimiento": p.fecha_nacimiento.isoformat() if p.fecha_nacimiento else None
+                "fecha_nacimiento": p.fecha_nacimiento.isoformat() if p.fecha_nacimiento else None,
             }
         return Response(data)

@@ -1,33 +1,33 @@
 import React, { useEffect, useState } from 'react';
 import { authService } from '../../services/authService';
-import { patientService } from '../../services/patientService'; 
+import { patientService } from '../../services/patientService';
 import Swal from 'sweetalert2';
-import { 
-    FaEdit, FaKey, FaUserShield, FaSearch, FaChevronLeft, FaChevronRight, 
-    FaFilter, FaStethoscope, FaEnvelope, FaPhone, FaIdCard, FaPen, 
-    FaUsers, FaSitemap, FaTimes, FaPlusCircle 
+import {
+    FaEdit, FaKey, FaUserShield, FaSearch, FaChevronLeft, FaChevronRight,
+    FaEnvelope, FaIdCard, FaPen,
+    FaUsers, FaSitemap, FaTimes, FaPlusCircle
 } from 'react-icons/fa';
 import AnimatedActionButton from '../../components/system/AnimatedActionButton';
 import { Link } from 'react-router-dom';
 
 // IMPORTACIÓN DEL NUEVO COMPONENTE
-import MapaFamiliar from './MapaFamiliar'; 
+import MapaFamiliar from './MapaFamiliar';
 
 const AdminUsuarios = () => {
     // --- ESTADOS DE DATOS ---
-    const [users, setUsers] = useState([]); 
-    const [filteredUsers, setFilteredUsers] = useState([]); 
+    const [users, setUsers] = useState([]);
+    const [filteredUsers, setFilteredUsers] = useState([]);
     const [availableGroups, setAvailableGroups] = useState([]);
-    const [tiposPaciente, setTiposPaciente] = useState([]); 
-    
+    const [tiposPaciente, setTiposPaciente] = useState([]);
+
     // Diccionario para acceso rápido: { user_id: { datos_paciente } }
-    const [patientsMap, setPatientsMap] = useState({}); 
+    const [patientsMap, setPatientsMap] = useState({});
 
     const [loading, setLoading] = useState(true);
 
     // --- PAGINACIÓN ---
     const [currentPage, setCurrentPage] = useState(1);
-    const [usersPerPage] = useState(10); 
+    const [usersPerPage] = useState(10);
 
     // --- FILTROS ---
     const [searchTerm, setSearchTerm] = useState('');
@@ -55,7 +55,7 @@ const AdminUsuarios = () => {
 
         if (searchTerm) {
             const lowerTerm = searchTerm.toLowerCase();
-            result = result.filter(u => 
+            result = result.filter(u =>
                 u.nombre.toLowerCase().includes(lowerTerm) ||
                 u.email.toLowerCase().includes(lowerTerm) ||
                 u.documento.includes(lowerTerm)
@@ -71,7 +71,7 @@ const AdminUsuarios = () => {
         }
 
         setFilteredUsers(result);
-        setCurrentPage(1); 
+        setCurrentPage(1);
     }, [users, searchTerm, filterRole]);
 
     const hasRole = (user, roleName) => {
@@ -90,18 +90,18 @@ const AdminUsuarios = () => {
                 authService.getAllUsers(),
                 authService.getGroups(),
                 patientService.getTiposPaciente(),
-                patientService.getAll() 
+                patientService.getAll()
             ]);
 
             const map = {};
             if (Array.isArray(pacientesData)) {
                 pacientesData.forEach(p => { if (p.user_id) map[p.user_id] = p; });
             } else if (pacientesData && pacientesData.results) {
-                 pacientesData.results.forEach(p => { if (p.user_id) map[p.user_id] = p; });
+                pacientesData.results.forEach(p => { if (p.user_id) map[p.user_id] = p; });
             }
 
             setUsers(usersData);
-            setFilteredUsers(usersData); 
+            setFilteredUsers(usersData);
             setAvailableGroups(gruposData);
             setTiposPaciente(tiposData);
             setPatientsMap(map);
@@ -121,12 +121,12 @@ const AdminUsuarios = () => {
             const updatedUsers = users.map(u => u.id === user.id ? { ...u, is_active: !u.is_active } : u);
             setUsers(updatedUsers);
             Swal.fire({
-                icon: 'success', title: !user.is_active ? 'Activado' : 'Desactivado', 
+                icon: 'success', title: !user.is_active ? 'Activado' : 'Desactivado',
                 timer: 1000, showConfirmButton: false
             });
-        } catch (error) { 
-            console.error(error); 
-            Swal.fire('Error', 'No se pudo cambiar el estado', 'error'); 
+        } catch (error) {
+            console.error(error);
+            Swal.fire('Error', 'No se pudo cambiar el estado', 'error');
         }
     };
 
@@ -143,9 +143,9 @@ const AdminUsuarios = () => {
             try {
                 await authService.adminChangePassword(user.id, password);
                 Swal.fire('Éxito', 'Contraseña actualizada', 'success');
-            } catch (error) { 
-                console.error(error); 
-                Swal.fire('Error', 'No se pudo actualizar', 'error'); 
+            } catch (error) {
+                console.error(error);
+                Swal.fire('Error', 'No se pudo actualizar', 'error');
             }
         }
     };
@@ -169,10 +169,10 @@ const AdminUsuarios = () => {
             title: `Roles: ${user.nombre}`, html: groupsHtml, showCancelButton: true,
             preConfirm: () => {
                 const selected = [];
-                availableGroups.forEach(g => { 
+                availableGroups.forEach(g => {
                     const groupName = g.name || g;
                     const el = document.getElementById(`chk-${groupName}`);
-                    if (el && el.checked) selected.push(groupName); 
+                    if (el && el.checked) selected.push(groupName);
                 });
                 return selected;
             }
@@ -184,9 +184,9 @@ const AdminUsuarios = () => {
                 const updatedUsers = users.map(u => u.id === user.id ? { ...u, groups: formValues } : u);
                 setUsers(updatedUsers);
                 Swal.fire('Roles actualizados', '', 'success');
-            } catch (error) { 
+            } catch (error) {
                 console.error(error);
-                Swal.fire('Error', 'Fallo al actualizar roles', 'error'); 
+                Swal.fire('Error', 'Fallo al actualizar roles', 'error');
             }
         }
     };
@@ -195,9 +195,9 @@ const AdminUsuarios = () => {
         if (!hasRole(user, 'paciente')) return;
 
         let perfil = patientsMap[user.id];
-        
+
         if (!perfil) {
-            try { perfil = await patientService.getProfileByUserId(user.id); } 
+            try { perfil = await patientService.getProfileByUserId(user.id); }
             catch (e) { console.error(e); }
         }
 
@@ -208,7 +208,7 @@ const AdminUsuarios = () => {
             currentTipoId = (typeof perfil.tipo_usuario === 'object') ? perfil.tipo_usuario.id : perfil.tipo_usuario;
         }
 
-        const optionsHtml = tiposPaciente.map(tipo => 
+        const optionsHtml = tiposPaciente.map(tipo =>
             `<option value="${tipo.id}" ${parseInt(currentTipoId) === tipo.id ? 'selected' : ''}>${tipo.nombre}</option>`
         ).join('');
 
@@ -230,7 +230,7 @@ const AdminUsuarios = () => {
                 Swal.showLoading();
                 const payload = { tipo_usuario: nuevoTipoId ? parseInt(nuevoTipoId) : null };
                 const updatedPatient = await patientService.update(perfil.id, payload);
-                
+
                 setPatientsMap(prev => ({
                     ...prev,
                     [user.id]: {
@@ -252,23 +252,66 @@ const AdminUsuarios = () => {
     const openEditModal = (user) => {
         setEditingUser(user);
         setFormData({
-            nombre: user.nombre || '', email: user.email || '', 
-            tipo_documento: user.tipo_documento || 'CC', documento: user.documento || '', numero: user.numero || ''
+            nombre: user.nombre || '',
+            email: user.email || '',
+            tipo_documento: user.tipo_documento || 'CC',
+            documento: user.documento || '',
+            numero: user.numero || ''
         });
         setIsModalOpen(true);
     };
 
+    // ✅ CORRECCIÓN: Crear vs Editar
     const handleModalSubmit = async (e) => {
         e.preventDefault();
+
         try {
+            // --- MODO CREAR ---
+            if (!editingUser) {
+                const { value: password } = await Swal.fire({
+                    title: 'Contraseña inicial',
+                    input: 'password',
+                    inputPlaceholder: 'Mínimo 6 caracteres...',
+                    showCancelButton: true,
+                    confirmButtonText: 'Crear usuario',
+                    confirmButtonColor: '#2563eb',
+                    inputValidator: (val) => {
+                        if (!val || val.length < 6) return 'Mínimo 6 caracteres';
+                        return null;
+                    }
+                });
+
+                if (!password) return;
+
+                const payload = {
+                    nombre: formData.nombre?.trim(),
+                    username: (formData.email || formData.documento || '').trim(),
+                    correo: formData.email?.trim(),
+                    tipo_documento: formData.tipo_documento,
+                    documento: formData.documento?.trim(),
+                    numero: formData.numero?.trim(),
+                    password,
+                    acepta_tratamiento_datos: true
+                };
+
+                await authService.register(payload);
+
+                setIsModalOpen(false);
+                Swal.fire('Creado', 'Usuario creado correctamente.', 'success');
+                await cargarDatos();
+                return;
+            }
+
+            // --- MODO EDITAR ---
             await authService.updateUserAdmin(editingUser.id, formData);
             const updatedUsers = users.map(u => u.id === editingUser.id ? { ...u, ...formData } : u);
             setUsers(updatedUsers);
+
             setIsModalOpen(false);
             Swal.fire('Guardado', 'Datos actualizados.', 'success');
-        } catch (error) { 
+        } catch (error) {
             console.error(error);
-            Swal.fire('Error', 'Error guardando datos.', 'error'); 
+            Swal.fire('Error', 'Error guardando datos.', 'error');
         }
     };
 
@@ -286,12 +329,12 @@ const AdminUsuarios = () => {
 
     return (
         <div className="max-w-7xl mx-auto p-4">
-            
+
             {/* Header Actualizado */}
             <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
                 <div className="flex flex-col">
                     <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-2">
-                        <FaUserShield className="text-blue-600"/> Gestión de Usuarios
+                        <FaUserShield className="text-blue-600" /> Gestión de Usuarios
                     </h1>
                     <div className="text-sm text-gray-500 mt-1">
                         Total Registrados: <b>{filteredUsers.length}</b>
@@ -301,7 +344,11 @@ const AdminUsuarios = () => {
                 {/* BOTÓN CON DISEÑO NUEVO */}
                 <div className="flex flex-col gap-2 md:flex-row md:gap-4">
                     <AnimatedActionButton
-                        onClick={() => { setEditingUser(null); setFormData({ nombre: '', email: '', tipo_documento: 'CC', documento: '', numero: '' }); setIsModalOpen(true); }}
+                        onClick={() => {
+                            setEditingUser(null);
+                            setFormData({ nombre: '', email: '', tipo_documento: 'CC', documento: '', numero: '' });
+                            setIsModalOpen(true);
+                        }}
                         icon={<FaPlusCircle />}
                         label="Nuevo Usuario"
                         sublabel="Crear"
@@ -318,14 +365,22 @@ const AdminUsuarios = () => {
             <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100 mb-6 flex flex-col md:flex-row gap-4 items-center">
                 <div className="relative w-full md:w-1/2">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><FaSearch className="text-gray-400" /></div>
-                    <input type="text" placeholder="Buscar usuario..." className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                        value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                    <input
+                        type="text"
+                        placeholder="Buscar usuario..."
+                        className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
                 </div>
                 <div className="w-full md:w-1/4">
-                    <select className="w-full border rounded-lg p-2 bg-white focus:ring-2 focus:ring-blue-500 outline-none"
-                        value={filterRole} onChange={(e) => setFilterRole(e.target.value)}>
+                    <select
+                        className="w-full border rounded-lg p-2 bg-white focus:ring-2 focus:ring-blue-500 outline-none"
+                        value={filterRole}
+                        onChange={(e) => setFilterRole(e.target.value)}
+                    >
                         <option value="todos">Todos los Roles</option>
-                        {availableGroups.map((g, index) => {
+                        {availableGroups.map((g) => {
                             const groupName = g.name || g;
                             const groupId = g.id || groupName;
                             return (
@@ -357,7 +412,7 @@ const AdminUsuarios = () => {
                                 <tr><td colSpan="5" className="px-6 py-10 text-center text-gray-400 animate-pulse">Cargando base de datos...</td></tr>
                             ) : currentUsers.map(u => (
                                 <tr key={u.id} className="hover:bg-blue-50 transition duration-150 group">
-                                    
+
                                     <td className="px-6 py-4">
                                         <div className="flex items-start gap-3">
                                             <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold text-lg shadow-sm">
@@ -365,7 +420,7 @@ const AdminUsuarios = () => {
                                             </div>
                                             <div className="flex flex-col gap-1">
                                                 <span className="text-sm font-bold text-gray-900 leading-none">{u.nombre}</span>
-                                                
+
                                                 <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
                                                     <FaIdCard className="text-gray-400" />
                                                     <span className="font-mono bg-gray-100 px-1 rounded">{u.tipo_documento} {u.documento}</span>
@@ -384,29 +439,28 @@ const AdminUsuarios = () => {
                                             {u.groups.length > 0 ? u.groups.map((g, idx) => {
                                                 const gName = typeof g === 'object' ? g.name : g;
                                                 return (
-                                                <span key={idx} className={`px-2 py-1 rounded-md text-xs font-bold border ${
-                                                    gName.toLowerCase() === 'admin' ? 'bg-purple-50 text-purple-700 border-purple-200' :
-                                                    gName.toLowerCase() === 'paciente' ? 'bg-green-50 text-green-700 border-green-200' :
-                                                    'bg-blue-50 text-blue-700 border-blue-200'
-                                                }`}>
-                                                    {gName}
-                                                </span>
-                                            )}) : <span className="text-xs text-gray-400 italic border border-dashed border-gray-300 px-2 py-1 rounded">+ Asignar</span>}
+                                                    <span key={idx} className={`px-2 py-1 rounded-md text-xs font-bold border ${gName.toLowerCase() === 'admin' ? 'bg-purple-50 text-purple-700 border-purple-200' :
+                                                        gName.toLowerCase() === 'paciente' ? 'bg-green-50 text-green-700 border-green-200' :
+                                                            'bg-blue-50 text-blue-700 border-blue-200'
+                                                        }`}>
+                                                        {gName}
+                                                    </span>
+                                                );
+                                            }) : <span className="text-xs text-gray-400 italic border border-dashed border-gray-300 px-2 py-1 rounded">+ Asignar</span>}
                                         </div>
                                     </td>
 
                                     <td className="px-6 py-4 text-center align-middle">
                                         {hasRole(u, 'paciente') ? (
                                             <div className="flex flex-col items-center gap-1">
-                                                <span className={`px-3 py-1 rounded-full text-xs font-bold shadow-sm border ${
-                                                    patientsMap[u.id]?.tipo_usuario_nombre 
-                                                        ? 'bg-teal-100 text-teal-800 border-teal-200' 
-                                                        : 'bg-gray-100 text-gray-500 border-gray-200'
-                                                }`}>
+                                                <span className={`px-3 py-1 rounded-full text-xs font-bold shadow-sm border ${patientsMap[u.id]?.tipo_usuario_nombre
+                                                    ? 'bg-teal-100 text-teal-800 border-teal-200'
+                                                    : 'bg-gray-100 text-gray-500 border-gray-200'
+                                                    }`}>
                                                     {patientsMap[u.id]?.tipo_usuario_nombre || 'Particular / Sin Clasificar'}
                                                 </span>
 
-                                                <button 
+                                                <button
                                                     onClick={() => handleEditTipoPaciente(u)}
                                                     className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1 mt-1 opacity-0 group-hover:opacity-100 transition-opacity"
                                                 >
@@ -426,10 +480,9 @@ const AdminUsuarios = () => {
 
                                     <td className="px-6 py-4 text-center">
                                         <div className="flex justify-center gap-2 items-center">
-                                            {/* NUEVO BOTÓN: MAPA FAMILIAR */}
-                                            <button 
-                                                onClick={() => openFamilyModal(u)} 
-                                                className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-full transition-colors relative group/btn" 
+                                            <button
+                                                onClick={() => openFamilyModal(u)}
+                                                className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-full transition-colors relative group/btn"
                                                 title="Configurar Red Familiar / Delegados"
                                             >
                                                 <FaSitemap size={16} />
@@ -459,8 +512,8 @@ const AdminUsuarios = () => {
                     <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-between items-center">
                         <span className="text-xs font-medium text-gray-500">Página {currentPage} de {totalPages}</span>
                         <div className="flex gap-2">
-                            <button onClick={() => setCurrentPage(p => Math.max(p - 1, 1))} disabled={currentPage === 1} className="px-3 py-1 bg-white border border-gray-300 text-gray-600 rounded hover:bg-gray-50 disabled:opacity-50 text-sm"><FaChevronLeft/></button>
-                            <button onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))} disabled={currentPage === totalPages} className="px-3 py-1 bg-white border border-gray-300 text-gray-600 rounded hover:bg-gray-50 disabled:opacity-50 text-sm"><FaChevronRight/></button>
+                            <button onClick={() => setCurrentPage(p => Math.max(p - 1, 1))} disabled={currentPage === 1} className="px-3 py-1 bg-white border border-gray-300 text-gray-600 rounded hover:bg-gray-50 disabled:opacity-50 text-sm"><FaChevronLeft /></button>
+                            <button onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))} disabled={currentPage === totalPages} className="px-3 py-1 bg-white border border-gray-300 text-gray-600 rounded hover:bg-gray-50 disabled:opacity-50 text-sm"><FaChevronRight /></button>
                         </div>
                     </div>
                 )}
@@ -476,26 +529,49 @@ const AdminUsuarios = () => {
                                 <div className="bg-white px-6 py-6">
                                     <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2 border-b pb-4">
                                         <div className="p-2 bg-blue-100 rounded-lg text-blue-600"><FaEdit /></div>
-                                        Editar Datos de Acceso
+                                        {editingUser ? 'Editar Datos de Acceso' : 'Crear Usuario'}
                                     </h3>
                                     <div className="space-y-4">
-                                        <div><label className="text-xs font-bold text-gray-500 uppercase">Nombre Completo</label><input required className="w-full border-gray-300 border rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none transition-all" value={formData.nombre} onChange={e => setFormData({...formData, nombre: e.target.value})} /></div>
+                                        <div>
+                                            <label className="text-xs font-bold text-gray-500 uppercase">Nombre Completo</label>
+                                            <input required className="w-full border-gray-300 border rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                                                value={formData.nombre} onChange={e => setFormData({ ...formData, nombre: e.target.value })} />
+                                        </div>
                                         <div className="grid grid-cols-3 gap-3">
-                                            <div className="col-span-1"><label className="text-xs font-bold text-gray-500 uppercase">Tipo</label>
-                                            <select className="w-full border-gray-300 border rounded-lg p-2.5" value={formData.tipo_documento} onChange={e => setFormData({...formData, tipo_documento: e.target.value})}>
-                                                <option>CC</option><option>TI</option><option>CE</option><option>PAS</option>
-                                            </select></div>
-                                            <div className="col-span-2"><label className="text-xs font-bold text-gray-500 uppercase">Documento</label><input required className="w-full border-gray-300 border rounded-lg p-2.5" value={formData.documento} onChange={e => setFormData({...formData, documento: e.target.value})} /></div>
+                                            <div className="col-span-1">
+                                                <label className="text-xs font-bold text-gray-500 uppercase">Tipo</label>
+                                                <select className="w-full border-gray-300 border rounded-lg p-2.5"
+                                                    value={formData.tipo_documento} onChange={e => setFormData({ ...formData, tipo_documento: e.target.value })}>
+                                                    <option>CC</option><option>TI</option><option>CE</option><option>PAS</option>
+                                                </select>
+                                            </div>
+                                            <div className="col-span-2">
+                                                <label className="text-xs font-bold text-gray-500 uppercase">Documento</label>
+                                                <input required className="w-full border-gray-300 border rounded-lg p-2.5"
+                                                    value={formData.documento} onChange={e => setFormData({ ...formData, documento: e.target.value })} />
+                                            </div>
                                         </div>
                                         <div className="grid grid-cols-2 gap-3">
-                                            <div><label className="text-xs font-bold text-gray-500 uppercase">Email</label><input type="email" required className="w-full border-gray-300 border rounded-lg p-2.5" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} /></div>
-                                            <div><label className="text-xs font-bold text-gray-500 uppercase">Teléfono</label><input className="w-full border-gray-300 border rounded-lg p-2.5" value={formData.numero} onChange={e => setFormData({...formData, numero: e.target.value})} /></div>
+                                            <div>
+                                                <label className="text-xs font-bold text-gray-500 uppercase">Email</label>
+                                                <input type="email" required className="w-full border-gray-300 border rounded-lg p-2.5"
+                                                    value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} />
+                                            </div>
+                                            <div>
+                                                <label className="text-xs font-bold text-gray-500 uppercase">Teléfono</label>
+                                                <input className="w-full border-gray-300 border rounded-lg p-2.5"
+                                                    value={formData.numero} onChange={e => setFormData({ ...formData, numero: e.target.value })} />
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                                 <div className="bg-gray-50 px-6 py-4 flex flex-row-reverse gap-3 border-t">
-                                    <button type="submit" className="bg-blue-600 text-white px-5 py-2 rounded-lg font-medium hover:bg-blue-700 shadow-md transition-all">Guardar Cambios</button>
-                                    <button type="button" onClick={() => setIsModalOpen(false)} className="bg-white border border-gray-300 text-gray-700 px-5 py-2 rounded-lg font-medium hover:bg-gray-50 transition-all">Cancelar</button>
+                                    <button type="submit" className="bg-blue-600 text-white px-5 py-2 rounded-lg font-medium hover:bg-blue-700 shadow-md transition-all">
+                                        {editingUser ? 'Guardar Cambios' : 'Crear Usuario'}
+                                    </button>
+                                    <button type="button" onClick={() => setIsModalOpen(false)} className="bg-white border border-gray-300 text-gray-700 px-5 py-2 rounded-lg font-medium hover:bg-gray-50 transition-all">
+                                        Cancelar
+                                    </button>
                                 </div>
                             </form>
                         </div>
@@ -507,7 +583,6 @@ const AdminUsuarios = () => {
             {isFamilyModalOpen && familyTargetUser && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/80 backdrop-blur-sm animate-fadeIn p-4">
                     <div className="bg-white w-full max-w-5xl h-[85vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden relative">
-                        {/* Cabecera del Lienzo */}
                         <div className="bg-gradient-to-r from-purple-800 to-indigo-900 p-4 shrink-0 flex justify-between items-center text-white">
                             <div>
                                 <h2 className="text-xl font-black flex items-center gap-2">
@@ -517,15 +592,14 @@ const AdminUsuarios = () => {
                                     Configurando delegados para: <span className="font-bold text-white">{familyTargetUser.nombre}</span>
                                 </p>
                             </div>
-                            <button 
-                                onClick={() => setIsFamilyModalOpen(false)} 
+                            <button
+                                onClick={() => setIsFamilyModalOpen(false)}
                                 className="bg-white/10 hover:bg-red-500 p-2 rounded-full transition-colors text-white"
                             >
-                                <FaTimes size={20}/>
+                                <FaTimes size={20} />
                             </button>
                         </div>
-                        
-                        {/* APLICACIÓN DEL MAPA FAMILIAR */}
+
                         <div className="flex-1 relative overflow-hidden">
                             <MapaFamiliar targetUser={familyTargetUser} onClose={() => setIsFamilyModalOpen(false)} />
                         </div>

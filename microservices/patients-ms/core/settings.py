@@ -21,13 +21,13 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     # Terceros
     "rest_framework",
-    "corsheaders",
+    "rest_framework_simplejwt",
+    "django_filters",
     # Locales
-    "patients",
+    "patients.apps.PatientsConfig",
 ]
 
 MIDDLEWARE = [
-    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -62,14 +62,25 @@ DATABASES = {
     "default": env.db(),
 }
 
-# Configuración REST Framework
 REST_FRAMEWORK = {
-    "DEFAULT_PERMISSION_CLASSES": [
-        "rest_framework.permissions.AllowAny",  # Por ahora abierto para pruebas internas
-    ],
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "patients.authentication.StatelessJWTAuthentication",
+        "rest_framework.authentication.SessionAuthentication",
+    ),
+    "DEFAULT_PERMISSION_CLASSES": (
+        "rest_framework.permissions.IsAuthenticated",
+    ),
 }
 
-CORS_ALLOWED_ORIGINS = ["http://localhost:5173"]
+JWT_SIGNING_KEY = env("JWT_SIGNING_KEY", default=SECRET_KEY)
+
+SIMPLE_JWT = {
+    "ALGORITHM": "HS256",
+    "SIGNING_KEY": JWT_SIGNING_KEY,
+    # opcional: ajustar tiempos
+    # "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
+    # "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
+}
 
 LANGUAGE_CODE = "es-co"
 TIME_ZONE = "America/Bogota"

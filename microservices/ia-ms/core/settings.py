@@ -39,7 +39,6 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     # Terceros
     "rest_framework",
-    "corsheaders",
     # Mis Apps
     "agent",
 ]

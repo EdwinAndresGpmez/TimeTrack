@@ -27,14 +27,13 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "corsheaders",
     "rest_framework",
+    'django_filters',
     "rest_framework_simplejwt",
     "users",
 ]
 
 MIDDLEWARE = [
-    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -42,6 +41,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "users.utils.audit_middleware.AuditoriaMiddleware",
 ]
 
 ROOT_URLCONF = "core.urls"
@@ -70,22 +70,16 @@ REST_FRAMEWORK = {
     ],
 }
 
+JWT_SIGNING_KEY = env("JWT_SIGNING_KEY", default=SECRET_KEY)
+
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
     "ROTATE_REFRESH_TOKENS": True,
     "AUTH_HEADER_TYPES": ("Bearer",),
+    "ALGORITHM": "HS256",
+    "SIGNING_KEY": JWT_SIGNING_KEY,
 }
-
-# --- CORS CONFIG (Para permitir conexión desde React) ---
-
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "http://localhost:8080",
-]
-
-CORS_ALLOW_CREDENTIALS = True
 
 
 CORS_ALLOW_HEADERS = list(default_headers) + [
@@ -137,3 +131,9 @@ USE_I18N = True
 USE_TZ = True
 STATIC_URL = "static/"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# Token interno para auditoría entre microservicios
+INTERNAL_AUDIT_TOKEN = env('INTERNAL_AUDIT_TOKEN', default='supersecrettoken')
+
+
+

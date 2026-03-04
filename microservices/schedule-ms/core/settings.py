@@ -21,14 +21,13 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     # Terceros
     "rest_framework",
-    "corsheaders",
+    "rest_framework_simplejwt",
     "django_filters",
     # Locales
     "agenda",
 ]
 
 MIDDLEWARE = [
-    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -65,12 +64,15 @@ DATABASES = {
 
 # Configuración REST Framework
 REST_FRAMEWORK = {
-    "DEFAULT_PERMISSION_CLASSES": [
-        "rest_framework.permissions.AllowAny",  # Por ahora abierto para pruebas internas
-    ],
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "agenda.authentication.StatelessJWTAuthentication",
+        "rest_framework.authentication.SessionAuthentication",
+    ),
+    "DEFAULT_PERMISSION_CLASSES": (
+        "rest_framework.permissions.IsAuthenticated",
+    ),
 }
 
-CORS_ALLOWED_ORIGINS = ["http://localhost:5173"]
 
 LANGUAGE_CODE = "es-co"
 TIME_ZONE = "America/Bogota"
@@ -78,3 +80,14 @@ USE_I18N = True
 USE_TZ = True
 STATIC_URL = "static/"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+
+AUTH_MS_AUDIT_URL = env("AUTH_MS_AUDIT_URL", default="http://auth-ms:8000/api/v1/admin/auditoria/registrar/")
+INTERNAL_AUDIT_TOKEN = env("INTERNAL_AUDIT_TOKEN", default="supersecrettoken")
+
+JWT_SIGNING_KEY = env("JWT_SIGNING_KEY", default=SECRET_KEY)
+
+SIMPLE_JWT = {
+    "ALGORITHM": "HS256",
+    "SIGNING_KEY": JWT_SIGNING_KEY,
+}

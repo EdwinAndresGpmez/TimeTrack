@@ -1,5 +1,17 @@
 import api from '../api/axiosConfig';
 
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+async function withRetry(fn, retries = 1) {
+    try {
+        return await fn();
+    } catch (e) {
+        if (retries <= 0) throw e;
+        await sleep(350);
+        return withRetry(fn, retries - 1);
+    }
+}
+
 export const patientService = {
     // 1. Obtener TODOS los pacientes (Para AdminUsuarios)
     getAll: async (params = {}) => {
@@ -51,7 +63,7 @@ export const patientService = {
     },
 
     updateTipoPaciente: async (id, data) => {
-        const response = await api.patch(`/pacientes/tipos/${id}/`, data); // Usamos PATCH para flexibilidad
+        const response = await api.patch(`/pacientes/tipos/${id}/`, data);
         return response.data;
     },
     // ------------------------------------------------------------------
@@ -82,9 +94,15 @@ export const patientService = {
         return response.data;
     },
 
+    // ✅ Ajuste: timeout + retry para evitar ERR_CONNECTION_RESET intermitente
     getSolicitudesPendientes: async () => {
-        const response = await api.get('/pacientes/solicitudes/?procesado=false');
-        return response.data;
+        return withRetry(async () => {
+            const response = await api.get('/pacientes/solicitudes/', {
+                params: { procesado: false },
+                timeout: 8000,
+            });
+            return response.data;
+        }, 1);
     },
 
     updateSolicitud: async (id, data) => {

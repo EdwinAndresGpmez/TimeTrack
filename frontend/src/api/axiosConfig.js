@@ -2,34 +2,48 @@ import axios from 'axios';
 
 // 1. Crear instancia base
 const api = axios.create({
-    baseURL: 'http://localhost:8080/api/v1',
+  baseURL: 'http://localhost:8080/api/v1',
 });
 
 // 2. Interceptor de Solicitud
 api.interceptors.request.use(
-    (config) => {
-        const token = localStorage.getItem('token');
-        if (token) {
-            config.headers.Authorization = `Bearer ${token}`;
-        }
+  (config) => {
+    // ✅ preferir access, fallback token (compatibilidad)
+    const token = localStorage.getItem('access') || localStorage.getItem('token');
 
-        return config;
-    },
-    (error) => Promise.reject(error)
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+
+    return config;
+  },
+  (error) => Promise.reject(error)
 );
 
-// 3. Interceptor de Respuesta
+// 3. Interceptor de Respuesta (AJUSTADO)
 api.interceptors.response.use(
-    (response) => response,
-    (error) => {
-        if (error.response && error.response.status === 401) {
-            console.warn("Sesión expirada o inválida. Cerrando sesión...");
-            localStorage.removeItem('token');
-            localStorage.removeItem('refresh');
-            localStorage.removeItem('user');
-        }
-        return Promise.reject(error);
+  (response) => response,
+  async (error) => {
+    const status = error?.response?.status;
+    const data = error?.response?.data;
+    const hadAuthHeader = !!error?.config?.headers?.Authorization;
+
+    // SimpleJWT típico: { "code": "token_not_valid", ... }
+    const tokenNotValid =
+      data?.code === 'token_not_valid' ||
+      (typeof data?.detail === 'string' && data.detail.toLowerCase().includes('token'));
+
+    // ✅ Solo limpiar sesión si realmente es token inválido/expirado y la request iba autenticada
+    if (status === 401 && hadAuthHeader && tokenNotValid) {
+      console.warn('Token inválido/expirado. Cerrando sesión...');
+      localStorage.removeItem('token');
+      localStorage.removeItem('access');
+      localStorage.removeItem('refresh');
+      localStorage.removeItem('user');
     }
+
+    return Promise.reject(error);
+  }
 );
 
 export default api;

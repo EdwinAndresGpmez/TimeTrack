@@ -5,7 +5,7 @@ Este documento identifica los modelos de cada microservicio y su uso real en bac
 
 # FALTA EN RESUME:
 - Pacientes que pueden pedir citas de otros pacientes del grupo familiar. (OK)
-- Auditoria para todos las acciones de la aplicación.
+- Auditoria para todos las acciones de la aplicación. (OK)
 - Notificaciones, alertas por correo electronico y mensajes de texto.
 - asignación de Profesional como usuario de la aplicación -medico (OK)
 - Vista para el profesional para ver sus citas asignadas y los comentarios de los pacientes y la funcionarias de la clinica. (OK)
