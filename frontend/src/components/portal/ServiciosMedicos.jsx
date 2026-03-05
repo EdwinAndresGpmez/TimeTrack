@@ -1,84 +1,121 @@
-import React from "react";
+import React, { useMemo } from "react";
 
-const items = [
-  {
-    title: "hospitalistas",
-    text: "Sample text. Click to select the text box. Click again or double click to start editing the text.",
-    img: "/assets/servicio-1.jpg",
-    href: "#",
-  },
-  {
-    title: "Pediatría",
-    text: "Sample text. Click to select the text box. Click again or double click to start editing the text.",
-    img: "/assets/servicio-2.jpg",
-    href: "#",
-  },
-  {
-    title: "Cuidado\ncrítico",
-    text: "Sample text. Click to select the text box. Click again or double click to start editing the text.",
-    img: "/assets/servicio-3.jpg",
-    href: "#",
-  },
-  {
-    title: "Laboratorio",
-    text: "Sample text. Click to select the text box. Click again or double click to start editing the text.",
-    img: "/assets/servicio-4.jpg",
-    href: "#",
-  },
-];
+const ServiciosMedicos = ({ data }) => {
+  const title = data?.title || "Servicios médicos";
+  const subtitle =
+    data?.subtitle ||
+    "Sample text. Click to select the text box. Click again or double click to start editing the text.";
 
-const ServicioCard = ({ title, text, img, href }) => {
+  const items = useMemo(() => {
+    const arr = data?.items;
+    if (Array.isArray(arr) && arr.length) return arr;
+
+    // fallback si no viene desde CMS
+    return [
+      {
+        title: "Hospitalistas",
+        text: "Texto editable.",
+        link: "/servicios",
+        image_asset_id: null,
+        image_asset: null,
+      },
+      {
+        title: "Pediatría",
+        text: "Texto editable.",
+        link: "/servicios",
+        image_asset_id: null,
+        image_asset: null,
+      },
+      {
+        title: "Cuidado crítico",
+        text: "Texto editable.",
+        link: "/servicios",
+        image_asset_id: null,
+        image_asset: null,
+      },
+      {
+        title: "Laboratorio",
+        text: "Texto editable.",
+        link: "/servicios",
+        image_asset_id: null,
+        image_asset: null,
+      },
+    ];
+  }, [data]);
+
   return (
-    <article className="grid grid-cols-1 gap-5 md:grid-cols-[240px_1fr] items-start">
-      {/* Imagen */}
-      <div className="w-full">
-        <div className="aspect-[4/3] w-full overflow-hidden bg-slate-100">
-          <img
-            src={img}
-            alt={typeof title === "string" ? title : "servicio"}
-            className="h-full w-full object-cover"
-          />
-        </div>
-      </div>
-
-      {/* Texto */}
-      <div>
-        <h3 className="text-xl font-semibold text-slate-900 whitespace-pre-line">
-          {title}
-        </h3>
-
-        <p className="mt-3 text-sm leading-relaxed text-slate-600 max-w-md">
-          {text}
-        </p>
-
-        <a
-          href={href}
-          className="mt-4 inline-block text-xs font-semibold tracking-widest text-slate-900"
-        >
-          <span className="border-b border-slate-900 pb-1">APRENDE MÁS</span>
-        </a>
-      </div>
-    </article>
-  );
-};
-
-const ServiciosMedicos = () => {
-  return (
-    <section id="servicios" className="bg-white">
+    <section className="bg-white">
       <div className="mx-auto max-w-6xl px-4 py-16">
-        <h2 className="text-center text-4xl lg:text-5xl font-extrabold text-[#2f7ecb]">
-          Servicios médicos
-        </h2>
+        <div className="text-center">
+          <h2
+            className="text-4xl lg:text-5xl font-extrabold"
+            style={{ color: "var(--portal-primary)" }}
+          >
+            {title}
+          </h2>
+          <p className="mt-4 text-sm text-slate-500">{subtitle}</p>
+        </div>
 
-        <p className="mt-4 text-center text-sm text-slate-500">
-          Sample text. Click to select the text box. Click again or double click
-          to start editing the text.
-        </p>
+        <div className="mt-12 grid grid-cols-1 gap-6 md:grid-cols-2">
+          {items.map((it, idx) => {
+            const imgUrl = it?.image_asset?.file_url || "";
+            const link = it?.link || "#";
 
-        <div className="mt-12 grid grid-cols-1 gap-12 lg:grid-cols-2 lg:gap-x-16 lg:gap-y-14">
-          {items.map((it, idx) => (
-            <ServicioCard key={idx} {...it} />
-          ))}
+            return (
+              <a
+                key={idx}
+                href={link}
+                className="group overflow-hidden rounded-xl border border-black/5 bg-white shadow-sm transition hover:shadow-md"
+                style={{ borderRadius: "var(--portal-radius)" }}
+              >
+                <div className="grid grid-cols-[140px_1fr] gap-5 p-6">
+                  {/* Imagen */}
+                  <div className="h-24 w-32 overflow-hidden rounded-lg bg-slate-100">
+                    {imgUrl ? (
+                      <img
+                        src={imgUrl}
+                        alt={it?.title || "servicio"}
+                        className="h-full w-full object-cover transition group-hover:scale-[1.03]"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-xs text-slate-400">
+                        Sin imagen
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Texto */}
+                  <div className="min-w-0">
+                    <h3 className="text-lg font-extrabold text-slate-900 truncate">
+                      {it?.title || "Servicio"}
+                    </h3>
+                    <p className="mt-2 text-sm text-slate-600 line-clamp-3">
+                      {it?.text || "Texto editable desde el CMS."}
+                    </p>
+
+                    <div className="mt-4 inline-flex items-center gap-2 text-sm font-semibold">
+                      <span style={{ color: "var(--portal-primary)" }}>
+                        Ver más
+                      </span>
+                      <span
+                        className="transition group-hover:translate-x-1"
+                        style={{ color: "var(--portal-primary)" }}
+                      >
+                        →
+                      </span>
+                    </div>
+
+                    {/* Debug útil (opcional) */}
+                    {it?.image_asset_id && !it?.image_asset?.file_url && (
+                      <p className="mt-2 text-[11px] text-amber-600">
+                        Asset {it.image_asset_id} no encontrado o sin URL.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </a>
+            );
+          })}
         </div>
       </div>
     </section>

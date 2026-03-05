@@ -1,292 +1,178 @@
 import React, { useMemo, useState } from "react";
 
-const Contacto = ({ onAgendarCita, onIrPQRS }) => {
-  const [form, setForm] = useState({
-    nombre: "",
-    email: "",
-    telefono: "",
-    mensaje: "",
-  });
+const Contacto = ({ data, onAgendarCita, onIrPQRS }) => {
+  const title = data?.title || "Contáctenos";
+  const subtitle =
+    data?.subtitle ||
+    "Escríbenos o usa los canales de contacto. Esta sección es editable desde el CMS.";
 
-  const [status, setStatus] = useState({
-    loading: false,
-    ok: null, // true/false/null
-    msg: "",
-  });
+  const phone = data?.phone || "+57 300 000 0000";
+  const email = data?.email || "contacto@tuweb.com";
+  const address = data?.address || "Calle 00 #00-00, Bogotá";
 
-  const isValidEmail = (value) =>
-    /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(value).toLowerCase());
+  const ctaPrimary = data?.cta_primary || { text: "Agendar cita", action: "AGENDAR_CITA" };
+  const ctaSecondary = data?.cta_secondary || { text: "PQRS", action: "PQRS" };
 
-  const errors = useMemo(() => {
-    const e = {};
-    if (!form.nombre.trim()) e.nombre = "El nombre es requerido.";
-    if (!form.email.trim()) e.email = "El correo es requerido.";
-    else if (!isValidEmail(form.email)) e.email = "Correo no válido.";
-    if (!form.mensaje.trim()) e.mensaje = "El mensaje es requerido.";
-    return e;
-  }, [form]);
+  // Form “de contacto” simple (solo visual por ahora)
+  const [form, setForm] = useState({ nombre: "", correo: "", mensaje: "" });
+  const [sent, setSent] = useState(false);
 
-  const canSubmit = Object.keys(errors).length === 0 && !status.loading;
+  const handleAction = (action, e) => {
+    const a = String(action || "").toUpperCase();
 
-  const handleChange = (ev) => {
-    const { name, value } = ev.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleSubmit = async (ev) => {
-    ev.preventDefault();
-
-    // Validación simple
-    if (!canSubmit) {
-      setStatus({
-        loading: false,
-        ok: false,
-        msg: "Por favor completa los campos requeridos correctamente.",
-      });
+    if (a === "AGENDAR_CITA") {
+      if (onAgendarCita) return onAgendarCita(e);
       return;
     }
 
-    try {
-      setStatus({ loading: true, ok: null, msg: "" });
+    if (a === "PQRS") {
+      if (onIrPQRS) return onIrPQRS();
+      return;
+    }
 
-      /**
-       * ✅ Por ahora NO llamo backend (porque no me pasaste endpoint).
-       * Cuando me pases el endpoint, aquí hacemos el fetch:
-       * await fetch("TU_URL", { method:"POST", headers:{...}, body: JSON.stringify(form) })
-       */
-
-      // Simulación de envío exitoso
-      await new Promise((r) => setTimeout(r, 600));
-
-      setStatus({
-        loading: false,
-        ok: true,
-        msg: "¡Listo! Hemos recibido tu mensaje. Te contactaremos pronto.",
-      });
-
-      setForm({
-        nombre: "",
-        email: "",
-        telefono: "",
-        mensaje: "",
-      });
-    } catch (err) {
-      setStatus({
-        loading: false,
-        ok: false,
-        msg: "Ocurrió un error enviando el mensaje. Intenta de nuevo.",
-      });
+    // Si el CMS manda otra acción, permitir link directo:
+    // ejemplo: { text:"WhatsApp", action:"LINK", link:"https://wa.me/..." }
+    if (a === "LINK" && data?.link) {
+      window.location.href = data.link;
     }
   };
 
+  const primaryText = ctaPrimary?.text || "Agendar cita";
+  const primaryAction = ctaPrimary?.action || "AGENDAR_CITA";
+
+  const secondaryText = ctaSecondary?.text || "PQRS";
+  const secondaryAction = ctaSecondary?.action || "PQRS";
+
+  const canSubmit = useMemo(() => {
+    return form.nombre.trim() && form.correo.trim() && form.mensaje.trim();
+  }, [form]);
+
+  const submitFake = (e) => {
+    e.preventDefault();
+    // Por ahora no hace POST. Luego si quieres lo conectamos a un endpoint real.
+    setSent(true);
+    setTimeout(() => setSent(false), 2500);
+    setForm({ nombre: "", correo: "", mensaje: "" });
+  };
+
   return (
-    <section id="contacto" className="bg-[#efefef]">
+    <section id="contacto" className="bg-white">
       <div className="mx-auto max-w-6xl px-4 py-16">
-        {/* Título */}
         <div className="text-center">
-          <h2 className="text-4xl lg:text-5xl font-extrabold text-[#2f7ecb]">
-            Contáctenos
+          <h2
+            className="text-4xl lg:text-5xl font-extrabold"
+            style={{ color: "var(--portal-primary)" }}
+          >
+            {title}
           </h2>
-          <p className="mt-4 text-sm text-slate-500">
-            Sample text. Click to select the text box. Click again or double
-            click to start editing the text.
-          </p>
+          <p className="mt-4 text-sm text-slate-500">{subtitle}</p>
         </div>
 
-        {/* Contenido */}
-        <div className="mt-12 grid grid-cols-1 gap-10 lg:grid-cols-2 items-start">
-          {/* Izquierda: info + CTAs */}
-          <div className="bg-white p-8 shadow-sm border border-black/5">
-            <h3 className="text-2xl font-extrabold text-slate-900">
-              ¿Necesitas ayuda?
-            </h3>
+        <div className="mt-12 grid grid-cols-1 gap-8 lg:grid-cols-2">
+          {/* Info + CTAs */}
+          <div
+            className="rounded-2xl border border-black/5 p-8 shadow-sm"
+            style={{ borderRadius: "var(--portal-radius)", backgroundColor: "var(--portal-surface)" }}
+          >
+            <p className="text-sm font-extrabold text-slate-900">Información de contacto</p>
 
-            <p className="mt-4 text-sm leading-relaxed text-slate-600">
-              Puedes escribirnos por este formulario o usar las opciones rápidas
-              para agendar tu cita o radicar una PQRS.
-            </p>
-
-            <div className="mt-8 space-y-4">
-              <div className="flex items-start gap-3">
-                <span className="mt-1 inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#2f7ecb] text-white">
-                  <svg
-                    viewBox="0 0 24 24"
-                    className="h-4 w-4"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M22 16.9v3a2 2 0 0 1-2.2 2A19.8 19.8 0 0 1 3 5.2 2 2 0 0 1 5 3h3a2 2 0 0 1 2 1.7c.1.9.3 1.8.6 2.6a2 2 0 0 1-.5 2.1L9.9 10.6a16 16 0 0 0 3.5 3.5l1.2-1.2a2 2 0 0 1 2.1-.5c.8.3 1.7.5 2.6.6A2 2 0 0 1 22 16.9z" />
-                  </svg>
-                </span>
-                <div>
-                  <p className="text-sm font-semibold text-slate-900">
-                    Teléfono
-                  </p>
-                  <p className="text-sm text-slate-600">+57 300 000 0000</p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3">
-                <span className="mt-1 inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#2f7ecb] text-white">
-                  <svg
-                    viewBox="0 0 24 24"
-                    className="h-4 w-4"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M4 4h16v16H4z" />
-                    <path d="M22 6l-10 7L2 6" />
-                  </svg>
-                </span>
-                <div>
-                  <p className="text-sm font-semibold text-slate-900">Correo</p>
-                  <p className="text-sm text-slate-600">contacto@tuweb.com</p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3">
-                <span className="mt-1 inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#2f7ecb] text-white">
-                  <svg
-                    viewBox="0 0 24 24"
-                    className="h-4 w-4"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z" />
-                    <circle cx="12" cy="10" r="3" />
-                  </svg>
-                </span>
-                <div>
-                  <p className="text-sm font-semibold text-slate-900">
-                    Dirección
-                  </p>
-                  <p className="text-sm text-slate-600">
-                    Calle 00 #00-00, Bogotá
-                  </p>
-                </div>
-              </div>
+            <div className="mt-5 space-y-3 text-sm text-slate-700">
+              <p>
+                <span className="font-bold">Dirección:</span> {address}
+              </p>
+              <p>
+                <span className="font-bold">Teléfono:</span> {phone}
+              </p>
+              <p>
+                <span className="font-bold">Email:</span> {email}
+              </p>
             </div>
 
-            <div className="mt-10 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="mt-7 flex flex-col gap-3 sm:flex-row">
               <button
-                type="button"
-                onClick={onAgendarCita}
-                className="rounded-md bg-[#2f7ecb] px-5 py-3 font-semibold text-white transition hover:opacity-90"
+                onClick={(e) => handleAction(primaryAction, e)}
+                className="inline-flex flex-1 items-center justify-center rounded-md px-6 py-3 text-sm font-extrabold text-white transition hover:opacity-90"
+                style={{ backgroundColor: "var(--portal-primary)", borderRadius: "calc(var(--portal-radius) - 6px)" }}
               >
-                Agendar cita
+                {primaryText}
               </button>
 
               <button
-                type="button"
-                onClick={onIrPQRS}
-                className="rounded-md border border-[#2f7ecb] px-5 py-3 font-semibold text-[#2f7ecb] transition hover:bg-[#2f7ecb] hover:text-white"
+                onClick={(e) => handleAction(secondaryAction, e)}
+                className="inline-flex flex-1 items-center justify-center rounded-md border px-6 py-3 text-sm font-extrabold transition hover:bg-white"
+                style={{
+                  borderColor: "var(--portal-primary)",
+                  color: "var(--portal-primary)",
+                  borderRadius: "calc(var(--portal-radius) - 6px)",
+                }}
               >
-                PQRS
+                {secondaryText}
               </button>
             </div>
+
+            {data?.note && (
+              <p className="mt-5 text-xs text-slate-500">
+                {data.note}
+              </p>
+            )}
           </div>
 
-          {/* Derecha: formulario */}
-          <div className="bg-white p-8 shadow-sm border border-black/5">
-            <h3 className="text-2xl font-extrabold text-slate-900">
-              Envíanos un mensaje
-            </h3>
+          {/* Formulario (visual por ahora) */}
+          <div
+            className="rounded-2xl border border-black/5 bg-white p-8 shadow-sm"
+            style={{ borderRadius: "var(--portal-radius)" }}
+          >
+            <p className="text-sm font-extrabold text-slate-900">Envíanos un mensaje</p>
+            <p className="mt-2 text-xs text-slate-500">
+              (Este formulario es configurable. Si quieres, luego lo conectamos a un endpoint real.)
+            </p>
 
-            <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+            <form onSubmit={submitFake} className="mt-6 space-y-4">
               <div>
-                <label className="text-sm font-semibold text-slate-700">
-                  Nombre *
-                </label>
+                <label className="text-xs font-bold text-slate-600">Nombre</label>
                 <input
-                  name="nombre"
                   value={form.nombre}
-                  onChange={handleChange}
-                  className="mt-2 w-full rounded-md border border-slate-300 px-4 py-3 text-sm outline-none focus:border-[#2f7ecb]"
+                  onChange={(e) => setForm({ ...form, nombre: e.target.value })}
+                  className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-200"
                   placeholder="Tu nombre"
                 />
-                {errors.nombre && (
-                  <p className="mt-1 text-xs text-red-600">{errors.nombre}</p>
-                )}
               </div>
 
               <div>
-                <label className="text-sm font-semibold text-slate-700">
-                  Correo *
-                </label>
+                <label className="text-xs font-bold text-slate-600">Correo</label>
                 <input
-                  name="email"
-                  value={form.email}
-                  onChange={handleChange}
-                  className="mt-2 w-full rounded-md border border-slate-300 px-4 py-3 text-sm outline-none focus:border-[#2f7ecb]"
-                  placeholder="tucorreo@correo.com"
-                />
-                {errors.email && (
-                  <p className="mt-1 text-xs text-red-600">{errors.email}</p>
-                )}
-              </div>
-
-              <div>
-                <label className="text-sm font-semibold text-slate-700">
-                  Teléfono (opcional)
-                </label>
-                <input
-                  name="telefono"
-                  value={form.telefono}
-                  onChange={handleChange}
-                  className="mt-2 w-full rounded-md border border-slate-300 px-4 py-3 text-sm outline-none focus:border-[#2f7ecb]"
-                  placeholder="+57 3xx xxx xxxx"
+                  value={form.correo}
+                  onChange={(e) => setForm({ ...form, correo: e.target.value })}
+                  className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-200"
+                  placeholder="tu@email.com"
                 />
               </div>
 
               <div>
-                <label className="text-sm font-semibold text-slate-700">
-                  Mensaje *
-                </label>
+                <label className="text-xs font-bold text-slate-600">Mensaje</label>
                 <textarea
-                  name="mensaje"
                   value={form.mensaje}
-                  onChange={handleChange}
+                  onChange={(e) => setForm({ ...form, mensaje: e.target.value })}
                   rows={5}
-                  className="mt-2 w-full resize-none rounded-md border border-slate-300 px-4 py-3 text-sm outline-none focus:border-[#2f7ecb]"
-                  placeholder="Cuéntanos en qué podemos ayudarte..."
+                  className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-200"
+                  placeholder="Escribe tu mensaje..."
                 />
-                {errors.mensaje && (
-                  <p className="mt-1 text-xs text-red-600">{errors.mensaje}</p>
-                )}
               </div>
-
-              {status.msg && (
-                <div
-                  className={`rounded-md px-4 py-3 text-sm ${
-                    status.ok
-                      ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                      : "bg-red-50 text-red-700 border border-red-200"
-                  }`}
-                >
-                  {status.msg}
-                </div>
-              )}
 
               <button
                 type="submit"
                 disabled={!canSubmit}
-                className="w-full rounded-md bg-[#2f7ecb] px-6 py-3 font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
+                className="inline-flex w-full items-center justify-center rounded-md px-6 py-3 text-sm font-extrabold text-white transition disabled:opacity-50"
+                style={{ backgroundColor: "var(--portal-primary)", borderRadius: "calc(var(--portal-radius) - 6px)" }}
               >
-                {status.loading ? "Enviando..." : "Enviar"}
+                Enviar mensaje
               </button>
 
-              <p className="text-xs text-slate-500 text-center">
-                Imagen de <span className="underline">Stock</span>
-              </p>
+              {sent && (
+                <p className="text-xs text-green-600 font-semibold">
+                  Mensaje enviado (demo).
+                </p>
+              )}
             </form>
           </div>
         </div>

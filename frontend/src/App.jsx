@@ -32,6 +32,7 @@ import RecepcionConsultorio from './pages/system/RecepcionConsultorio';
 import DashboardProfesional from './pages/system/DashboardProfesional';
 import SalaEsperaPantalla from './pages/system/SalaEsperaPantalla';
 import Auditoria from './pages/admin/Auditoria';
+import AdminPortalContentStudio from './pages/admin/AdminPortalContentStudio';
 
 function App() {
   return (
@@ -135,7 +136,11 @@ function App() {
                         <GestionAgenda />
                     </ProtectedRoute>
                  } />
-
+                 <Route path="/admin/portal/content" element={
+                      <ProtectedRoute requiredPermission="portal_content_admin">
+                        <AdminPortalContentStudio />
+                      </ProtectedRoute>
+                    } />
                  <Route path="/dashboard/admin/recepcion" element={
                     <ProtectedRoute requiredPermission="recepcion_sala">
                         <RecepcionConsultorio />

@@ -1,99 +1,125 @@
-import React from "react";
+import React, { useMemo } from "react";
 
-const TresColumnasInfo = () => {
+const TresColumnasInfo = ({ data }) => {
+  // Estructura esperada del CMS:
+  // data = {
+  //   title: "Título sección",
+  //   subtitle: "Texto...",
+  //   columns: [
+  //     { title:"UN", subtitle:"...", text:"...", image_asset:{file_url:"..."} },
+  //     { title:"B",  subtitle:"...", text:"...", image_asset:{file_url:"..."} },
+  //     { title:"C",  subtitle:"...", text:"...", image_asset:{file_url:"..."} }
+  //   ]
+  // }
+
+  const title = data?.title || "";
+  const subtitle = data?.subtitle || "";
+
+  const columns = useMemo(() => {
+    const arr = data?.columns;
+    if (Array.isArray(arr) && arr.length) return arr.slice(0, 3);
+
+    // fallback (si aún no está en CMS)
+    return [
+      {
+        title: "UN",
+        subtitle: "Título columna 1",
+        text: "Contenido editable desde el CMS (columna 1).",
+        image_asset_id: null,
+        image_asset: null,
+      },
+      {
+        title: "B",
+        subtitle: "Título columna 2",
+        text: "Contenido editable desde el CMS (columna 2).",
+        image_asset_id: null,
+        image_asset: null,
+      },
+      {
+        title: "C",
+        subtitle: "Título columna 3",
+        text: "Contenido editable desde el CMS (columna 3).",
+        image_asset_id: null,
+        image_asset: null,
+      },
+    ];
+  }, [data]);
+
+  // Si no hay nada en absoluto, no renderiza
+  const hasAny = Boolean(title || subtitle || (columns && columns.length));
+  if (!hasAny) return null;
+
   return (
-    <section className="bg-[#efefef]">
-      <div className="mx-auto max-w-6xl px-4 py-14">
-        {/* 3 columnas UN / B / C */}
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          {/* UN */}
-          <div className="bg-white p-8 shadow-sm">
-            <p className="text-xs font-bold tracking-[0.35em] text-slate-400">
-              UN
-            </p>
-            <h3 className="mt-3 text-2xl font-extrabold text-slate-900">
-              Metas y misión
-            </h3>
-            <p className="mt-4 text-sm leading-relaxed text-slate-600">
-              La clínica es el principal centro científico y clínico del país, que
-              implementa el diagnóstico y tratamiento más moderno de enfermedades
-              en el ámbito de la atención médica.
-            </p>
-          </div>
-
-          {/* B */}
-          <div className="bg-white p-8 shadow-sm">
-            <p className="text-xs font-bold tracking-[0.35em] text-slate-400">
-              B
-            </p>
-            <h3 className="mt-3 text-2xl font-extrabold text-slate-900">
-              Acerca de
-            </h3>
-            <p className="mt-4 text-sm leading-relaxed text-slate-600">
-              Duis aute irure dolor in reprehenderit in voluptate velit esse
-              cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat
-              cupidatat non proident.
-            </p>
-          </div>
-
-          {/* C */}
-          <div className="bg-white p-8 shadow-sm">
-            <p className="text-xs font-bold tracking-[0.35em] text-slate-400">
-              C
-            </p>
-            <h3 className="mt-3 text-2xl font-extrabold text-slate-900">
-              Trabaja con nosotros
-            </h3>
-            <p className="mt-4 text-sm leading-relaxed text-slate-600">
-              Duis aute irure dolor in reprehenderit in voluptate velit esse
-              cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat
-              cupidatat non proident.
-            </p>
-          </div>
-        </div>
-
-        {/* Bloque "Servicios de atención médica" + imagen derecha */}
-        <div className="mt-10 grid grid-cols-1 gap-10 lg:grid-cols-2 items-center">
-          {/* Texto izquierda */}
-          <div>
-            <h2 className="text-4xl font-extrabold text-[#2f7ecb] lg:text-5xl">
-              Servicios de atención <br className="hidden lg:block" /> médica
-            </h2>
-
-            <p className="mt-4 text-sm leading-relaxed text-slate-600 max-w-xl">
-              Sample text. Click to select the text box. Click again or double
-              click to start editing the text. Duis aute irure dolor in
-              reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla
-              pariatur.
-            </p>
-
-            <div className="mt-7">
-              <a
-                href="#contacto"
-                className="inline-flex items-center justify-center rounded-md bg-[#2f7ecb]
-                           px-10 py-3 font-semibold text-white transition hover:opacity-90"
+    <section
+      className="py-16"
+      style={{ backgroundColor: "var(--portal-surface)" }}
+    >
+      <div className="mx-auto max-w-6xl px-4">
+        {(title || subtitle) && (
+          <div className="text-center">
+            {title && (
+              <h2
+                className="text-4xl lg:text-5xl font-extrabold"
+                style={{ color: "var(--portal-primary)" }}
               >
-                CONTÁCTENOS
-              </a>
-            </div>
+                {title}
+              </h2>
+            )}
+            {subtitle && (
+              <p className="mt-4 text-sm text-slate-600">{subtitle}</p>
+            )}
           </div>
+        )}
 
-          {/* Imagen derecha */}
-          <div className="flex justify-center lg:justify-end">
-            <div className="w-full max-w-md overflow-hidden bg-slate-100">
-              {/* Cambia esta ruta por tu imagen real */}
-              <img
-                src="/assets/servicios-atencion.jpg"
-                alt="Servicios de atención médica"
-                className="h-auto w-full object-cover"
-              />
-            </div>
-          </div>
+        <div className="mt-12 grid grid-cols-1 gap-6 lg:grid-cols-3">
+          {columns.map((c, idx) => {
+            const imgUrl = c?.image_asset?.file_url || "";
+            return (
+              <div
+                key={idx}
+                className="rounded-2xl border border-black/5 bg-white p-7 shadow-sm"
+                style={{ borderRadius: "var(--portal-radius)" }}
+              >
+                <div className="flex items-center gap-3">
+                  <div
+                    className="flex h-10 w-10 items-center justify-center rounded-full text-white font-extrabold"
+                    style={{ backgroundColor: "var(--portal-primary)" }}
+                  >
+                    {(c?.title || "").slice(0, 2) || "?"}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-base font-extrabold text-slate-900 truncate">
+                      {c?.subtitle || `Columna ${idx + 1}`}
+                    </p>
+                    {c?.small && (
+                      <p className="text-xs text-slate-500 truncate">{c.small}</p>
+                    )}
+                  </div>
+                </div>
+
+                {imgUrl && (
+                  <div className="mt-5 overflow-hidden rounded-xl bg-slate-100">
+                    <img
+                      src={imgUrl}
+                      alt={c?.subtitle || "imagen"}
+                      className="h-40 w-full object-cover"
+                    />
+                  </div>
+                )}
+
+                <p className="mt-5 text-sm text-slate-600 leading-relaxed">
+                  {c?.text || "Texto editable desde el CMS."}
+                </p>
+
+                {c?.image_asset_id && !c?.image_asset?.file_url && (
+                  <p className="mt-2 text-[11px] text-amber-600">
+                    Asset {c.image_asset_id} no encontrado o sin URL.
+                  </p>
+                )}
+              </div>
+            );
+          })}
         </div>
-
-        <p className="mt-4 text-center text-xs text-slate-500">
-          Imagen de <span className="underline">Stock</span>
-        </p>
       </div>
     </section>
   );

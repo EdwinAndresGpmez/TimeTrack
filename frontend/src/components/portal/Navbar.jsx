@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { FaBars, FaTimes, FaPhone, FaWhatsapp } from "react-icons/fa";
 import Swal from "sweetalert2";
 
-const Navbar = () => {
+const Navbar = ({ theme }) => {
   const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
@@ -27,8 +27,8 @@ const Navbar = () => {
       text: "Para agendar tu cita necesitamos identificarte",
       icon: "question",
       showCancelButton: true,
-      confirmButtonColor: "#2f7ecb",
-      cancelButtonColor: "#0f172a",
+      confirmButtonColor: "var(--portal-primary)",
+      cancelButtonColor: "var(--portal-secondary)",
       confirmButtonText: "Sí, Ingresar",
       cancelButtonText: "No, Registrarme",
     }).then((result) => {
@@ -39,10 +39,16 @@ const Navbar = () => {
 
   const isActive = (path) => location.pathname === path;
 
+  const brandName = theme?.company_name || "Tu Clínica";
+  const logoUrl = theme?.logo_url || "";
+
   return (
     <header className="sticky top-0 z-50">
-      {/* Top strip (opcional, pero ayuda a parecerse al estilo clínico) */}
-      <div className="bg-[#2f7ecb] text-white">
+      {/* Top strip */}
+      <div
+        className="text-white"
+        style={{ backgroundColor: "var(--portal-primary)" }}
+      >
         <div className="mx-auto max-w-6xl px-4 py-2">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-4 text-xs">
@@ -72,10 +78,31 @@ const Navbar = () => {
           <div className="flex items-center justify-between">
             {/* Brand */}
             <Link to="/" className="flex items-center gap-3">
-              {/* Cambia por tu logo real */}
-              <div className="h-10 w-10 rounded bg-[#2f7ecb] opacity-90" />
+              {logoUrl ? (
+                <img
+                  src={logoUrl}
+                  alt={brandName}
+                  className="h-10 w-10 rounded object-cover bg-slate-100"
+                  style={{ borderRadius: "var(--portal-radius)" }}
+                  onError={(e) => {
+                    // fallback si el logo no carga por ruta/mime
+                    e.currentTarget.style.display = "none";
+                  }}
+                />
+              ) : (
+                <div
+                  className="h-10 w-10 rounded opacity-90"
+                  style={{
+                    backgroundColor: "var(--portal-primary)",
+                    borderRadius: "var(--portal-radius)",
+                  }}
+                />
+              )}
+
               <div className="leading-tight">
-                <p className="text-base font-extrabold text-slate-900">Tu Clínica</p>
+                <p className="text-base font-extrabold text-slate-900">
+                  {brandName}
+                </p>
                 <p className="text-xs text-slate-500">Centro médico de salud</p>
               </div>
             </Link>
@@ -88,8 +115,8 @@ const Navbar = () => {
                   to={item.path}
                   className={`text-sm font-semibold transition ${
                     isActive(item.path)
-                      ? "text-[#2f7ecb]"
-                      : "text-slate-700 hover:text-[#2f7ecb]"
+                      ? "text-[var(--portal-primary)]"
+                      : "text-slate-700 hover:text-[var(--portal-primary)]"
                   }`}
                 >
                   {item.label}
@@ -98,7 +125,8 @@ const Navbar = () => {
 
               <button
                 onClick={handleAgendarClick}
-                className="rounded-md bg-[#2f7ecb] px-5 py-2.5 text-sm font-semibold text-white hover:opacity-90 transition"
+                className="rounded-md px-5 py-2.5 text-sm font-semibold text-white hover:opacity-90 transition"
+                style={{ backgroundColor: "var(--portal-primary)" }}
               >
                 Agendar cita
               </button>
@@ -125,8 +153,8 @@ const Navbar = () => {
                     onClick={() => setIsOpen(false)}
                     className={`text-sm font-semibold ${
                       isActive(item.path)
-                        ? "text-[#2f7ecb]"
-                        : "text-slate-700 hover:text-[#2f7ecb]"
+                        ? "text-[var(--portal-primary)]"
+                        : "text-slate-700 hover:text-[var(--portal-primary)]"
                     }`}
                   >
                     {item.label}
@@ -138,7 +166,8 @@ const Navbar = () => {
                     setIsOpen(false);
                     handleAgendarClick(e);
                   }}
-                  className="mt-2 rounded-md bg-[#2f7ecb] px-5 py-2.5 text-sm font-semibold text-white hover:opacity-90 transition"
+                  className="mt-2 rounded-md px-5 py-2.5 text-sm font-semibold text-white hover:opacity-90 transition"
+                  style={{ backgroundColor: "var(--portal-primary)" }}
                 >
                   Agendar cita
                 </button>

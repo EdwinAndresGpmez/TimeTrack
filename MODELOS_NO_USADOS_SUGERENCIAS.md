@@ -10,7 +10,7 @@ Este documento identifica los modelos de cada microservicio y su uso real en bac
 - asignación de Profesional como usuario de la aplicación -medico (OK)
 - Vista para el profesional para ver sus citas asignadas y los comentarios de los pacientes y la funcionarias de la clinica. (OK)
 - Chatbot interno entre funcionarios de la empresa.
-- Terminar desarrollo del portal.
+- Terminar desarrollo del portal. --------
 - Crear vistas para el administrador relacionado con el portal y su administración.
 - Crear vista para el administrador relacionado con el envio de correos y notificaciones.
 - Crear chatbot con el modelo de inteligencia artifical para solicitud de citas, cancelacion, y demas componentes.
@@ -23,7 +23,7 @@ Este documento identifica los modelos de cada microservicio y su uso real en bac
 - Validar el uso de memoria y optimización de los recursos.
 - Implementar modo oscuro para los usuarios.
 - Validar los horarios relacionados con los servicios.
-- Revisar las transiciones de los estados y agregar la transicion rechazada. 
+- Revisar las transiciones de los estados y agregar la transicion rechazada. (OK)
 - hacer 2FA y autenticacion con google o outlook
 
 # NOTA IMPORTANTE: Programar el borrado de la auditoria de 90 dias docker exec -it auth_service python manage.py purge_auditoria --days 90 --batch 5000

@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from datetime import timedelta
 
 import environ
 
@@ -7,16 +8,10 @@ import environ
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Env
-env = environ.Env(
-    DEBUG=(bool, True),
-)
-
+env = environ.Env(DEBUG=(bool, True))
 environ.Env.read_env(os.path.join(BASE_DIR, ".env"))
 
-
 SECRET_KEY = env("SECRET_KEY", default="django-insecure-change-me")
-
-
 DEBUG = env("DEBUG", default=True)
 
 # Hosts
@@ -43,17 +38,24 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+
     # Terceros
+    "corsheaders",
     "rest_framework",
+
     # Locales
     "content",
     "forms",
 ]
 
 MIDDLEWARE = [
+    # ✅ CORS middleware debe ir lo más arriba posible, y antes de CommonMiddleware
+    "corsheaders.middleware.CorsMiddleware",
+
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
+
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
@@ -80,9 +82,8 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "core.wsgi.application"
 
-DATABASES = {
-    "default": env.db(),
-}
+DATABASES = {"default": env.db()}
+
 # Media (para banners, videos, etc.)
 MEDIA_URL = "/media/"
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")
@@ -91,11 +92,46 @@ MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 STATIC_URL = "/static/"
 STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
 
-# DRF (básico)
+# ✅ CORS (Frontend Vite)
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+
+# ✅ Permitir header Authorization (para Bearer JWT)
+CORS_ALLOW_HEADERS = [
+    "accept",
+    "accept-encoding",
+    "authorization",
+    "content-type",
+    "dnt",
+    "origin",
+    "user-agent",
+    "x-csrftoken",
+    "x-requested-with",
+]
+
+# (Opcional) Si algún día usas cookies; para Bearer normalmente no hace falta, pero no rompe
+CORS_ALLOW_CREDENTIALS = True
+
+# DRF
 REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "content.authentication.StatelessJWTAuthentication",
+    ),
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.AllowAny",
     ],
+}
+
+# ✅ SimpleJWT: asegurar que portal-ms valide tokens firmados por Auth MS
+# IMPORTANTE: el valor de JWT_SIGNING_KEY debe ser el mismo en Auth MS y portal-ms.
+SIMPLE_JWT = {
+    "ALGORITHM": env("JWT_ALGORITHM", default="HS256"),
+    "SIGNING_KEY": env("JWT_SIGNING_KEY", default=SECRET_KEY),
+    "ACCESS_TOKEN_LIFETIME": timedelta(
+        minutes=env.int("JWT_ACCESS_MINUTES", default=60)
+    ),
 }
 
 # Internationalization

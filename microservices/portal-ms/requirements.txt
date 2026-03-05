@@ -9,4 +9,8 @@ django-storages
 pytest
 pytest-django
 requests-mock
-ruff 
+ruff
+requests
+django-filter
+djangorestframework-simplejwt>=5.5.1,<6.0
+django-cors-headers

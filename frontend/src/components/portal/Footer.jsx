@@ -9,18 +9,53 @@ import {
 } from "react-icons/fa";
 import { Link } from "react-router-dom";
 
-const Footer = () => {
+const Footer = ({ theme, contactData, servicesData }) => {
+  const brandName = theme?.company_name || "Tu Clínica";
+  const logoUrl = theme?.logo_url || "";
+
+  // Contacto desde CMS (sección contact.data)
+  const address = contactData?.address || "Calle 00 #00-00, Bogotá";
+  const phone = contactData?.phone || "+57 300 000 0000";
+  const email = contactData?.email || "contacto@tuweb.com";
+
+  // Servicios desde CMS (sección services.data.items)
+  const servicesItems =
+    Array.isArray(servicesData?.items) && servicesData.items.length
+      ? servicesData.items.slice(0, 4).map((x) => x?.title).filter(Boolean)
+      : ["Medicina general", "Pediatría", "Laboratorio", "Cuidado crítico"];
+
   return (
-    <footer className="bg-[#2f7ecb] text-white">
+    <footer
+      className="text-white"
+      style={{ backgroundColor: "var(--portal-primary)" }}
+    >
       <div className="mx-auto max-w-6xl px-4 py-12">
         <div className="grid grid-cols-1 gap-10 md:grid-cols-4">
           {/* Col 1: Brand */}
           <div className="md:col-span-1">
             <div className="flex items-center gap-3">
-              {/* Cambia por tu logo real si tienes */}
-              <div className="h-10 w-10 rounded bg-white/15 ring-1 ring-white/30" />
+              {/* Logo */}
+              {logoUrl ? (
+                <img
+                  src={logoUrl}
+                  alt={brandName}
+                  className="h-10 w-10 rounded bg-white/15 ring-1 ring-white/30 object-cover"
+                  style={{ borderRadius: "var(--portal-radius)" }}
+                  onError={(e) => {
+                    e.currentTarget.style.display = "none";
+                  }}
+                />
+              ) : (
+                <div
+                  className="h-10 w-10 rounded bg-white/15 ring-1 ring-white/30"
+                  style={{ borderRadius: "var(--portal-radius)" }}
+                />
+              )}
+
               <div>
-                <p className="text-lg font-extrabold leading-tight">Tu Clínica</p>
+                <p className="text-lg font-extrabold leading-tight">
+                  {brandName}
+                </p>
                 <p className="text-xs text-white/80">Centro médico de salud</p>
               </div>
             </div>
@@ -82,14 +117,15 @@ const Footer = () => {
             </ul>
           </div>
 
-          {/* Col 3: Servicios (puedes cambiar textos) */}
+          {/* Col 3: Servicios */}
           <div>
             <h4 className="text-sm font-extrabold tracking-wider">SERVICIOS</h4>
             <ul className="mt-4 space-y-3 text-sm text-white/85">
-              <li className="hover:text-white cursor-default">Medicina general</li>
-              <li className="hover:text-white cursor-default">Pediatría</li>
-              <li className="hover:text-white cursor-default">Laboratorio</li>
-              <li className="hover:text-white cursor-default">Cuidado crítico</li>
+              {servicesItems.map((s, idx) => (
+                <li key={idx} className="hover:text-white cursor-default">
+                  {s}
+                </li>
+              ))}
             </ul>
           </div>
 
@@ -100,21 +136,22 @@ const Footer = () => {
             <div className="mt-4 space-y-4 text-sm text-white/85">
               <div className="flex items-start gap-3">
                 <FaMapMarkerAlt className="mt-1 shrink-0" />
-                <p>Calle 00 #00-00, Bogotá</p>
+                <p>{address}</p>
               </div>
               <div className="flex items-start gap-3">
                 <FaPhoneAlt className="mt-1 shrink-0" />
-                <p>+57 300 000 0000</p>
+                <p>{phone}</p>
               </div>
               <div className="flex items-start gap-3">
                 <FaEnvelope className="mt-1 shrink-0" />
-                <p>contacto@tuweb.com</p>
+                <p>{email}</p>
               </div>
             </div>
 
             <a
               href="#contacto"
-              className="mt-6 inline-flex w-full items-center justify-center rounded-md bg-white px-5 py-3 font-semibold text-[#2f7ecb] hover:opacity-90 transition"
+              className="mt-6 inline-flex w-full items-center justify-center rounded-md bg-white px-5 py-3 font-semibold hover:opacity-90 transition"
+              style={{ color: "var(--portal-primary)" }}
             >
               Contáctenos
             </a>
@@ -123,7 +160,7 @@ const Footer = () => {
 
         {/* Bottom */}
         <div className="mt-10 border-t border-white/20 pt-6 text-center text-xs text-white/80">
-          © {new Date().getFullYear()} Tu Clínica. Todos los derechos reservados.
+          © {new Date().getFullYear()} {brandName}. Todos los derechos reservados.
         </div>
       </div>
     </footer>

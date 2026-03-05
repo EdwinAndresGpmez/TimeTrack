@@ -277,4 +277,6 @@ docker compose run --rm -v ${PWD}/pyproject.toml:/app/pyproject.toml notificatio
 docker compose run --rm -v ${PWD}/pyproject.toml:/app/pyproject.toml ia-ms ruff format .
 
 
+# comando para ejecutar los .py de commands desde cualquiere microservicio: 
 
+- docker exec -it portal_service  python manage.py seed_portal_content

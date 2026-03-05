@@ -1,85 +1,74 @@
-import React from "react";
+import React, { useMemo } from "react";
 
-const FeaturesStrip = () => {
+const IconMedical = () => (
+  <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M12 2v20" />
+    <path d="M2 12h20" />
+  </svg>
+);
+
+const IconPrograms = () => (
+  <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M4 6h16" />
+    <path d="M4 12h16" />
+    <path d="M4 18h16" />
+  </svg>
+);
+
+const resolveIcon = (key) => {
+  const k = String(key || "").toLowerCase();
+  if (k.includes("program")) return <IconPrograms />;
+  if (k.includes("medical") || k.includes("medic")) return <IconMedical />;
+  // fallback
+  return <IconMedical />;
+};
+
+const FeaturesStrip = ({ data }) => {
+  const items = useMemo(() => {
+    const arr = data?.items;
+    if (Array.isArray(arr) && arr.length) return arr.slice(0, 2);
+    // fallback default si no viene del CMS
+    return [
+      {
+        title: "ATENCIÓN MÉDICA",
+        text: "Texto editable. Puedes describir tu servicio.",
+        icon: "medical",
+      },
+      {
+        title: "PROGRAMAS DE ATENCIÓN",
+        text: "Texto editable. Puedes describir tus programas.",
+        icon: "programs",
+      },
+    ];
+  }, [data]);
+
   return (
-    <section className="bg-[#2f7ecb]">
-      <div className="mx-auto max-w-6xl px-4 py-10">
-        <div className="grid grid-cols-1 gap-10 lg:grid-cols-2">
-          {/* Item 1 */}
-          <div className="flex items-start gap-6">
-            {/* Icono circular */}
-            <div className="shrink-0">
-              <div className="flex h-20 w-20 items-center justify-center rounded-full bg-white/15 ring-2 ring-white/70">
-                {/* Ícono simple (puedes reemplazar por SVG o imagen) */}
-                <svg
-                  viewBox="0 0 24 24"
-                  className="h-10 w-10 text-white"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                >
-                  <path d="M12 2v4" />
-                  <path d="M12 18v4" />
-                  <path d="M2 12h4" />
-                  <path d="M18 12h4" />
-                  <path d="M7 7l2.5 2.5" />
-                  <path d="M14.5 14.5L17 17" />
-                  <path d="M17 7l-2.5 2.5" />
-                  <path d="M9.5 14.5L7 17" />
-                  <circle cx="12" cy="12" r="3.5" />
-                </svg>
+    <section
+      style={{ backgroundColor: "var(--portal-primary)" }}
+      className="text-white"
+    >
+      <div className="mx-auto max-w-6xl px-4 py-12">
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+          {items.map((it, idx) => (
+            <div
+              key={idx}
+              className="flex gap-5 rounded-xl bg-white/10 p-7 ring-1 ring-white/15"
+              style={{ borderRadius: "var(--portal-radius)" }}
+            >
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/15 ring-1 ring-white/25">
+                {resolveIcon(it?.icon)}
+              </div>
+
+              <div>
+                <h3 className="text-lg font-extrabold tracking-wide">
+                  {it?.title || "TÍTULO"}
+                </h3>
+                <p className="mt-2 text-sm text-white/90 leading-relaxed">
+                  {it?.text || "Texto editable desde el CMS."}
+                </p>
               </div>
             </div>
-
-            {/* Texto */}
-            <div>
-              <h3 className="text-lg font-bold tracking-wide text-white">
-                ATENCIÓN MÉDICA
-              </h3>
-              <p className="mt-3 text-sm leading-relaxed text-white/90 max-w-md">
-                Duis aute irure dolor in reprehenderit in voluptate velit esse
-                cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat
-                cupidatat non proident, sunt.
-              </p>
-            </div>
-          </div>
-
-          {/* Item 2 */}
-          <div className="flex items-start gap-6">
-            {/* Icono circular */}
-            <div className="shrink-0">
-              <div className="flex h-20 w-20 items-center justify-center rounded-full bg-white/15 ring-2 ring-white/70">
-                {/* Ícono estetoscopio */}
-                <svg
-                  viewBox="0 0 24 24"
-                  className="h-10 w-10 text-white"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M6 3v6a4 4 0 0 0 8 0V3" />
-                  <path d="M10 13v2a4 4 0 0 0 8 0v-1" />
-                  <circle cx="19" cy="14" r="2" />
-                  <path d="M6 3h4" />
-                  <path d="M14 3h-4" />
-                </svg>
-              </div>
-            </div>
-
-            {/* Texto */}
-            <div>
-              <h3 className="text-lg font-bold tracking-wide text-white">
-                PROGRAMAS DE ATENCIÓN
-              </h3>
-              <p className="mt-3 text-sm leading-relaxed text-white/90 max-w-md">
-                Duis aute irure dolor in reprehenderit in voluptate velit esse
-                cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat
-                cupidatat non proident, sunt.
-              </p>
-            </div>
-          </div>
+          ))}
         </div>
       </div>
     </section>
