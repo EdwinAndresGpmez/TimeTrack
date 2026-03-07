@@ -184,6 +184,7 @@ const ConfiguracionSistema = () => {
         mensaje_notificacion_cancelacion: '',
         workflow_citas: [],
         grupos_excepcion_antelacion: 'Administrador, Recepcion',
+        grupos_excepcion_agendar_terceros: 'Administrador, Recepcion',
     });
 
     const [brandingConfig, setBrandingConfig] = useState({
@@ -420,6 +421,19 @@ const ConfiguracionSistema = () => {
                                             type="text"
                                             name="grupos_excepcion_antelacion"
                                             value={config.grupos_excepcion_antelacion || ''}
+                                            onChange={handleChange}
+                                            placeholder="Ej: Administrador, Recepcion"
+                                            className="w-full border-indigo-200 rounded-xl p-4 text-sm font-medium text-indigo-800 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none shadow-sm placeholder:text-indigo-300"
+                                        />
+
+                                        <div className="flex items-center gap-2 mt-5 mb-3">
+                                            <label className="font-bold text-indigo-900">Grupos autorizados para agendar a terceros</label>
+                                            <InfoTooltip text="Solo estos grupos (más admin/staff) podrán agendar citas para otro paciente." />
+                                        </div>
+                                        <input
+                                            type="text"
+                                            name="grupos_excepcion_agendar_terceros"
+                                            value={config.grupos_excepcion_agendar_terceros || ''}
                                             onChange={handleChange}
                                             placeholder="Ej: Administrador, Recepcion"
                                             className="w-full border-indigo-200 rounded-xl p-4 text-sm font-medium text-indigo-800 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none shadow-sm placeholder:text-indigo-300"

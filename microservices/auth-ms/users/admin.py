@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 
-from .models import Auditoria, CrearCuenta, MenuItem, PermisoVista
+from .models import Auditoria, CrearCuenta, MenuItem, PermisoVista, TipoDocumento
 
 
 # --- ADMINISTRACIÓN DE USUARIOS ---
@@ -11,6 +11,7 @@ class CustomUserAdmin(UserAdmin):
     list_display = (
         "documento",
         "nombre",
+        "apellidos",
         "correo",
         "tipo_documento",
         "is_active",
@@ -19,7 +20,7 @@ class CustomUserAdmin(UserAdmin):
         "profesional_id",
     )
 
-    search_fields = ("documento", "nombre", "correo", "username")
+    search_fields = ("documento", "nombre", "apellidos", "correo", "username")
     list_filter = (
         "tipo_documento",
         "is_staff",
@@ -37,6 +38,7 @@ class CustomUserAdmin(UserAdmin):
             {
                 "fields": (
                     "nombre",
+                    "apellidos",
                     "correo",
                     "tipo_documento",
                     "numero",
@@ -75,6 +77,7 @@ class CustomUserAdmin(UserAdmin):
                     "documento",
                     "username",
                     "nombre",
+                    "apellidos",
                     "correo",
                     "password",
                     "confirm_password",
@@ -135,8 +138,17 @@ class AuditoriaAdmin(admin.ModelAdmin):
         return False
 
 
+class TipoDocumentoAdmin(admin.ModelAdmin):
+    list_display = ("codigo", "nombre", "activo", "orden")
+    list_editable = ("activo", "orden")
+    search_fields = ("codigo", "nombre")
+    list_filter = ("activo",)
+    ordering = ("orden", "nombre")
+
+
 # --- REGISTRO DE MODELOS (UNA SOLA VEZ CADA UNO) ---
 admin.site.register(CrearCuenta, CustomUserAdmin)
 admin.site.register(MenuItem, MenuItemAdmin)
 admin.site.register(PermisoVista, PermisoVistaAdmin)
 admin.site.register(Auditoria, AuditoriaAdmin)
+admin.site.register(TipoDocumento, TipoDocumentoAdmin)

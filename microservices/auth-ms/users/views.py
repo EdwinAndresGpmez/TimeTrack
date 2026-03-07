@@ -7,7 +7,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView
-from .models import CrearCuenta, MenuItem, PermisoVista, SidebarBranding, Auditoria
+from .models import CrearCuenta, MenuItem, PermisoVista, SidebarBranding, Auditoria, TipoDocumento
 from .serializers import (
     CustomTokenObtainPairSerializer,
     MenuItemSerializer,
@@ -18,6 +18,7 @@ from .serializers import (
     GroupSerializer,
     SidebarBrandingSerializer,
     AuditoriaSerializer,
+    TipoDocumentoSerializer,
 )
 from django.utils import timezone
 from django.conf import settings
@@ -135,6 +136,15 @@ class MisPermisosView(APIView):
                 "is_staff": request.user.is_staff,
             }
         )
+
+
+class TiposDocumentoPublicView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        queryset = TipoDocumento.objects.filter(activo=True).order_by("orden", "nombre")
+        serializer = TipoDocumentoSerializer(queryset, many=True)
+        return Response(serializer.data)
 
 
 # --- VISTAS ADMINISTRATIVAS ---

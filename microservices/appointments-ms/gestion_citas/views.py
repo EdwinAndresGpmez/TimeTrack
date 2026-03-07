@@ -43,6 +43,66 @@ def _uid(request):
     return request.user.id if getattr(request, "user", None) and request.user.is_authenticated else None
 
 
+def _user_group_names(request):
+    names = set()
+
+    roles_claim = getattr(getattr(request, "user", None), "roles", None) or []
+    for role in roles_claim:
+        if role:
+            names.add(str(role).strip())
+
+    try:
+        if hasattr(request.user, "groups"):
+            for g in request.user.groups.values_list("name", flat=True):
+                if g:
+                    names.add(str(g).strip())
+    except Exception:
+        pass
+
+    return names
+
+
+def _is_in_exception_groups(request, configured_groups_csv):
+    grupos = [g.strip() for g in (configured_groups_csv or "").split(",") if g.strip()]
+    if not grupos:
+        return False
+    user_groups = _user_group_names(request)
+    return any(g in user_groups for g in grupos)
+
+
+def _fetch_patient_profile(paciente_id):
+    if not paciente_id:
+        return None
+    try:
+        resp = requests.get(
+            f"http://patients-ms:8001/api/v1/pacientes/listado/{paciente_id}/",
+            timeout=2,
+            headers=_internal_headers(),
+        )
+        if resp.status_code == 200:
+            return resp.json()
+    except Exception:
+        return None
+    return None
+
+
+def _fetch_service_profile(servicio_id):
+    if not servicio_id:
+        return None
+    try:
+        resp = requests.get(
+            f"{SERVICES_MS_URL}?ids={servicio_id}",
+            timeout=2,
+            headers=_internal_headers(),
+        )
+        if resp.status_code == 200:
+            data = resp.json() or {}
+            return data.get(str(servicio_id))
+    except Exception:
+        return None
+    return None
+
+
 def _audit_from_view(request, *, descripcion, accion, recurso, recurso_id=None, metadata=None):
     audit_log(
         descripcion=descripcion,
@@ -241,19 +301,59 @@ class CitaViewSet(viewsets.ModelViewSet):
 
         try:
             with transaction.atomic():
+                paciente_profile = _fetch_patient_profile(paciente_id)
+                if not paciente_profile:
+                    return Response(
+                        {"detalle": "No se pudo validar la información del paciente seleccionado."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+                # 0) Agendar para tercero: solo admins/staff o grupos autorizados
+                paciente_user_id = paciente_profile.get("user_id")
+                solicitante_user_id = _uid(request)
+                agenda_para_tercero = (
+                    paciente_user_id is not None
+                    and solicitante_user_id is not None
+                    and str(paciente_user_id) != str(solicitante_user_id)
+                )
+
+                if agenda_para_tercero:
+                    tiene_privilegio_terceros = (
+                        getattr(request.user, "is_superuser", False)
+                        or getattr(request.user, "is_staff", False)
+                        or _is_in_exception_groups(request, config.grupos_excepcion_agendar_terceros)
+                    )
+                    if not tiene_privilegio_terceros:
+                        return Response(
+                            {"detalle": "No tienes permisos para agendar citas a nombre de otro paciente."},
+                            status=status.HTTP_403_FORBIDDEN,
+                        )
+                else:
+                    tiene_privilegio_terceros = False
+
+                # 0.5) Restricción por tipo de paciente vs servicio
+                service_profile = _fetch_service_profile(servicio_id) if servicio_id else None
+                tipo_paciente_id = paciente_profile.get("tipo_usuario")
+                puede_omitir_restriccion_tipo = agenda_para_tercero and tiene_privilegio_terceros
+                if service_profile and tipo_paciente_id is not None and not puede_omitir_restriccion_tipo:
+                    permitidos = service_profile.get("tipos_paciente_ids") or []
+                    permitidos = [int(x) for x in permitidos if str(x).isdigit()]
+                    tipo_id_int = int(tipo_paciente_id) if str(tipo_paciente_id).isdigit() else None
+                    if permitidos and tipo_id_int not in permitidos:
+                        return Response(
+                            {"detalle": "El servicio seleccionado no está habilitado para este tipo de paciente."},
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
+
                 # 1. BLOQUEO POR INASISTENCIAS
                 if config.limite_inasistencias > 0:
                     fecha_corte = None
                     try:
-                        url = f"http://patients-ms:8001/api/v1/pacientes/listado/{paciente_id}/"
-                        resp = requests.get(url, timeout=2, headers=_internal_headers())
-                        if resp.status_code == 200:
-                            p_data = resp.json()
-                            f_str = p_data.get("ultima_fecha_desbloqueo")
-                            if f_str:
-                                if f_str.endswith("Z"):
-                                    f_str = f_str.replace("Z", "+00:00")
-                                fecha_corte = datetime.fromisoformat(f_str)
+                        f_str = paciente_profile.get("ultima_fecha_desbloqueo")
+                        if f_str:
+                            if f_str.endswith("Z"):
+                                f_str = f_str.replace("Z", "+00:00")
+                            fecha_corte = datetime.fromisoformat(f_str)
                     except Exception:
                         pass
 
@@ -274,20 +374,9 @@ class CitaViewSet(viewsets.ModelViewSet):
                     f_ini = datetime.strptime(fecha_solicitada, "%Y-%m-%d").date()
                     cita_dt = timezone.make_aware(datetime.combine(f_ini, h_ini))
 
-                    grupos_excepcion = [
-                        g.strip() for g in (config.grupos_excepcion_antelacion or "").split(",") if g.strip()
-                    ]
-
-                    user_groups = []
-                    try:
-                        if hasattr(request.user, "groups"):
-                            user_groups = request.user.groups.values_list("name", flat=True)
-                    except Exception:
-                        user_groups = []
-
                     tiene_privilegio = (
                         getattr(request.user, "is_superuser", False)
-                        or any(g in grupos_excepcion for g in user_groups)
+                        or _is_in_exception_groups(request, config.grupos_excepcion_antelacion)
                         or es_modo_admin_front is True
                     )
 
@@ -303,16 +392,8 @@ class CitaViewSet(viewsets.ModelViewSet):
                 # 2. OVERBOOKING Y DURACIÓN
                 duracion = 20
                 try:
-                    if servicio_id:
-                        r = requests.get(
-                            f"{SERVICES_MS_URL}?ids={servicio_id}",
-                            timeout=2,
-                            headers=_internal_headers(),
-                        )
-                        if r.status_code == 200:
-                            d = r.json()
-                            if str(servicio_id) in d:
-                                duracion = d[str(servicio_id)].get("duracion", 20)
+                    if service_profile:
+                        duracion = service_profile.get("duracion", 20) or 20
                 except Exception:
                     pass
 

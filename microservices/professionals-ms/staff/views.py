@@ -240,6 +240,7 @@ class BulkServicioView(APIView):
                 "nombre": s.nombre,
                 "duracion": getattr(s, "duracion_minutos", None),
                 "precio": getattr(s, "precio_base", None),
+                "tipos_paciente_ids": getattr(s, "tipos_paciente_ids", []) or [],
             }
         return Response(data)
 

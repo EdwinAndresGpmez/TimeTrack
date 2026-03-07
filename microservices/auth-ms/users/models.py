@@ -27,6 +27,7 @@ class CrearCuentaManager(BaseUserManager):
 class CrearCuenta(AbstractBaseUser, PermissionsMixin):
     username = models.CharField(max_length=255, unique=True)
     nombre = models.CharField(max_length=255)
+    apellidos = models.CharField(max_length=255, blank=True, default="")
     correo = models.EmailField(max_length=255, unique=True)
 
     # Tipo de documento (CC, TI, PASAPORTE, DNI, ETC)
@@ -57,8 +58,25 @@ class CrearCuenta(AbstractBaseUser, PermissionsMixin):
     def email(self):
         return self.correo
 
+    @property
+    def nombre_completo(self):
+        return f"{self.nombre} {self.apellidos}".strip()
+
     def __str__(self):
-        return f"{self.nombre} - {self.documento}"
+        return f"{self.nombre_completo} - {self.documento}"
+
+
+class TipoDocumento(models.Model):
+    codigo = models.CharField(max_length=20, unique=True)
+    nombre = models.CharField(max_length=120)
+    activo = models.BooleanField(default=True)
+    orden = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ("orden", "nombre")
+
+    def __str__(self):
+        return f"{self.codigo} - {self.nombre}"
 
 
 class Auditoria(models.Model):

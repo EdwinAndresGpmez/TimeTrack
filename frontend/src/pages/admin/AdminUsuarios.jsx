@@ -14,11 +14,19 @@ import { Link } from 'react-router-dom';
 import MapaFamiliar from './MapaFamiliar';
 
 const AdminUsuarios = () => {
+    const fallbackDocumentTypes = [
+        { codigo: 'CC', nombre: 'Cedula' },
+        { codigo: 'TI', nombre: 'Tarjeta Identidad' },
+        { codigo: 'CE', nombre: 'Cedula Extranjeria' },
+        { codigo: 'PAS', nombre: 'Pasaporte' },
+    ];
+
     // --- ESTADOS DE DATOS ---
     const [users, setUsers] = useState([]);
     const [filteredUsers, setFilteredUsers] = useState([]);
     const [availableGroups, setAvailableGroups] = useState([]);
     const [tiposPaciente, setTiposPaciente] = useState([]);
+    const [documentTypes, setDocumentTypes] = useState(fallbackDocumentTypes);
 
     // Diccionario para acceso rápido: { user_id: { datos_paciente } }
     const [patientsMap, setPatientsMap] = useState({});
@@ -37,7 +45,7 @@ const AdminUsuarios = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingUser, setEditingUser] = useState(null);
     const [formData, setFormData] = useState({
-        nombre: '', email: '', tipo_documento: 'CC', documento: '', numero: ''
+        nombre: '', apellidos: '', email: '', tipo_documento: 'CC', documento: '', numero: ''
     });
 
     // --- NUEVO: MODAL RED FAMILIAR ---
@@ -56,7 +64,7 @@ const AdminUsuarios = () => {
         if (searchTerm) {
             const lowerTerm = searchTerm.toLowerCase();
             result = result.filter(u =>
-                u.nombre.toLowerCase().includes(lowerTerm) ||
+                getNombreCompleto(u).toLowerCase().includes(lowerTerm) ||
                 u.email.toLowerCase().includes(lowerTerm) ||
                 u.documento.includes(lowerTerm)
             );
@@ -82,15 +90,27 @@ const AdminUsuarios = () => {
         });
     };
 
+    const getNombreCompleto = (u) => {
+        if (!u) return '';
+        if (u.nombre_completo) return u.nombre_completo;
+        return `${u.nombre || ''} ${u.apellidos || ''}`.trim();
+    };
+
+    const getDefaultTipoDocumento = () => {
+        if (documentTypes?.length > 0) return documentTypes[0].codigo;
+        return 'CC';
+    };
+
     // 3. CARGA DE DATOS COMPLETA
     const cargarDatos = async () => {
         try {
             setLoading(true);
-            const [usersData, gruposData, tiposData, pacientesData] = await Promise.all([
+            const [usersData, gruposData, tiposData, pacientesData, docsData] = await Promise.all([
                 authService.getAllUsers(),
                 authService.getGroups(),
                 patientService.getTiposPaciente(),
-                patientService.getAll()
+                patientService.getAll(),
+                authService.getDocumentTypes(),
             ]);
 
             const map = {};
@@ -105,10 +125,16 @@ const AdminUsuarios = () => {
             setAvailableGroups(gruposData);
             setTiposPaciente(tiposData);
             setPatientsMap(map);
+            if (Array.isArray(docsData) && docsData.length > 0) {
+                setDocumentTypes(docsData);
+            } else {
+                setDocumentTypes(fallbackDocumentTypes);
+            }
 
         } catch (error) {
             console.error("Error cargando datos:", error);
-            Swal.fire('Error', 'Error de conexión cargando datos.', 'error');
+            Swal.fire('Error', 'Error de conexion cargando datos.', 'error');
+            setDocumentTypes(fallbackDocumentTypes);
         } finally {
             setLoading(false);
         }
@@ -132,7 +158,7 @@ const AdminUsuarios = () => {
 
     const handleChangePassword = async (user) => {
         const { value: password } = await Swal.fire({
-            title: `Password para ${user.nombre}`,
+            title: `Password para ${getNombreCompleto(user)}`,
             input: 'password',
             inputPlaceholder: 'Nueva contraseña...',
             showCancelButton: true,
@@ -166,7 +192,7 @@ const AdminUsuarios = () => {
         }).join('');
 
         const { value: formValues } = await Swal.fire({
-            title: `Roles: ${user.nombre}`, html: groupsHtml, showCancelButton: true,
+            title: `Roles: ${getNombreCompleto(user)}`, html: groupsHtml, showCancelButton: true,
             preConfirm: () => {
                 const selected = [];
                 availableGroups.forEach(g => {
@@ -213,7 +239,7 @@ const AdminUsuarios = () => {
         ).join('');
 
         const { value: nuevoTipoId } = await Swal.fire({
-            title: `Clasificación: ${user.nombre}`,
+            title: `Clasificación: ${getNombreCompleto(user)}`,
             html: `
                 <p class="text-sm text-gray-600 mb-3">Entidad / Vinculación:</p>
                 <select id="swal-tipo-paciente" class="swal2-select" style="width: 80%; display: flex; margin: 0 auto;">
@@ -253,8 +279,9 @@ const AdminUsuarios = () => {
         setEditingUser(user);
         setFormData({
             nombre: user.nombre || '',
+            apellidos: user.apellidos || '',
             email: user.email || '',
-            tipo_documento: user.tipo_documento || 'CC',
+            tipo_documento: user.tipo_documento || getDefaultTipoDocumento(),
             documento: user.documento || '',
             numero: user.numero || ''
         });
@@ -285,6 +312,7 @@ const AdminUsuarios = () => {
 
                 const payload = {
                     nombre: formData.nombre?.trim(),
+                    apellidos: formData.apellidos?.trim(),
                     username: (formData.email || formData.documento || '').trim(),
                     correo: formData.email?.trim(),
                     tipo_documento: formData.tipo_documento,
@@ -346,7 +374,7 @@ const AdminUsuarios = () => {
                     <AnimatedActionButton
                         onClick={() => {
                             setEditingUser(null);
-                            setFormData({ nombre: '', email: '', tipo_documento: 'CC', documento: '', numero: '' });
+                            setFormData({ nombre: '', apellidos: '', email: '', tipo_documento: getDefaultTipoDocumento(), documento: '', numero: '' });
                             setIsModalOpen(true);
                         }}
                         icon={<FaPlusCircle />}
@@ -416,10 +444,10 @@ const AdminUsuarios = () => {
                                     <td className="px-6 py-4">
                                         <div className="flex items-start gap-3">
                                             <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold text-lg shadow-sm">
-                                                {u.nombre.charAt(0).toUpperCase()}
+                                                {getNombreCompleto(u).charAt(0).toUpperCase()}
                                             </div>
                                             <div className="flex flex-col gap-1">
-                                                <span className="text-sm font-bold text-gray-900 leading-none">{u.nombre}</span>
+                                                <span className="text-sm font-bold text-gray-900 leading-none">{getNombreCompleto(u)}</span>
 
                                                 <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
                                                     <FaIdCard className="text-gray-400" />
@@ -532,17 +560,26 @@ const AdminUsuarios = () => {
                                         {editingUser ? 'Editar Datos de Acceso' : 'Crear Usuario'}
                                     </h3>
                                     <div className="space-y-4">
-                                        <div>
-                                            <label className="text-xs font-bold text-gray-500 uppercase">Nombre Completo</label>
-                                            <input required className="w-full border-gray-300 border rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                                                value={formData.nombre} onChange={e => setFormData({ ...formData, nombre: e.target.value })} />
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div>
+                                                <label className="text-xs font-bold text-gray-500 uppercase">Nombres</label>
+                                                <input required className="w-full border-gray-300 border rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                                                    value={formData.nombre} onChange={e => setFormData({ ...formData, nombre: e.target.value })} />
+                                            </div>
+                                            <div>
+                                                <label className="text-xs font-bold text-gray-500 uppercase">Apellidos</label>
+                                                <input required className="w-full border-gray-300 border rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                                                    value={formData.apellidos} onChange={e => setFormData({ ...formData, apellidos: e.target.value })} />
+                                            </div>
                                         </div>
                                         <div className="grid grid-cols-3 gap-3">
                                             <div className="col-span-1">
                                                 <label className="text-xs font-bold text-gray-500 uppercase">Tipo</label>
                                                 <select className="w-full border-gray-300 border rounded-lg p-2.5"
                                                     value={formData.tipo_documento} onChange={e => setFormData({ ...formData, tipo_documento: e.target.value })}>
-                                                    <option>CC</option><option>TI</option><option>CE</option><option>PAS</option>
+                                                    {documentTypes.map((tipo) => (
+                                                        <option key={tipo.codigo} value={tipo.codigo}>{tipo.nombre}</option>
+                                                    ))}
                                                 </select>
                                             </div>
                                             <div className="col-span-2">
@@ -589,7 +626,7 @@ const AdminUsuarios = () => {
                                     <FaSitemap className="text-purple-300" /> Lienzo de Conexiones Familiares
                                 </h2>
                                 <p className="text-xs text-purple-200 mt-1 font-medium">
-                                    Configurando delegados para: <span className="font-bold text-white">{familyTargetUser.nombre}</span>
+                                    Configurando delegados para: <span className="font-bold text-white">{getNombreCompleto(familyTargetUser)}</span>
                                 </p>
                             </div>
                             <button
@@ -611,3 +648,4 @@ const AdminUsuarios = () => {
 };
 
 export default AdminUsuarios;
+

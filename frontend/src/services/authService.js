@@ -5,6 +5,7 @@ export const authService = {
   register: async (userData) => {
     const payload = {
       nombre: userData.nombre,
+      apellidos: userData.apellidos,
       username: userData.username,
       email: userData.correo,
       correo: userData.correo,
@@ -80,6 +81,11 @@ export const authService = {
   // 6. Obtener Roles y Permisos (Mios)
   getMisPermisos: async () => {
     const response = await api.get('/auth/me/permisos/');
+    return response.data;
+  },
+
+  getDocumentTypes: async () => {
+    const response = await api.get('/auth/document-types/');
     return response.data;
   },
 

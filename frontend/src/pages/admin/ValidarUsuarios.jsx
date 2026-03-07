@@ -16,21 +16,36 @@ import AnimatedActionButton from '../../components/system/AnimatedActionButton';
 import { Link } from 'react-router-dom';
 
 const ValidarUsuarios = () => {
+    const fallbackDocumentTypes = [
+        { codigo: 'CC', nombre: 'Cedula' },
+        { codigo: 'TI', nombre: 'Tarjeta Identidad' },
+        { codigo: 'CE', nombre: 'Cedula Extranjeria' },
+        { codigo: 'PAS', nombre: 'Pasaporte' },
+    ];
+
     const [solicitudes, setSolicitudes] = useState([]);
     const [tiposPaciente, setTiposPaciente] = useState([]);
+    const [documentTypes, setDocumentTypes] = useState(fallbackDocumentTypes);
     const [loading, setLoading] = useState(true);
 
     const cargarDatos = useCallback(async () => {
         setLoading(true);
         try {
-            const [dataSolicitudes, dataTipos] = await Promise.all([
+            const [dataSolicitudes, dataTipos, docsData] = await Promise.all([
                 patientService.getSolicitudesPendientes(),
-                patientService.getTiposPaciente()
+                patientService.getTiposPaciente(),
+                authService.getDocumentTypes(),
             ]);
             setSolicitudes(dataSolicitudes);
             setTiposPaciente(dataTipos);
+            if (Array.isArray(docsData) && docsData.length > 0) {
+                setDocumentTypes(docsData);
+            } else {
+                setDocumentTypes(fallbackDocumentTypes);
+            }
         } catch (error) {
             console.error("Error cargando datos admin:", error);
+            setDocumentTypes(fallbackDocumentTypes);
         } finally {
             setLoading(false);
         }
@@ -43,6 +58,10 @@ const ValidarUsuarios = () => {
 
     // --- ACCIÓN 0: CREAR USUARIO MANUAL (y forzar solicitud si queda huérfano) ---
     const handleCrearUsuarioManual = async () => {
+        const opcionesTipoDoc = documentTypes
+            .map((t) => `<option value="${t.codigo}">${t.nombre}</option>`)
+            .join('');
+
         const { value: formValues } = await Swal.fire({
             title: `<h3 class="text-xl font-bold">Crear Usuario Manual</h3>`,
             html: `
@@ -51,17 +70,22 @@ const ValidarUsuarios = () => {
                     <p class="text-xs text-gray-600 mt-1">Si el usuario no tiene paciente asociado, se creará automáticamente una solicitud y aparecerá aquí en <b>Pendientes</b>.</p>
                 </div>
 
-                <div class="text-left mb-1 ml-1"><label class="text-xs font-bold text-gray-500">Nombre completo</label></div>
-                <input id="nu-nombre" class="swal2-input m-0 w-full mb-3" placeholder="Ej: Juan Pérez" />
+                <div class="grid grid-cols-2 gap-2 mb-3">
+                    <div>
+                        <div class="text-left mb-1 ml-1"><label class="text-xs font-bold text-gray-500">Nombres</label></div>
+                        <input id="nu-nombre" class="swal2-input m-0 w-full" placeholder="Ej: Juan Carlos" />
+                    </div>
+                    <div>
+                        <div class="text-left mb-1 ml-1"><label class="text-xs font-bold text-gray-500">Apellidos</label></div>
+                        <input id="nu-apellidos" class="swal2-input m-0 w-full" placeholder="Ej: Perez Gomez" />
+                    </div>
+                </div>
 
                 <div class="grid grid-cols-3 gap-2">
                     <div class="text-left col-span-1">
                         <label class="text-xs font-bold text-gray-500">Tipo</label>
                         <select id="nu-tipo" class="swal2-select m-0 w-full">
-                            <option value="CC">CC</option>
-                            <option value="TI">TI</option>
-                            <option value="CE">CE</option>
-                            <option value="PAS">PAS</option>
+                            ${opcionesTipoDoc}
                         </select>
                     </div>
                     <div class="text-left col-span-2">
@@ -86,14 +110,15 @@ const ValidarUsuarios = () => {
             focusConfirm: false,
             preConfirm: () => {
                 const nombre = document.getElementById('nu-nombre')?.value?.trim();
+                const apellidos = document.getElementById('nu-apellidos')?.value?.trim();
                 const tipo_documento = document.getElementById('nu-tipo')?.value;
                 const documento = document.getElementById('nu-doc')?.value?.trim();
                 const correo = document.getElementById('nu-email')?.value?.trim();
                 const numero = document.getElementById('nu-tel')?.value?.trim();
                 const password = document.getElementById('nu-pass')?.value;
 
-                if (!nombre || !documento || !correo || !password) {
-                    Swal.showValidationMessage('⚠️ Nombre, Documento, Email y Contraseña son obligatorios');
+                if (!nombre || !apellidos || !documento || !correo || !password) {
+                    Swal.showValidationMessage('⚠️ Nombres, apellidos, documento, email y contraseña son obligatorios');
                     return false;
                 }
                 if (String(password).length < 6) {
@@ -104,7 +129,7 @@ const ValidarUsuarios = () => {
                 // username: por defecto derivado del documento (evita campo extra)
                 const username = `user_${documento}`;
 
-                return { nombre, tipo_documento, documento, correo, numero, password, username };
+                return { nombre, apellidos, tipo_documento, documento, correo, numero, password, username };
             }
         });
 
@@ -116,6 +141,7 @@ const ValidarUsuarios = () => {
             // 1) Crear usuario en Auth
             const created = await authService.register({
                 nombre: formValues.nombre,
+                apellidos: formValues.apellidos,
                 username: formValues.username,
                 correo: formValues.correo,
                 tipo_documento: formValues.tipo_documento,
@@ -138,7 +164,7 @@ const ValidarUsuarios = () => {
                     if (!yaExiste) {
                         await patientService.crearSolicitudValidacion({
                             user_id: userId,
-                            nombre: formValues.nombre,
+                            nombre: `${formValues.nombre} ${formValues.apellidos}`.trim(),
                             email: formValues.correo,
                             user_doc: formValues.documento,
                             procesado: false,

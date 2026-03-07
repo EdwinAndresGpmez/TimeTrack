@@ -71,6 +71,7 @@ const Perfil = () => {
                 setFormData(prev => ({
                     ...prev,
                     nombre: user.nombre || '',
+                    apellido: user.apellidos || '',
                     numero_documento: user.documento || ''
                 }));
             }

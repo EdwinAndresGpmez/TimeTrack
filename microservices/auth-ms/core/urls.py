@@ -12,6 +12,7 @@ from users.views import (
     DynamicMenuView,
     MisPermisosView,
     RegistroView,
+    TiposDocumentoPublicView,
     UserDetailView,
 )
 
@@ -25,6 +26,7 @@ urlpatterns = [
     ),
     path("api/v1/auth/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     path("api/v1/auth/register/", RegistroView.as_view(), name="auth_register"),
+    path("api/v1/auth/document-types/", TiposDocumentoPublicView.as_view(), name="auth_document_types"),
     path("api/v1/auth/me/", UserDetailView.as_view(), name="user_me"),
     path("api/v1/auth/menu/", DynamicMenuView.as_view(), name="dynamic_menu"),
     path("api/v1/auth/me/permisos/", MisPermisosView.as_view(), name="user_permissions"),

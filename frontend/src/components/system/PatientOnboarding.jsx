@@ -18,12 +18,17 @@ const PatientOnboarding = () => {
         }
     }, [navigate]);
 
+    const getNombreCompletoUsuario = useCallback(() => {
+        if (user?.nombre_completo) return user.nombre_completo;
+        return `${user?.nombre || ''} ${user?.apellidos || ''}`.trim();
+    }, [user]);
+
     // --- CORRECCIÓN AQUÍ ---
     const crearSolicitudValidacion = useCallback(async () => {
         try {
             await patientService.crearSolicitudValidacion({
                 user_id: user.user_id || user.id,
-                nombre: user.nombre,
+                nombre: getNombreCompletoUsuario(),
                 email: user.email || user.correo,
                 // AGREGAMOS ESTA LÍNEA QUE FALTABA:
                 user_doc: user.documento, 
@@ -35,14 +40,33 @@ const PatientOnboarding = () => {
         } catch {
             Swal.fire('Aviso', 'Ya tienes una solicitud en proceso de revisión.', 'info');
         }
-    }, [user]);
+    }, [getNombreCompletoUsuario, user]);
+
+    const resolverTipoParticularId = useCallback(async () => {
+        const tipos = await patientService.getTiposPaciente();
+        const lista = Array.isArray(tipos) ? tipos : (tipos?.results || []);
+        const normalizar = (v) =>
+            String(v || '')
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .trim();
+
+        const exacto = lista.find((t) => normalizar(t.nombre) === 'particular');
+        if (exacto?.id) return exacto.id;
+
+        const aproximado = lista.find((t) => normalizar(t.nombre).includes('particular'));
+        if (aproximado?.id) return aproximado.id;
+
+        return null;
+    }, []);
 
     const abrirFormularioParticular = useCallback(async () => {
         const { value: formValues } = await Swal.fire({
             title: 'Registro Paciente Particular',
             html: `
                 <p class="text-sm text-gray-500 mb-4">Completa tus datos para activar la cuenta.</p>
-                <input class="swal2-input m-0 mb-3 w-full bg-gray-100" value="${user.nombre}" readonly>
+                <input class="swal2-input m-0 mb-3 w-full bg-gray-100" value="${getNombreCompletoUsuario()}" readonly>
                 <div class="grid grid-cols-2 gap-3 mb-3">
                     <input class="swal2-input m-0 w-full bg-gray-100" value="${user.documento}" readonly>
                     <input id="sw-tel" class="swal2-input m-0 w-full" value="${user.numero || user.telefono || ''}" placeholder="Celular *">
@@ -78,10 +102,16 @@ const PatientOnboarding = () => {
         if (formValues) {
             Swal.fire({ title: 'Creando perfil...', didOpen: () => Swal.showLoading() });
             try {
+                const tipoParticularId = await resolverTipoParticularId();
+                if (!tipoParticularId) {
+                    throw new Error('No existe un tipo de paciente "Particular" en el catálogo.');
+                }
+
                 // 1. Crear Paciente
                 const nuevoPaciente = await patientService.create({
                     user_id: user.user_id || user.id,
                     nombre: user.nombre,
+                    apellido: user.apellidos || '',
                     numero_documento: user.documento,
                     tipo_documento: user.tipo_documento || 'CC',
                     email_contacto: user.email || user.correo,
@@ -89,7 +119,7 @@ const PatientOnboarding = () => {
                     fecha_nacimiento: formValues.fecha,
                     genero: formValues.genero,
                     direccion: formValues.dir,
-                    tipo_usuario: 1, 
+                    tipo_usuario: tipoParticularId,
                     activo: true
                 });
 
@@ -102,7 +132,7 @@ const PatientOnboarding = () => {
                 try {
                     await patientService.crearSolicitudValidacion({
                         user_id: user.user_id || user.id,
-                        nombre: user.nombre,
+                        nombre: getNombreCompletoUsuario(),
                         email: user.email || user.correo,
                         fecha: new Date().toISOString(),
                         user_doc: user.documento, // Este ya estaba bien
@@ -129,7 +159,7 @@ const PatientOnboarding = () => {
                 Swal.fire('Error', 'No se pudo crear el perfil. Verifica los datos.', 'error');
             }
         }
-    }, [user]);
+    }, [getNombreCompletoUsuario, resolverTipoParticularId, user]);
 
     const showRegistrationModal = useCallback(async () => {
         const { isConfirmed, isDenied, isDismissed } = await Swal.fire({

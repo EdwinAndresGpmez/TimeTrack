@@ -95,7 +95,7 @@ class StatelessJWTAuthentication(BaseAuthentication):
             id=uid_int,
             is_staff=bool(validated_token.get("is_staff", False)),
             is_superuser=bool(validated_token.get("is_superuser", False)),
-            username=validated_token.get("username") or validated_token.get("nombre"),
+            username=validated_token.get("username") or validated_token.get("nombre_completo") or validated_token.get("nombre"),
             email=validated_token.get("email"),
             roles=validated_token.get("roles") or [],
         )

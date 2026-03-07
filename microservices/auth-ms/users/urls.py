@@ -14,7 +14,7 @@ from .views import (
     GroupViewSet,
     SidebarBrandingView,
     MiRedFamiliarView,
-    AuditoriaViewSet
+    AuditoriaViewSet,
 )
 
 # Configuración del Router para el ViewSet de Admin

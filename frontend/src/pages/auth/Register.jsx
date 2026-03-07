@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
@@ -14,6 +14,7 @@ const Register = () => {
     // Estados del formulario
     const [formData, setFormData] = useState({
         nombre: '',
+        apellidos: '',
         username: '',
         correo: '',
         tipo_documento: 'CC',
@@ -26,6 +27,12 @@ const Register = () => {
 
     const [showModal, setShowModal] = useState(true);
     const [loading, setLoading] = useState(false);
+    const [documentTypes, setDocumentTypes] = useState([
+        { codigo: 'CC', nombre: 'Cedula' },
+        { codigo: 'TI', nombre: 'Tarjeta Identidad' },
+        { codigo: 'CE', nombre: 'Cedula Extranjeria' },
+        { codigo: 'PAS', nombre: 'Pasaporte' },
+    ]);
     
     // Manejador de cambios en inputs
     const handleChange = (e) => {
@@ -37,6 +44,25 @@ const Register = () => {
         setFormData({ ...formData, acepta_tratamiento_datos: true });
         setShowModal(false);
     };
+
+    useEffect(() => {
+        const cargarTiposDocumento = async () => {
+            try {
+                const tipos = await authService.getDocumentTypes();
+                if (Array.isArray(tipos) && tipos.length > 0) {
+                    setDocumentTypes(tipos);
+                    setFormData((prev) => {
+                        const existe = tipos.some((t) => t.codigo === prev.tipo_documento);
+                        return existe ? prev : { ...prev, tipo_documento: tipos[0].codigo };
+                    });
+                }
+            } catch (error) {
+                console.warn('No se pudo cargar catalogo de tipos de documento. Se usa fallback local.', error);
+            }
+        };
+
+        cargarTiposDocumento();
+    }, []);
 
     // Envío del formulario
     const handleSubmit = async (e) => {
@@ -123,16 +149,29 @@ const Register = () => {
 
             <form onSubmit={handleSubmit} className="space-y-4">
                 
-                <div>
-                    <label className="block text-gray-700 text-sm font-bold mb-1">Nombre Completo</label>
-                    <input 
-                        type="text" 
-                        name="nombre" 
-                        value={formData.nombre} 
-                        onChange={handleChange} 
-                        className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" 
-                        required 
-                    />
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-gray-700 text-sm font-bold mb-1">Nombres</label>
+                        <input
+                            type="text"
+                            name="nombre"
+                            value={formData.nombre}
+                            onChange={handleChange}
+                            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                            required
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-gray-700 text-sm font-bold mb-1">Apellidos</label>
+                        <input
+                            type="text"
+                            name="apellidos"
+                            value={formData.apellidos}
+                            onChange={handleChange}
+                            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                            required
+                        />
+                    </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -144,10 +183,11 @@ const Register = () => {
                             onChange={handleChange} 
                             className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                         >
-                            <option value="CC">Cédula</option>
-                            <option value="TI">Tarjeta Identidad</option>
-                            <option value="CE">Cédula Extranjería</option>
-                            <option value="PAS">Pasaporte</option>
+                            {documentTypes.map((tipo) => (
+                                <option key={tipo.codigo} value={tipo.codigo}>
+                                    {tipo.nombre}
+                                </option>
+                            ))}
                         </select>
                     </div>
                     <div>
@@ -168,6 +208,7 @@ const Register = () => {
                     <input 
                         type="text" 
                         name="username" 
+                        autoComplete="username"
                         value={formData.username} 
                         onChange={handleChange} 
                         className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" 
@@ -192,6 +233,7 @@ const Register = () => {
                     <input 
                         type="tel" 
                         name="numero" 
+                        autoComplete="tel"
                         value={formData.numero} 
                         onChange={handleChange} 
                         className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" 
@@ -205,6 +247,7 @@ const Register = () => {
                         <input 
                             type="password" 
                             name="password" 
+                            autoComplete="new-password"
                             value={formData.password} 
                             onChange={handleChange} 
                             className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" 
@@ -216,6 +259,7 @@ const Register = () => {
                         <input 
                             type="password" 
                             name="confirmPassword" 
+                            autoComplete="new-password"
                             value={formData.confirmPassword} 
                             onChange={handleChange} 
                             className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" 

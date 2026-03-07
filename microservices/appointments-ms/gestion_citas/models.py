@@ -163,6 +163,10 @@ class ConfiguracionGlobal(models.Model):
         default="Administrador, Recepcion",
         help_text="Nombres de grupos que pueden saltarse la restricción de 1 hora, separados por coma."
     )
+    grupos_excepcion_agendar_terceros = models.TextField(
+        default="Administrador, Recepcion",
+        help_text="Grupos autorizados para agendar citas a nombre de otros pacientes."
+    )
 
     def save(self, *args, **kwargs):
         self.pk = 1
