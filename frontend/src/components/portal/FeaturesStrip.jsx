@@ -44,15 +44,14 @@ const FeaturesStrip = ({ data }) => {
 
   return (
     <section
-      style={{ backgroundColor: "var(--portal-primary)" }}
-      className="text-white"
+      className="portal-gradient-band text-white"
     >
       <div className="mx-auto max-w-6xl px-4 py-12">
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
           {items.map((it, idx) => (
             <div
               key={idx}
-              className="flex gap-5 rounded-xl bg-white/10 p-7 ring-1 ring-white/15"
+              className="portal-card-hover flex gap-5 rounded-xl bg-white/10 p-7 ring-1 ring-white/15 backdrop-blur-sm"
               style={{ borderRadius: "var(--portal-radius)" }}
             >
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/15 ring-1 ring-white/25">

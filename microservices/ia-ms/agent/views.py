@@ -1,4 +1,5 @@
 from django.shortcuts import get_object_or_404
+from rest_framework import permissions
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -16,11 +17,20 @@ class ChatView(APIView):
     URL: /api/v1/ia/chat/
     """
 
+    permission_classes = [permissions.IsAuthenticated]
+
     def post(self, request):
         # 1. Extraer datos de la petición
-        usuario_id = request.data.get("usuario_id")
+        usuario_id = request.user.id
         message = request.data.get("message")
         session_id = request.data.get("session_id")  # Opcional: si ya existe una conversación
+        requested_user_id = request.data.get("usuario_id")
+
+        if requested_user_id and str(requested_user_id) != str(usuario_id):
+            return Response(
+                {"error": "No autorizado para usar el usuario_id indicado."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
         # 2. Validaciones básicas
         if not usuario_id or not message:
@@ -68,7 +78,16 @@ class HistoryView(APIView):
     URL: /api/v1/ia/history/<int:usuario_id>/
     """
 
+    permission_classes = [permissions.IsAuthenticated]
+
     def get(self, request, usuario_id):
+        if (
+            str(request.user.id) != str(usuario_id)
+            and not getattr(request.user, "is_staff", False)
+            and not getattr(request.user, "is_superuser", False)
+        ):
+            return Response({"error": "No autorizado"}, status=status.HTTP_403_FORBIDDEN)
+
         # Buscamos todas las sesiones activas de ese usuario
         sessions = ChatSession.objects.filter(usuario_id=usuario_id, activo=True).order_by(
             "-updated_at"

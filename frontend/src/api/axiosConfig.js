@@ -1,8 +1,14 @@
 import axios from 'axios';
 
+const rawBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
+const normalizedBaseUrl = rawBaseUrl.replace(/\/+$/, '');
+const apiBaseUrl = normalizedBaseUrl.endsWith('/v1')
+  ? normalizedBaseUrl
+  : `${normalizedBaseUrl}/v1`;
+
 // 1. Crear instancia base
 const api = axios.create({
-  baseURL: 'http://localhost:8080/api/v1',
+  baseURL: apiBaseUrl,
 });
 
 // 2. Interceptor de Solicitud

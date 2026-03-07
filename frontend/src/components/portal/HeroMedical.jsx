@@ -79,22 +79,23 @@ const HeroMedical = ({ data }) => {
 
   return (
     <section
-      className="bg-[var(--portal-surface)]"
+      className="portal-section-alt"
       style={{ backgroundColor: "var(--portal-surface)" }}
     >
       <div className="mx-auto max-w-6xl px-4 py-10 lg:py-14">
         <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-2">
           {/* Imagen */}
-          <div className="flex justify-center lg:justify-start">
-            <div className="w-full max-w-md">
+          <div className="portal-glow flex justify-center lg:justify-start">
+            <div className="portal-float relative z-[1] w-full max-w-md">
               {img ? (
                 <img
                   src={img}
                   alt={title}
-                  className="w-full h-auto object-cover"
+                  className="w-full h-auto rounded-2xl object-cover shadow-xl"
+                  style={{ borderRadius: "var(--portal-radius)" }}
                 />
               ) : (
-                <div className="aspect-[4/3] w-full rounded bg-white/60 flex items-center justify-center text-slate-500 text-sm">
+                <div className="aspect-[4/3] w-full rounded-2xl bg-white/60 flex items-center justify-center text-sm portal-soft">
                   Sin imagen de banner
                 </div>
               )}
@@ -127,7 +128,7 @@ const HeroMedical = ({ data }) => {
           </div>
 
           {/* Texto */}
-          <div className="text-center lg:text-left">
+          <div className="portal-fade-up text-center lg:text-left">
             <p
               className="text-xs tracking-[0.35em] uppercase"
               style={{ color: "var(--portal-secondary)" }}
@@ -142,25 +143,18 @@ const HeroMedical = ({ data }) => {
               {title}
             </h1>
 
-            <p className="mt-5 max-w-xl text-slate-600 lg:mx-0 mx-auto">
+            <p className="portal-muted mt-5 max-w-xl lg:mx-0 mx-auto">
               {description}
             </p>
 
             <div className="mt-7">
               <a
                 href={buttonLink}
-                className="inline-flex items-center justify-center rounded-md border px-8 py-3 font-semibold transition"
+                className="inline-flex items-center justify-center rounded-md border px-8 py-3 font-semibold transition hover:-translate-y-0.5 hover:shadow-md"
                 style={{
                   borderColor: "var(--portal-primary)",
                   color: "var(--portal-primary)",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = "var(--portal-primary)";
-                  e.currentTarget.style.color = "white";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = "transparent";
-                  e.currentTarget.style.color = "var(--portal-primary)";
+                  borderRadius: "calc(var(--portal-radius) - 6px)",
                 }}
               >
                 {buttonText}
@@ -169,7 +163,7 @@ const HeroMedical = ({ data }) => {
 
             {/* Debug suave (opcional): si no hay slides */}
             {slides.length === 0 && (
-              <p className="mt-4 text-xs text-slate-400">
+              <p className="portal-soft mt-4 text-xs">
                 No hay slides configurados en CMS (hero.data.slides).
               </p>
             )}

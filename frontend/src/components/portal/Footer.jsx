@@ -25,10 +25,7 @@ const Footer = ({ theme, contactData, servicesData }) => {
       : ["Medicina general", "Pediatría", "Laboratorio", "Cuidado crítico"];
 
   return (
-    <footer
-      className="text-white"
-      style={{ backgroundColor: "var(--portal-primary)" }}
-    >
+    <footer className="portal-gradient-band text-white">
       <div className="mx-auto max-w-6xl px-4 py-12">
         <div className="grid grid-cols-1 gap-10 md:grid-cols-4">
           {/* Col 1: Brand */}
@@ -150,7 +147,7 @@ const Footer = ({ theme, contactData, servicesData }) => {
 
             <a
               href="#contacto"
-              className="mt-6 inline-flex w-full items-center justify-center rounded-md bg-white px-5 py-3 font-semibold hover:opacity-90 transition"
+              className="mt-6 inline-flex w-full items-center justify-center rounded-md bg-white px-5 py-3 font-semibold transition hover:-translate-y-0.5 hover:opacity-90"
               style={{ color: "var(--portal-primary)" }}
             >
               Contáctenos

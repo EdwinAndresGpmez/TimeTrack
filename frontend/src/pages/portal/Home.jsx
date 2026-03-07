@@ -15,6 +15,7 @@ import Equipo from "../../components/portal/Equipo";
 import Testimonios from "../../components/portal/Testimonios";
 import VideoGaleria from "../../components/portal/VideoGaleria";
 import Contacto from "../../components/portal/Contacto";
+import "../../components/portal/portalTheme.css";
 
 // Usa la misma base URL que ya vienes usando
 const BASE_URL = import.meta?.env?.VITE_PORTAL_MS_URL || "http://localhost:8007";
@@ -51,18 +52,17 @@ const Home = () => {
   // 1) Aplicar Theme a CSS vars
   // --------------------------
   useEffect(() => {
-    if (!theme) return;
-
     const root = document.documentElement;
+    const t = theme || {};
 
     // Variables CSS (usaremos estas en componentes con style / tailwind arbitrary values)
-    root.style.setProperty("--portal-primary", theme.primary_color || "#2f7ecb");
-    root.style.setProperty("--portal-secondary", theme.secondary_color || "#0f172a");
-    root.style.setProperty("--portal-accent", theme.accent_color || "#34d399");
-    root.style.setProperty("--portal-bg", theme.background_color || "#ffffff");
-    root.style.setProperty("--portal-surface", theme.surface_color || "#efefef");
-    root.style.setProperty("--portal-text", theme.text_color || "#0f172a");
-    root.style.setProperty("--portal-radius", `${theme.border_radius ?? 12}px`);
+    root.style.setProperty("--portal-primary", t.primary_color || "#2f7ecb");
+    root.style.setProperty("--portal-secondary", t.secondary_color || "#0f172a");
+    root.style.setProperty("--portal-accent", t.accent_color || "#34d399");
+    root.style.setProperty("--portal-bg", t.background_color || "#ffffff");
+    root.style.setProperty("--portal-surface", t.surface_color || "#efefef");
+    root.style.setProperty("--portal-text", t.text_color || "#0f172a");
+    root.style.setProperty("--portal-radius", `${t.border_radius ?? 12}px`);
   }, [theme]);
 
   // --------------------------
@@ -77,8 +77,8 @@ const Home = () => {
         setError("");
 
         const [tRes, pRes] = await Promise.all([
-          fetch(`${BASE_URL}/api/v1/portal/theme/`),
-          fetch(`${BASE_URL}/api/v1/portal/pages/home/`),
+          fetch(`${BASE_URL}/api/v1/portal/theme/`, { cache: "no-store" }),
+          fetch(`${BASE_URL}/api/v1/portal/pages/home/`, { cache: "no-store" }),
         ]);
 
         const tData = tRes.ok ? await tRes.json() : null;
@@ -131,7 +131,8 @@ const Home = () => {
         return <ServiciosMedicos data={data} />;
       case "how_we_work":
         return <ComoTrabajamos data={data} />;
-      // TresColumnasInfo hoy no está en el CMS, si luego quieres lo metemos como type nuevo
+      case "three_cols":
+        return <TresColumnasInfo data={data} />;
       case "values":
         return <Valores data={data} />;
       case "team":

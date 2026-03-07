@@ -1,4 +1,5 @@
 import React, { useMemo } from "react";
+import RevealOnView from "./RevealOnView";
 
 const TresColumnasInfo = ({ data }) => {
   // Estructura esperada del CMS:
@@ -50,13 +51,10 @@ const TresColumnasInfo = ({ data }) => {
   if (!hasAny) return null;
 
   return (
-    <section
-      className="py-16"
-      style={{ backgroundColor: "var(--portal-surface)" }}
-    >
+    <section className="portal-section-alt py-16">
       <div className="mx-auto max-w-6xl px-4">
         {(title || subtitle) && (
-          <div className="text-center">
+          <div className="portal-fade-up text-center">
             {title && (
               <h2
                 className="text-4xl lg:text-5xl font-extrabold"
@@ -66,57 +64,59 @@ const TresColumnasInfo = ({ data }) => {
               </h2>
             )}
             {subtitle && (
-              <p className="mt-4 text-sm text-slate-600">{subtitle}</p>
+              <p className="portal-muted mt-4 text-sm">{subtitle}</p>
             )}
           </div>
         )}
 
-        <div className="mt-12 grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="portal-stagger mt-12 grid grid-cols-1 gap-6 lg:grid-cols-3">
           {columns.map((c, idx) => {
             const imgUrl = c?.image_asset?.file_url || "";
+            const variant = idx % 4 === 0 ? "left" : idx % 4 === 1 ? "top" : idx % 4 === 2 ? "right" : "bottom";
             return (
-              <div
-                key={idx}
-                className="rounded-2xl border border-black/5 bg-white p-7 shadow-sm"
-                style={{ borderRadius: "var(--portal-radius)" }}
-              >
-                <div className="flex items-center gap-3">
-                  <div
-                    className="flex h-10 w-10 items-center justify-center rounded-full text-white font-extrabold"
-                    style={{ backgroundColor: "var(--portal-primary)" }}
-                  >
-                    {(c?.title || "").slice(0, 2) || "?"}
+              <RevealOnView key={idx} variant={variant} delay={idx * 90}>
+                <div
+                  className="portal-card portal-card-hover rounded-2xl p-7"
+                  style={{ borderRadius: "var(--portal-radius)" }}
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="flex h-10 w-10 items-center justify-center rounded-full text-white font-extrabold"
+                      style={{ backgroundColor: "var(--portal-primary)" }}
+                    >
+                      {(c?.title || "").slice(0, 2) || "?"}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-base font-extrabold truncate" style={{ color: "var(--portal-text)" }}>
+                        {c?.subtitle || `Columna ${idx + 1}`}
+                      </p>
+                      {c?.small && (
+                        <p className="portal-soft text-xs truncate">{c.small}</p>
+                      )}
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <p className="text-base font-extrabold text-slate-900 truncate">
-                      {c?.subtitle || `Columna ${idx + 1}`}
-                    </p>
-                    {c?.small && (
-                      <p className="text-xs text-slate-500 truncate">{c.small}</p>
-                    )}
-                  </div>
-                </div>
 
-                {imgUrl && (
-                  <div className="mt-5 overflow-hidden rounded-xl bg-slate-100">
-                    <img
-                      src={imgUrl}
-                      alt={c?.subtitle || "imagen"}
-                      className="h-40 w-full object-cover"
-                    />
-                  </div>
-                )}
+                  {imgUrl && (
+                    <div className="mt-5 overflow-hidden rounded-xl" style={{ backgroundColor: "var(--portal-surface)" }}>
+                      <img
+                        src={imgUrl}
+                        alt={c?.subtitle || "imagen"}
+                        className="h-40 w-full object-cover transition duration-500 hover:scale-[1.03]"
+                      />
+                    </div>
+                  )}
 
-                <p className="mt-5 text-sm text-slate-600 leading-relaxed">
-                  {c?.text || "Texto editable desde el CMS."}
-                </p>
-
-                {c?.image_asset_id && !c?.image_asset?.file_url && (
-                  <p className="mt-2 text-[11px] text-amber-600">
-                    Asset {c.image_asset_id} no encontrado o sin URL.
+                  <p className="portal-muted mt-5 text-sm leading-relaxed">
+                    {c?.text || "Texto editable desde el CMS."}
                   </p>
-                )}
-              </div>
+
+                  {c?.image_asset_id && !c?.image_asset?.file_url && (
+                    <p className="mt-2 text-[11px] text-amber-600">
+                      Asset {c.image_asset_id} no encontrado o sin URL.
+                    </p>
+                  )}
+                </div>
+              </RevealOnView>
             );
           })}
         </div>

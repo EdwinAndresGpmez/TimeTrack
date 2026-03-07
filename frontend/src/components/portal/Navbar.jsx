@@ -43,11 +43,11 @@ const Navbar = ({ theme }) => {
   const logoUrl = theme?.logo_url || "";
 
   return (
-    <header className="sticky top-0 z-50">
+    <header className="sticky top-0 z-50 portal-fade-up">
       {/* Top strip */}
       <div
         className="text-white"
-        style={{ backgroundColor: "var(--portal-primary)" }}
+        style={{ backgroundColor: "var(--portal-primary, #2f7ecb)" }}
       >
         <div className="mx-auto max-w-6xl px-4 py-2">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -73,7 +73,13 @@ const Navbar = ({ theme }) => {
       </div>
 
       {/* Main nav */}
-      <nav className="bg-white shadow-sm">
+      <nav
+        className="border-b shadow-sm"
+        style={{
+          backgroundColor: "var(--portal-secondary, #0f172a)",
+          borderColor: "color-mix(in srgb, var(--portal-bg) 18%, transparent)",
+        }}
+      >
         <div className="mx-auto max-w-6xl px-4 py-4">
           <div className="flex items-center justify-between">
             {/* Brand */}
@@ -82,8 +88,8 @@ const Navbar = ({ theme }) => {
                 <img
                   src={logoUrl}
                   alt={brandName}
-                  className="h-10 w-10 rounded object-cover bg-slate-100"
-                  style={{ borderRadius: "var(--portal-radius)" }}
+                  className="max-h-12 w-auto max-w-[220px] object-contain"
+                  style={{ backgroundColor: "transparent" }}
                   onError={(e) => {
                     // fallback si el logo no carga por ruta/mime
                     e.currentTarget.style.display = "none";
@@ -100,10 +106,10 @@ const Navbar = ({ theme }) => {
               )}
 
               <div className="leading-tight">
-                <p className="text-base font-extrabold text-slate-900">
+                <p className="text-base font-extrabold" style={{ color: "var(--portal-bg, #ffffff)" }}>
                   {brandName}
                 </p>
-                <p className="text-xs text-slate-500">Centro médico de salud</p>
+                <p className="text-xs" style={{ color: "color-mix(in srgb, var(--portal-bg, #ffffff) 78%, transparent)" }}>Centro médico de salud</p>
               </div>
             </Link>
 
@@ -115,8 +121,8 @@ const Navbar = ({ theme }) => {
                   to={item.path}
                   className={`text-sm font-semibold transition ${
                     isActive(item.path)
-                      ? "text-[var(--portal-primary)]"
-                      : "text-slate-700 hover:text-[var(--portal-primary)]"
+                      ? "text-[var(--portal-accent)]"
+                      : "text-white/85 hover:text-[var(--portal-accent)]"
                   }`}
                 >
                   {item.label}
@@ -125,8 +131,12 @@ const Navbar = ({ theme }) => {
 
               <button
                 onClick={handleAgendarClick}
-                className="rounded-md px-5 py-2.5 text-sm font-semibold text-white hover:opacity-90 transition"
-                style={{ backgroundColor: "var(--portal-primary)" }}
+                className="rounded-md px-5 py-2.5 text-sm font-semibold hover:opacity-90 transition"
+                style={{
+                  backgroundColor: "var(--portal-accent)",
+                  color: "var(--portal-bg, #ffffff)",
+                  borderRadius: "calc(var(--portal-radius) - 6px)",
+                }}
               >
                 Agendar cita
               </button>
@@ -135,7 +145,8 @@ const Navbar = ({ theme }) => {
             {/* Mobile button */}
             <button
               onClick={() => setIsOpen((v) => !v)}
-              className="inline-flex items-center justify-center rounded-md border border-slate-200 p-2 text-slate-700 lg:hidden"
+              className="inline-flex items-center justify-center rounded-md border p-2 text-white lg:hidden"
+              style={{ borderColor: "color-mix(in srgb, var(--portal-bg) 24%, transparent)" }}
               aria-label="Abrir menú"
             >
               {isOpen ? <FaTimes /> : <FaBars />}
@@ -144,7 +155,13 @@ const Navbar = ({ theme }) => {
 
           {/* Mobile menu */}
           {isOpen && (
-            <div className="mt-4 rounded-lg border border-slate-200 bg-white p-4 lg:hidden">
+            <div
+              className="mt-4 rounded-lg border p-4 lg:hidden"
+              style={{
+                backgroundColor: "color-mix(in srgb, var(--portal-secondary, #0f172a) 84%, black 16%)",
+                borderColor: "color-mix(in srgb, var(--portal-bg) 24%, transparent)",
+              }}
+            >
               <div className="flex flex-col gap-3">
                 {menuItems.map((item) => (
                   <Link
@@ -153,8 +170,8 @@ const Navbar = ({ theme }) => {
                     onClick={() => setIsOpen(false)}
                     className={`text-sm font-semibold ${
                       isActive(item.path)
-                        ? "text-[var(--portal-primary)]"
-                        : "text-slate-700 hover:text-[var(--portal-primary)]"
+                        ? "text-[var(--portal-accent)]"
+                        : "text-white/85 hover:text-[var(--portal-accent)]"
                     }`}
                   >
                     {item.label}
@@ -166,8 +183,12 @@ const Navbar = ({ theme }) => {
                     setIsOpen(false);
                     handleAgendarClick(e);
                   }}
-                  className="mt-2 rounded-md px-5 py-2.5 text-sm font-semibold text-white hover:opacity-90 transition"
-                  style={{ backgroundColor: "var(--portal-primary)" }}
+                  className="mt-2 rounded-md px-5 py-2.5 text-sm font-semibold hover:opacity-90 transition"
+                  style={{
+                    backgroundColor: "var(--portal-accent)",
+                    color: "var(--portal-bg, #ffffff)",
+                    borderRadius: "calc(var(--portal-radius) - 6px)",
+                  }}
                 >
                   Agendar cita
                 </button>

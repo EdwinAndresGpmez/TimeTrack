@@ -1,4 +1,5 @@
 import logging
+import os
 from datetime import date, datetime, timedelta, time
 
 import requests
@@ -19,7 +20,12 @@ from .utils.audit_client import audit_log
 logger = logging.getLogger(__name__)
 
 # Ajusta la URL si tu docker-compose usa otro nombre
-APPOINTMENTS_API_URL = "http://appointments-ms:8000/api/v1/citas/"
+APPOINTMENTS_API_URL = "http://appointments-ms:8004/api/v1/citas/"
+
+
+def _internal_headers():
+    token = os.getenv("INTERNAL_SERVICE_TOKEN", "").strip()
+    return {"X-INTERNAL-TOKEN": token} if token else {}
 
 
 def _uid(request):
@@ -65,7 +71,7 @@ class DisponibilidadViewSet(viewsets.ModelViewSet):
                 f_fin_str = fecha_fin.strftime("%Y-%m-%d") if isinstance(fecha_fin, (date, datetime)) else fecha_fin
                 params["fecha_fin"] = f_fin_str
 
-            response = requests.get(APPOINTMENTS_API_URL, params=params, timeout=5)
+            response = requests.get(APPOINTMENTS_API_URL, params=params, timeout=5, headers=_internal_headers())
             return response.json() if response.status_code == 200 else []
         except Exception as e:
             logger.error(f"Error contactando Appointments MS: {e}")
@@ -526,7 +532,7 @@ class SlotGeneratorView(APIView):
         url_citas = f"{APPOINTMENTS_API_URL}?profesional_id={profesional_id}&fecha={fecha_str}"
         citas_ocupadas = []
         try:
-            resp = requests.get(url_citas, timeout=3)
+            resp = requests.get(url_citas, timeout=3, headers=_internal_headers())
             if resp.status_code == 200:
                 for c in resp.json():
                     if c.get("estado") not in ["CANCELADA", "RECHAZADA"]:

@@ -98,8 +98,8 @@ const PreviewHero = ({ data, bannersById }) => {
 
   return (
     <div className="rounded-2xl border border-slate-200 overflow-hidden bg-white">
-      <div className="bg-slate-50 px-4 py-2 text-xs font-extrabold text-slate-700">Preview: HERO</div>
-      <div className="grid grid-cols-[140px_1fr] gap-4 p-4">
+      <div className="bg-slate-50 px-4 py-2 text-xs font-extrabold text-slate-700">Vista previa: HERO</div>
+      <div className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-[140px_1fr]">
         <div className="aspect-[4/3] rounded-xl overflow-hidden bg-slate-100">
           {img ? <img src={img} alt="hero" className="h-full w-full object-cover" /> : <div className="h-full w-full flex items-center justify-center text-xs text-slate-400">Sin imagen</div>}
         </div>
@@ -121,7 +121,7 @@ const PreviewFeatures = ({ data }) => {
   const items = Array.isArray(data?.items) ? data.items : [];
   return (
     <div className="rounded-2xl border border-slate-200 overflow-hidden bg-white">
-      <div className="bg-slate-50 px-4 py-2 text-xs font-extrabold text-slate-700">Preview: FEATURES</div>
+      <div className="bg-slate-50 px-4 py-2 text-xs font-extrabold text-slate-700">Vista previa: CARACTERÍSTICAS</div>
       <div className="grid grid-cols-1 gap-3 p-4">
         {(items.length ? items : [{ title: "Item", text: "..." }]).slice(0, 2).map((it, i) => (
           <div key={i} className="rounded-xl bg-slate-50 p-3">
@@ -138,7 +138,7 @@ const PreviewServices = ({ data, assetsById }) => {
   const items = Array.isArray(data?.items) ? data.items : [];
   return (
     <div className="rounded-2xl border border-slate-200 overflow-hidden bg-white">
-      <div className="bg-slate-50 px-4 py-2 text-xs font-extrabold text-slate-700">Preview: SERVICES</div>
+      <div className="bg-slate-50 px-4 py-2 text-xs font-extrabold text-slate-700">Vista previa: SERVICIOS</div>
       <div className="grid grid-cols-1 gap-3 p-4">
         {(items.length ? items : [{ title: "Servicio", text: "..." }]).slice(0, 4).map((it, i) => {
           const aid = it?.image_asset_id;
@@ -174,6 +174,168 @@ const Field = ({ label, children, hint }) => (
     <div className="mt-1">{children}</div>
   </div>
 );
+
+const DEFAULT_THEME_PREVIEW = {
+  company_name: "Mi Empresa",
+  primary_color: "#2f7ecb",
+  secondary_color: "#0f172a",
+  accent_color: "#34d399",
+  background_color: "#ffffff",
+  surface_color: "#efefef",
+  text_color: "#0f172a",
+  border_radius: 12,
+};
+
+const PreviewSimpleSection = ({ type, data }) => {
+  const map = {
+    how_we_work: "CÃ³mo trabajamos",
+    three_cols: "InformaciÃ³n destacada",
+    values: "Nuestros valores",
+    team: "Nuestro equipo",
+    testimonials: "Testimonios",
+    videos: "GalerÃ­a de videos",
+    contact: "Contacto",
+    custom: "SecciÃ³n personalizada",
+  };
+  const title = data?.title || map[type] || type;
+  const subtitle = data?.subtitle || "Contenido configurable desde el CMS.";
+  const count =
+    (Array.isArray(data?.items) && data.items.length) ||
+    (Array.isArray(data?.members) && data.members.length) ||
+    (Array.isArray(data?.columns) && data.columns.length) ||
+    0;
+
+  return (
+    <div className="rounded-2xl border border-slate-200 overflow-hidden bg-white">
+      <div className="bg-slate-50 px-4 py-2 text-xs font-extrabold text-slate-700">
+        Vista previa: {String(type || "").toUpperCase()}
+      </div>
+      <div className="p-4">
+        <p className="text-lg font-black text-slate-900">{title}</p>
+        <p className="mt-1 text-sm text-slate-600">{subtitle}</p>
+        <div className="mt-3 inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
+          Elementos detectados: {count}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const HEX_COLOR_6 = /^#([0-9a-f]{6})$/i;
+const HEX_COLOR_3 = /^#([0-9a-f]{3})$/i;
+
+const toColorValue = (value, fallback) => {
+  const txt = String(value || "").trim();
+  if (HEX_COLOR_6.test(txt)) return txt;
+  if (HEX_COLOR_3.test(txt)) {
+    const s = txt.slice(1);
+    return `#${s[0]}${s[0]}${s[1]}${s[1]}${s[2]}${s[2]}`;
+  }
+  return fallback;
+};
+
+const ColorField = ({ label, value, onChange, fallback, description }) => {
+  const safe = toColorValue(value, fallback);
+  const isValid = HEX_COLOR_6.test(String(value || "").trim()) || HEX_COLOR_3.test(String(value || "").trim());
+
+  return (
+    <Field label={label} hint="HEX o selector">
+      <div className="flex items-center gap-2">
+        <input
+          type="color"
+          value={safe}
+          onChange={(e) => onChange(e.target.value)}
+          className="h-10 w-12 cursor-pointer rounded-lg border border-slate-200 bg-white p-1"
+        />
+        <input
+          value={value || ""}
+          onChange={(e) => onChange(e.target.value)}
+          className={`w-full rounded-lg border px-3 py-2 text-sm ${isValid || !value ? "border-slate-200" : "border-amber-300"}`}
+          placeholder={fallback}
+        />
+        <span className="h-8 w-8 rounded-md border border-slate-200" style={{ backgroundColor: safe }} />
+      </div>
+      {description ? <p className="mt-1 text-[11px] text-slate-500">{description}</p> : null}
+    </Field>
+  );
+};
+
+const ThemePreviewCard = ({ theme }) => {
+  const t = {
+    ...DEFAULT_THEME_PREVIEW,
+    ...(theme || {}),
+  };
+
+  const radius = Number.isFinite(Number(t.border_radius)) ? Number(t.border_radius) : 12;
+
+  return (
+    <div className="rounded-2xl border border-slate-200 overflow-hidden bg-white">
+      <div className="bg-slate-50 px-4 py-2 text-xs font-extrabold text-slate-700">Vista previa del tema (sin guardar)</div>
+      <div
+        className="p-4"
+        style={{
+          backgroundColor: toColorValue(t.background_color, DEFAULT_THEME_PREVIEW.background_color),
+          color: toColorValue(t.text_color, DEFAULT_THEME_PREVIEW.text_color),
+        }}
+      >
+        <div className="rounded-xl border p-3" style={{ borderColor: "rgba(15,23,42,.12)", borderRadius: radius }}>
+          <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Ejemplo de encabezado / menu</p>
+          <div
+            className="mt-2 rounded-lg px-4 py-3"
+            style={{
+              backgroundColor: toColorValue(t.secondary_color, DEFAULT_THEME_PREVIEW.secondary_color),
+              color: "#ffffff",
+              borderRadius: Math.max(8, radius - 4),
+            }}
+          >
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-extrabold">{t.company_name || "Mi Empresa"}</p>
+              <div className="hidden items-center gap-3 text-[11px] font-semibold text-white/85 sm:flex">
+                <span>Inicio</span>
+                <span>Servicios</span>
+                <span>PQRS</span>
+              </div>
+              <button
+                type="button"
+                className="rounded-md px-3 py-1.5 text-[11px] font-extrabold"
+                style={{
+                  backgroundColor: toColorValue(t.accent_color, DEFAULT_THEME_PREVIEW.accent_color),
+                  color: toColorValue(t.background_color, DEFAULT_THEME_PREVIEW.background_color),
+                }}
+              >
+                Botón (acento)
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div
+          className="mt-3 rounded-xl border p-4"
+          style={{
+            backgroundColor: toColorValue(t.surface_color, DEFAULT_THEME_PREVIEW.surface_color),
+            borderRadius: radius,
+            borderColor: "rgba(15, 23, 42, 0.12)",
+          }}
+        >
+          <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Ejemplo de tarjeta</p>
+          <h3 className="mt-2 text-lg font-black" style={{ color: toColorValue(t.primary_color, DEFAULT_THEME_PREVIEW.primary_color) }}>
+            Título (primario)
+          </h3>
+          <p className="mt-1 text-sm" style={{ color: toColorValue(t.text_color, DEFAULT_THEME_PREVIEW.text_color) }}>
+            Texto principal del portal (color de texto).
+          </p>
+        </div>
+
+        <div className="mt-3 grid grid-cols-1 gap-2 text-[11px] sm:grid-cols-2">
+          <div className="rounded-lg border p-2" style={{ borderColor: "rgba(15,23,42,.12)" }}><b>Primario:</b> botones y títulos</div>
+          <div className="rounded-lg border p-2" style={{ borderColor: "rgba(15,23,42,.12)" }}><b>Secundario:</b> menú y bandas oscuras</div>
+          <div className="rounded-lg border p-2" style={{ borderColor: "rgba(15,23,42,.12)" }}><b>Acento:</b> resaltados y CTA</div>
+          <div className="rounded-lg border p-2" style={{ borderColor: "rgba(15,23,42,.12)" }}><b>Fondo/Superficie:</b> página y tarjetas</div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const HeroEditor = ({ value, onChange, banners }) => {
   const v = value || {};
@@ -218,7 +380,7 @@ const HeroEditor = ({ value, onChange, banners }) => {
         />
       </Field>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Field label="Texto botón">
           <input
             className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
@@ -272,7 +434,7 @@ const HeroEditor = ({ value, onChange, banners }) => {
                 </button>
               </div>
 
-              <div className="mt-2 grid grid-cols-2 gap-3">
+              <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <Field label="Banner">
                   <select
                     className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
@@ -448,7 +610,7 @@ const ServicesEditor = ({ value, onChange, mediaImages }) => {
                   />
                 </Field>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <Field label="Link">
                     <input
                       className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
@@ -457,7 +619,7 @@ const ServicesEditor = ({ value, onChange, mediaImages }) => {
                       placeholder="/servicios"
                     />
                   </Field>
-                  <Field label="Imagen (asset)" hint="ID en media">
+                  <Field label="Imagen (recurso)" hint="ID en multimedia">
                     <select
                       className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
                       value={it?.image_asset_id || ""}
@@ -469,7 +631,7 @@ const ServicesEditor = ({ value, onChange, mediaImages }) => {
                       <option value="">-- Sin imagen --</option>
                       {mediaImages.map((m) => (
                         <option key={m.id} value={m.id}>
-                          #{m.id} — {m.title || m.file_url || "asset"}
+                          #{m.id} — {m.title || m.file_url || "recurso"}
                         </option>
                       ))}
                     </select>
@@ -503,6 +665,7 @@ const AdminPortalContentStudio = () => {
   const [theme, setTheme] = useState(null);
   const [themeDraft, setThemeDraft] = useState(null);
   const [themeLogoFile, setThemeLogoFile] = useState(null);
+  const patchThemeDraft = (patch) => setThemeDraft((prev) => ({ ...(prev || {}), ...patch }));
 
   const [mediaList, setMediaList] = useState([]);
   const [mediaUpload, setMediaUpload] = useState({ type: "image", title: "", alt_text: "", tags: "", file: null });
@@ -821,12 +984,15 @@ const AdminPortalContentStudio = () => {
     if (t === "hero") return <PreviewHero data={data} bannersById={bannersById} />;
     if (t === "features") return <PreviewFeatures data={data} />;
     if (t === "services") return <PreviewServices data={data} assetsById={assetsById} />;
+    if (["how_we_work", "three_cols", "values", "team", "testimonials", "videos", "contact", "custom"].includes(t)) {
+      return <PreviewSimpleSection type={t} data={data} />;
+    }
 
     return (
       <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
-        <div className="bg-slate-50 px-4 py-2 text-xs font-extrabold text-slate-700">Preview</div>
+        <div className="bg-slate-50 px-4 py-2 text-xs font-extrabold text-slate-700">Vista previa</div>
         <div className="p-4 text-sm text-slate-600">
-          No hay preview visual para <b>{t}</b> todavía. Usa la pestaña JSON.
+          No hay vista previa visual para <b>{t}</b> todavía. Usa la pestaña JSON.
         </div>
       </div>
     );
@@ -849,7 +1015,7 @@ const AdminPortalContentStudio = () => {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <div className="mx-auto max-w-7xl px-4 py-8">
+      <div className="mx-auto max-w-7xl px-3 py-6 sm:px-4 sm:py-8">
         {/* Header */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-4">
@@ -858,7 +1024,7 @@ const AdminPortalContentStudio = () => {
             </div>
             <div>
               <h1 className="text-2xl font-black text-slate-900 tracking-tight">Portal Content Studio</h1>
-              <p className="text-sm text-slate-500">Editor visual + preview (sin escribir JSON a mano).</p>
+              <p className="text-sm text-slate-500">Editor visual + vista previa (sin escribir JSON a mano).</p>
             </div>
           </div>
 
@@ -877,11 +1043,11 @@ const AdminPortalContentStudio = () => {
 
         <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-[1fr_520px]">
           {/* LEFT: Sections list + preview */}
-          <div className="space-y-6">
-            <div className="rounded-[2rem] bg-white p-6 shadow-sm ring-1 ring-slate-200">
+          <div className="order-2 space-y-6 lg:order-1">
+            <div className="rounded-[2rem] bg-white p-4 shadow-sm ring-1 ring-slate-200 sm:p-6">
               <div className="flex items-center justify-between">
-                <h2 className="text-sm font-black tracking-widest text-slate-400 uppercase">Home Sections</h2>
-                <div className="flex items-center gap-2">
+                <h2 className="text-sm font-black tracking-widest text-slate-400 uppercase">Secciones Home</h2>
+                <div className="flex flex-wrap items-center gap-2">
                   <button
                     onClick={() => setTab("sections")}
                     className={`rounded-lg px-3 py-2 text-xs font-extrabold ${tab === "sections" ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700"}`}
@@ -894,14 +1060,14 @@ const AdminPortalContentStudio = () => {
                     className={`rounded-lg px-3 py-2 text-xs font-extrabold ${tab === "theme" ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700"}`}
                   >
                     <FaPalette className="inline-block mr-2" />
-                    Theme
+                    Tema
                   </button>
                   <button
                     onClick={() => setTab("media")}
                     className={`rounded-lg px-3 py-2 text-xs font-extrabold ${tab === "media" ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700"}`}
                   >
                     <FaPhotoVideo className="inline-block mr-2" />
-                    Media
+                    Multimedia
                   </button>
                 </div>
               </div>
@@ -940,7 +1106,7 @@ const AdminPortalContentStudio = () => {
           </div>
 
           {/* RIGHT: Editor */}
-          <div className="rounded-[2rem] bg-white p-6 shadow-sm ring-1 ring-slate-200">
+          <div className="order-1 rounded-[2rem] bg-white p-4 shadow-sm ring-1 ring-slate-200 sm:p-6 lg:order-2">
             {tab === "sections" && (
               <>
                 <h2 className="text-sm font-black tracking-widest text-slate-400 uppercase">Editor de sección</h2>
@@ -958,8 +1124,8 @@ const AdminPortalContentStudio = () => {
                       />
                     </Field>
 
-                    <div className="grid grid-cols-2 gap-3">
-                      <Field label="Type">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <Field label="Tipo">
                         <select
                           value={secType}
                           onChange={(e) => setSecType(e.target.value)}
@@ -969,6 +1135,7 @@ const AdminPortalContentStudio = () => {
                           <option value="features">features</option>
                           <option value="services">services</option>
                           <option value="how_we_work">how_we_work</option>
+                          <option value="three_cols">three_cols</option>
                           <option value="values">values</option>
                           <option value="team">team</option>
                           <option value="testimonials">testimonials</option>
@@ -978,7 +1145,7 @@ const AdminPortalContentStudio = () => {
                         
                         </select>
                       </Field>
-                      <Field label="Order">
+                      <Field label="Orden">
                         <input
                           type="number"
                           value={secOrder}
@@ -1014,7 +1181,7 @@ const AdminPortalContentStudio = () => {
                     ) : (
                       <div>
                         <div className="flex items-center justify-between">
-                          <label className="text-xs font-bold text-slate-600">Data (JSON)</label>
+                          <label className="text-xs font-bold text-slate-600">Datos (JSON)</label>
                           <span className="text-[11px] text-slate-400">Modo avanzado</span>
                         </div>
                         <textarea
@@ -1056,10 +1223,10 @@ const AdminPortalContentStudio = () => {
                     </div>
 
                     <div className="rounded-xl bg-slate-50 p-4 text-xs text-slate-600">
-                      <p className="font-bold text-slate-700">Tips</p>
+                      <p className="font-bold text-slate-700">Consejos</p>
                       <ul className="mt-2 list-disc ml-5 space-y-1">
                         <li>En <b>Hero</b> selecciona banners desde la lista (no escribas IDs).</li>
-                        <li>En <b>Servicios</b> puedes elegir imágenes desde la Media Library.</li>
+                        <li>En <b>Servicios</b> puedes elegir imágenes desde Multimedia.</li>
                         <li>Si necesitas algo especial, usa la pestaña <b>JSON</b> (modo avanzado).</li>
                       </ul>
                     </div>
@@ -1070,73 +1237,73 @@ const AdminPortalContentStudio = () => {
 
             {tab === "theme" && (
               <>
-                <h2 className="text-sm font-black tracking-widest text-slate-400 uppercase">Theme / Branding</h2>
+                <h2 className="text-sm font-black tracking-widest text-slate-400 uppercase">Tema / Marca visual</h2>
 
                 <div className="mt-5 space-y-4">
-                  <Field label="Nombre empresa">
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">
+                    Ajusta colores con la paleta y revisa la vista previa. Cada etiqueta indica exactamente donde se usa ese color en el portal.
+                  </div>
+
+                  <Field label="Nombre de la empresa">
                     <input
                       value={themeDraft?.company_name || ""}
-                      onChange={(e) => setThemeDraft({ ...themeDraft, company_name: e.target.value })}
+                      onChange={(e) => patchThemeDraft({ company_name: e.target.value })}
                       className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
                     />
                   </Field>
 
-                  <div className="grid grid-cols-2 gap-3">
-                    <Field label="Primary">
-                      <input
-                        value={themeDraft?.primary_color || ""}
-                        onChange={(e) => setThemeDraft({ ...themeDraft, primary_color: e.target.value })}
-                        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                        placeholder="#2f7ecb"
-                      />
-                    </Field>
-                    <Field label="Secondary">
-                      <input
-                        value={themeDraft?.secondary_color || ""}
-                        onChange={(e) => setThemeDraft({ ...themeDraft, secondary_color: e.target.value })}
-                        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                        placeholder="#0f172a"
-                      />
-                    </Field>
-                    <Field label="Accent">
-                      <input
-                        value={themeDraft?.accent_color || ""}
-                        onChange={(e) => setThemeDraft({ ...themeDraft, accent_color: e.target.value })}
-                        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                        placeholder="#34d399"
-                      />
-                    </Field>
-                    <Field label="Background">
-                      <input
-                        value={themeDraft?.background_color || ""}
-                        onChange={(e) => setThemeDraft({ ...themeDraft, background_color: e.target.value })}
-                        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                        placeholder="#ffffff"
-                      />
-                    </Field>
-                    <Field label="Surface">
-                      <input
-                        value={themeDraft?.surface_color || ""}
-                        onChange={(e) => setThemeDraft({ ...themeDraft, surface_color: e.target.value })}
-                        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                        placeholder="#efefef"
-                      />
-                    </Field>
-                    <Field label="Text">
-                      <input
-                        value={themeDraft?.text_color || ""}
-                        onChange={(e) => setThemeDraft({ ...themeDraft, text_color: e.target.value })}
-                        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                        placeholder="#0f172a"
-                      />
-                    </Field>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <ColorField
+                      label="Primario"
+                      value={themeDraft?.primary_color || ""}
+                      onChange={(v) => patchThemeDraft({ primary_color: v })}
+                      fallback={DEFAULT_THEME_PREVIEW.primary_color}
+                      description="Titulos principales y botones primarios."
+                    />
+                    <ColorField
+                      label="Secundario"
+                      value={themeDraft?.secondary_color || ""}
+                      onChange={(v) => patchThemeDraft({ secondary_color: v })}
+                      fallback={DEFAULT_THEME_PREVIEW.secondary_color}
+                      description="Barra del menu superior y zonas de contraste."
+                    />
+                    <ColorField
+                      label="Acento"
+                      value={themeDraft?.accent_color || ""}
+                      onChange={(v) => patchThemeDraft({ accent_color: v })}
+                      fallback={DEFAULT_THEME_PREVIEW.accent_color}
+                      description="Resaltados y llamados a la accion (CTA)."
+                    />
+                    <ColorField
+                      label="Fondo"
+                      value={themeDraft?.background_color || ""}
+                      onChange={(v) => patchThemeDraft({ background_color: v })}
+                      fallback={DEFAULT_THEME_PREVIEW.background_color}
+                      description="Fondo base general de la pagina."
+                    />
+                    <ColorField
+                      label="Superficie"
+                      value={themeDraft?.surface_color || ""}
+                      onChange={(v) => patchThemeDraft({ surface_color: v })}
+                      fallback={DEFAULT_THEME_PREVIEW.surface_color}
+                      description="Tarjetas, bloques y contenedores."
+                    />
+                    <ColorField
+                      label="Texto"
+                      value={themeDraft?.text_color || ""}
+                      onChange={(v) => patchThemeDraft({ text_color: v })}
+                      fallback={DEFAULT_THEME_PREVIEW.text_color}
+                      description="Texto principal y contenido legible."
+                    />
                   </div>
 
-                  <Field label="Border radius">
+                  <ThemePreviewCard theme={themeDraft} />
+
+                  <Field label="Redondeo de bordes">
                     <input
                       type="number"
                       value={themeDraft?.border_radius ?? 12}
-                      onChange={(e) => setThemeDraft({ ...themeDraft, border_radius: Number(e.target.value) })}
+                      onChange={(e) => patchThemeDraft({ border_radius: Number(e.target.value) })}
                       className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
                     />
                   </Field>
@@ -1161,7 +1328,7 @@ const AdminPortalContentStudio = () => {
                     className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-extrabold text-white hover:opacity-90"
                     disabled={loading}
                   >
-                    <FaSave /> Guardar theme
+                    <FaSave /> Guardar tema
                   </button>
                 </div>
               </>
@@ -1169,14 +1336,14 @@ const AdminPortalContentStudio = () => {
 
             {tab === "media" && (
               <>
-                <h2 className="text-sm font-black tracking-widest text-slate-400 uppercase">Media Library</h2>
+                <h2 className="text-sm font-black tracking-widest text-slate-400 uppercase">Biblioteca multimedia</h2>
 
                 <div className="mt-5 space-y-4">
                   <div className="rounded-xl border border-slate-200 p-4">
-                    <p className="text-sm font-extrabold text-slate-900">Subir nuevo asset</p>
+                    <p className="text-sm font-extrabold text-slate-900">Subir nuevo recurso</p>
 
-                    <div className="mt-3 grid grid-cols-2 gap-3">
-                      <Field label="Type">
+                    <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <Field label="Tipo">
                         <select
                           value={mediaUpload.type}
                           onChange={(e) => setMediaUpload({ ...mediaUpload, type: e.target.value })}
@@ -1228,12 +1395,12 @@ const AdminPortalContentStudio = () => {
                       className="mt-2 inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-sm font-extrabold text-white hover:opacity-90"
                       disabled={loading}
                     >
-                      <FaPlus /> Subir asset
+                      <FaPlus /> Subir recurso
                     </button>
                   </div>
 
                   <div className="rounded-xl border border-slate-200 p-4">
-                    <p className="text-sm font-extrabold text-slate-900">Assets ({mediaList.length})</p>
+                    <p className="text-sm font-extrabold text-slate-900">Recursos ({mediaList.length})</p>
 
                     <div className="mt-3 max-h-[420px] overflow-auto space-y-3 pr-1">
                       {mediaList.map((m) => (
@@ -1254,7 +1421,7 @@ const AdminPortalContentStudio = () => {
                         </div>
                       ))}
 
-                      {mediaList.length === 0 && <p className="text-sm text-slate-500">No hay assets todavía.</p>}
+                      {mediaList.length === 0 && <p className="text-sm text-slate-500">No hay recursos todavía.</p>}
                     </div>
                   </div>
                 </div>

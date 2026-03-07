@@ -56,27 +56,27 @@ const Contacto = ({ data, onAgendarCita, onIrPQRS }) => {
   };
 
   return (
-    <section id="contacto" className="bg-white">
+    <section id="contacto" className="portal-section-alt">
       <div className="mx-auto max-w-6xl px-4 py-16">
-        <div className="text-center">
+        <div className="portal-fade-up text-center">
           <h2
             className="text-4xl lg:text-5xl font-extrabold"
             style={{ color: "var(--portal-primary)" }}
           >
             {title}
           </h2>
-          <p className="mt-4 text-sm text-slate-500">{subtitle}</p>
+          <p className="portal-muted mt-4 text-sm">{subtitle}</p>
         </div>
 
         <div className="mt-12 grid grid-cols-1 gap-8 lg:grid-cols-2">
           {/* Info + CTAs */}
           <div
-            className="rounded-2xl border border-black/5 p-8 shadow-sm"
+            className="portal-card portal-card-hover rounded-2xl p-8"
             style={{ borderRadius: "var(--portal-radius)", backgroundColor: "var(--portal-surface)" }}
           >
-            <p className="text-sm font-extrabold text-slate-900">Información de contacto</p>
+            <p className="text-sm font-extrabold" style={{ color: "var(--portal-text)" }}>Información de contacto</p>
 
-            <div className="mt-5 space-y-3 text-sm text-slate-700">
+            <div className="portal-muted mt-5 space-y-3 text-sm">
               <p>
                 <span className="font-bold">Dirección:</span> {address}
               </p>
@@ -111,7 +111,7 @@ const Contacto = ({ data, onAgendarCita, onIrPQRS }) => {
             </div>
 
             {data?.note && (
-              <p className="mt-5 text-xs text-slate-500">
+              <p className="portal-soft mt-5 text-xs">
                 {data.note}
               </p>
             )}
@@ -119,42 +119,45 @@ const Contacto = ({ data, onAgendarCita, onIrPQRS }) => {
 
           {/* Formulario (visual por ahora) */}
           <div
-            className="rounded-2xl border border-black/5 bg-white p-8 shadow-sm"
+            className="portal-card portal-card-hover rounded-2xl p-8"
             style={{ borderRadius: "var(--portal-radius)" }}
           >
-            <p className="text-sm font-extrabold text-slate-900">Envíanos un mensaje</p>
-            <p className="mt-2 text-xs text-slate-500">
+            <p className="text-sm font-extrabold" style={{ color: "var(--portal-text)" }}>Envíanos un mensaje</p>
+            <p className="portal-soft mt-2 text-xs">
               (Este formulario es configurable. Si quieres, luego lo conectamos a un endpoint real.)
             </p>
 
             <form onSubmit={submitFake} className="mt-6 space-y-4">
               <div>
-                <label className="text-xs font-bold text-slate-600">Nombre</label>
+                <label className="portal-muted text-xs font-bold">Nombre</label>
                 <input
                   value={form.nombre}
                   onChange={(e) => setForm({ ...form, nombre: e.target.value })}
-                  className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-200"
+                  className="mt-1 w-full rounded-lg border px-3 py-2 text-sm outline-none transition focus:ring-2"
+                  style={{ borderColor: "color-mix(in srgb, var(--portal-text) 16%, white 84%)", color: "var(--portal-text)" }}
                   placeholder="Tu nombre"
                 />
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-600">Correo</label>
+                <label className="portal-muted text-xs font-bold">Correo</label>
                 <input
                   value={form.correo}
                   onChange={(e) => setForm({ ...form, correo: e.target.value })}
-                  className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-200"
+                  className="mt-1 w-full rounded-lg border px-3 py-2 text-sm outline-none transition focus:ring-2"
+                  style={{ borderColor: "color-mix(in srgb, var(--portal-text) 16%, white 84%)", color: "var(--portal-text)" }}
                   placeholder="tu@email.com"
                 />
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-600">Mensaje</label>
+                <label className="portal-muted text-xs font-bold">Mensaje</label>
                 <textarea
                   value={form.mensaje}
                   onChange={(e) => setForm({ ...form, mensaje: e.target.value })}
                   rows={5}
-                  className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-200"
+                  className="mt-1 w-full rounded-lg border px-3 py-2 text-sm outline-none transition focus:ring-2"
+                  style={{ borderColor: "color-mix(in srgb, var(--portal-text) 16%, white 84%)", color: "var(--portal-text)" }}
                   placeholder="Escribe tu mensaje..."
                 />
               </div>

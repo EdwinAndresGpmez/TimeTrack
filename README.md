@@ -280,3 +280,18 @@ docker compose run --rm -v ${PWD}/pyproject.toml:/app/pyproject.toml ia-ms ruff 
 # comando para ejecutar los .py de commands desde cualquiere microservicio: 
 
 - docker exec -it portal_service  python manage.py seed_portal_content
+
+
+Este prompt es brutal para refactorizar:
+
+Based on this project structure, suggest improvements to make the architecture more scalable and maintainable.
+
+Te propone:
+
+nuevos servicios
+
+mejores capas
+
+optimización de base de datos
+
+mejores prácticas.

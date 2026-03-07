@@ -14,12 +14,13 @@ DEFAULT_SECTIONS = [
     ("features", "Franja de características", 20),
     ("services", "Servicios", 30),
     ("how_we_work", "Cómo trabajamos", 40),
-    ("values", "Valores", 50),
-    ("team", "Equipo", 60),
-    ("testimonials", "Testimonios", 70),
-    ("videos", "Video galerías", 80),
-    ("contact", "Contacto", 90),
-    ("custom", "Sección personalizada", 100),
+    ("three_cols", "Tres columnas info", 50),
+    ("values", "Valores", 60),
+    ("team", "Equipo", 70),
+    ("testimonials", "Testimonios", 80),
+    ("videos", "Video galerías", 90),
+    ("contact", "Contacto", 100),
+    ("custom", "Sección personalizada", 110),
 ]
 
 
@@ -169,6 +170,31 @@ class Command(BaseCommand):
             ],
         }
 
+        three_cols_data = {
+            "title": "Informacion destacada",
+            "subtitle": "Texto editable para el bloque de tres columnas.",
+            "columns": [
+                {
+                    "title": "UN",
+                    "subtitle": "Titulo columna 1",
+                    "text": "Contenido editable desde el CMS (columna 1).",
+                    "image_asset_id": None,
+                },
+                {
+                    "title": "B",
+                    "subtitle": "Titulo columna 2",
+                    "text": "Contenido editable desde el CMS (columna 2).",
+                    "image_asset_id": None,
+                },
+                {
+                    "title": "C",
+                    "subtitle": "Titulo columna 3",
+                    "text": "Contenido editable desde el CMS (columna 3).",
+                    "image_asset_id": None,
+                },
+            ],
+        }
+
         team_data = {
             "title": "Nuestro equipo",
             "subtitle": "Texto editable.",
@@ -217,6 +243,7 @@ class Command(BaseCommand):
             "features": features_data,
             "services": services_data,
             "how_we_work": how_data,
+            "three_cols": three_cols_data,
             "values": values_data,
             "team": team_data,
             "testimonials": testimonials_data,

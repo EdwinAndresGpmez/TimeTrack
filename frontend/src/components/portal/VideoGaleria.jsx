@@ -2,10 +2,6 @@ import React, { useEffect, useMemo, useState } from "react";
 import { getVideos } from "../../services/portalContentApi";
 
 function toYouTubeEmbed(url) {
-  // acepta:
-  // - https://www.youtube.com/watch?v=ID
-  // - https://youtu.be/ID
-  // - https://www.youtube.com/embed/ID
   try {
     const u = new URL(url);
     if (u.hostname.includes("youtu.be")) {
@@ -24,9 +20,6 @@ function toYouTubeEmbed(url) {
 }
 
 function toVimeoEmbed(url) {
-  // acepta:
-  // - https://vimeo.com/ID
-  // - https://player.vimeo.com/video/ID
   try {
     const u = new URL(url);
     if (u.hostname.includes("player.vimeo.com") && u.pathname.includes("/video/")) {
@@ -54,9 +47,15 @@ const VideoCard = ({ item }) => {
   const hasFile = Boolean(item?.archivo_video_url);
 
   return (
-    <article className="overflow-hidden rounded-xl border border-black/5 bg-white shadow-sm">
-      {/* Media */}
-      <div className="bg-slate-100">
+    <article
+      className="portal-card-hover overflow-hidden rounded-xl border shadow-sm"
+      style={{
+        borderRadius: "var(--portal-radius)",
+        borderColor: "rgba(15, 23, 42, 0.08)",
+        backgroundColor: "var(--portal-bg)",
+      }}
+    >
+      <div style={{ backgroundColor: "var(--portal-surface)" }}>
         {hasExternal ? (
           embedUrl ? (
             <div className="relative w-full aspect-video">
@@ -80,14 +79,15 @@ const VideoCard = ({ item }) => {
                   href={item.url_externa}
                   target="_blank"
                   rel="noreferrer"
-                  className="rounded-md bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:opacity-90"
+                  className="rounded-md bg-white px-4 py-2 text-sm font-semibold hover:opacity-90"
+                  style={{ color: "var(--portal-secondary)" }}
                 >
                   Abrir video
                 </a>
               </div>
             </div>
           ) : (
-            <div className="flex aspect-video items-center justify-center p-6 text-sm text-slate-500">
+            <div className="portal-soft flex aspect-video items-center justify-center p-6 text-sm">
               Video externo sin embed/portada
               <a
                 className="ml-2 underline"
@@ -114,29 +114,41 @@ const VideoCard = ({ item }) => {
             className="w-full aspect-video object-cover"
           />
         ) : (
-          <div className="flex aspect-video items-center justify-center p-6 text-sm text-slate-500">
+          <div className="portal-soft flex aspect-video items-center justify-center p-6 text-sm">
             Sin fuente de video
           </div>
         )}
       </div>
 
-      {/* Footer */}
       <div className="p-4">
-        <p className="text-xs text-slate-500">
+        <p
+          className="text-xs"
+          style={{ color: "color-mix(in srgb, var(--portal-text) 60%, white 40%)" }}
+        >
           {hasExternal ? "Fuente: URL externa" : hasFile ? "Fuente: Archivo" : "Fuente: -"}
         </p>
         {item?.url_externa && (
-          <p className="mt-1 text-xs text-slate-600 truncate">{item.url_externa}</p>
+          <p
+            className="mt-1 text-xs truncate"
+            style={{ color: "color-mix(in srgb, var(--portal-text) 75%, white 25%)" }}
+          >
+            {item.url_externa}
+          </p>
         )}
       </div>
     </article>
   );
 };
 
-const VideoGaleria = () => {
+const VideoGaleria = ({ data }) => {
   const [loading, setLoading] = useState(true);
   const [videos, setVideos] = useState([]);
   const [error, setError] = useState("");
+
+  const sectionTitle = data?.title || "Video galerias";
+  const sectionSubtitle =
+    data?.subtitle || "Contenido audiovisual actualizado desde el portal.";
+  const showSection = data?.show !== false;
 
   useEffect(() => {
     let mounted = true;
@@ -145,9 +157,9 @@ const VideoGaleria = () => {
       try {
         setLoading(true);
         setError("");
-        const data = await getVideos();
+        const apiData = await getVideos();
         if (!mounted) return;
-        setVideos(Array.isArray(data) ? data : []);
+        setVideos(Array.isArray(apiData) ? apiData : []);
       } catch (e) {
         if (!mounted) return;
         setError(e?.message || "Error cargando videos");
@@ -163,15 +175,23 @@ const VideoGaleria = () => {
     };
   }, []);
 
+  if (!showSection) return null;
+
   return (
-    <section id="videos" className="bg-white">
+    <section id="videos" style={{ backgroundColor: "var(--portal-bg)" }}>
       <div className="mx-auto max-w-6xl px-4 py-16">
         <div className="text-center">
-          <h2 className="text-4xl lg:text-5xl font-extrabold text-[#2f7ecb]">
-            Video galerías
+          <h2
+            className="text-4xl lg:text-5xl font-extrabold"
+            style={{ color: "var(--portal-primary)" }}
+          >
+            {sectionTitle}
           </h2>
-          <p className="mt-4 text-sm text-slate-500">
-            Contenido audiovisual actualizado desde el portal.
+          <p
+            className="mt-4 text-sm"
+            style={{ color: "color-mix(in srgb, var(--portal-text) 70%, white 30%)" }}
+          >
+            {sectionSubtitle}
           </p>
         </div>
 
@@ -181,12 +201,21 @@ const VideoGaleria = () => {
               {Array.from({ length: 6 }).map((_, i) => (
                 <div
                   key={i}
-                  className="aspect-video rounded-xl bg-slate-100 animate-pulse"
+                  className="aspect-video rounded-xl animate-pulse"
+                  style={{ backgroundColor: "var(--portal-surface)" }}
                 />
               ))}
             </div>
           ) : videos.length === 0 ? (
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-6 text-center text-sm text-slate-600">
+            <div
+              className="rounded-xl border p-6 text-center text-sm"
+              style={{
+                borderRadius: "var(--portal-radius)",
+                backgroundColor: "var(--portal-surface)",
+                borderColor: "rgba(15, 23, 42, 0.08)",
+                color: "color-mix(in srgb, var(--portal-text) 75%, white 25%)",
+              }}
+            >
               No hay videos activos para mostrar.
             </div>
           ) : (

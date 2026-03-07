@@ -21,6 +21,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     # Terceros
     "rest_framework",
+    "rest_framework_simplejwt",
     # Locales
     "comunicaciones",
 ]
@@ -62,9 +63,18 @@ DATABASES = {
 
 # Configuración REST Framework
 REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "comunicaciones.authentication.StatelessJWTAuthentication",
+    ),
     "DEFAULT_PERMISSION_CLASSES": [
-        "rest_framework.permissions.AllowAny",  # Por ahora abierto para pruebas internas
+        "rest_framework.permissions.IsAuthenticated",
     ],
+}
+
+JWT_SIGNING_KEY = env("JWT_SIGNING_KEY", default=SECRET_KEY)
+SIMPLE_JWT = {
+    "ALGORITHM": "HS256",
+    "SIGNING_KEY": JWT_SIGNING_KEY,
 }
 
 

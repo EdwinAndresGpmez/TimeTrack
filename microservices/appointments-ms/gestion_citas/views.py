@@ -12,6 +12,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from .models import Cita, ConfiguracionGlobal, HistoricoCita, NotaMedica
+from .permissions import InternalTokenOrAuthenticatedReadOnly
 from .serializers import (
     CitaSerializer,
     ConfiguracionGlobalSerializer,
@@ -67,6 +68,7 @@ class ConfiguracionViewSet(viewsets.ModelViewSet):
 
 
 class CitaViewSet(viewsets.ModelViewSet):
+    permission_classes = [InternalTokenOrAuthenticatedReadOnly]
     queryset = Cita.objects.all().order_by("-fecha", "-hora_inicio")
     serializer_class = CitaSerializer
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]

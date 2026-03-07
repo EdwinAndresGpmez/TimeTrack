@@ -88,3 +88,5 @@ USE_I18N = True
 USE_TZ = True
 STATIC_URL = "static/"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+INTERNAL_SERVICE_TOKEN = env("INTERNAL_SERVICE_TOKEN", default="supersecrettoken")

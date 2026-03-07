@@ -21,7 +21,12 @@ from content.views import (
     HomeSectionsAdminView,
 )
 
-from forms.views import HVCreateView, PQRSCreateView
+from forms.views import (
+    HVCreateView,
+    PQRSCreateView,
+    PQRSAdminViewSet,
+    ConvocatoriaHVAdminViewSet,
+)
 
 router = DefaultRouter()
 
@@ -52,6 +57,16 @@ router.register(
     r"api/v1/portal/admin/sections",
     PageSectionAdminViewSet,
     basename="portal-admin-sections",
+)
+router.register(
+    r"api/v1/portal/admin/pqrs",
+    PQRSAdminViewSet,
+    basename="portal-admin-pqrs",
+)
+router.register(
+    r"api/v1/portal/admin/convocatorias",
+    ConvocatoriaHVAdminViewSet,
+    basename="portal-admin-convocatorias",
 )
 
 urlpatterns = [

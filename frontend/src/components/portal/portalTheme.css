@@ -1,0 +1,188 @@
+.portal-section {
+  background-color: var(--portal-bg);
+  color: var(--portal-text);
+}
+
+.portal-section-alt {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--portal-bg) 70%, var(--portal-surface) 30%) 0%,
+    var(--portal-bg) 100%
+  );
+}
+
+.portal-muted {
+  color: color-mix(in srgb, var(--portal-text) 70%, white 30%);
+}
+
+.portal-soft {
+  color: color-mix(in srgb, var(--portal-text) 58%, white 42%);
+}
+
+.portal-card {
+  border: 1px solid color-mix(in srgb, var(--portal-text) 10%, transparent);
+  border-radius: var(--portal-radius);
+  background: var(--portal-bg);
+  box-shadow: 0 12px 30px -24px color-mix(in srgb, var(--portal-secondary) 35%, transparent);
+}
+
+.portal-card-hover {
+  transition: transform 240ms ease, box-shadow 240ms ease, border-color 240ms ease;
+}
+
+.portal-card-hover:hover {
+  transform: translateY(-4px);
+  border-color: color-mix(in srgb, var(--portal-primary) 28%, transparent);
+  box-shadow: 0 22px 45px -30px color-mix(in srgb, var(--portal-primary) 55%, transparent);
+}
+
+.portal-gradient-band {
+  background: linear-gradient(
+    130deg,
+    var(--portal-primary) 0%,
+    color-mix(in srgb, var(--portal-primary) 45%, var(--portal-secondary) 55%) 52%,
+    var(--portal-secondary) 100%
+  );
+}
+
+.portal-glow {
+  position: relative;
+}
+
+.portal-glow::before {
+  content: "";
+  position: absolute;
+  inset: -40px;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: 9999px;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--portal-primary) 26%, transparent) 0%,
+    transparent 70%
+  );
+  filter: blur(12px);
+}
+
+.portal-fade-up {
+  animation: portalFadeUp 620ms ease both;
+}
+
+.portal-float {
+  animation: portalFloat 5.2s ease-in-out infinite;
+}
+
+.portal-reveal {
+  opacity: 0;
+  transform: translateY(18px) scale(0.985);
+  animation: portalReveal 760ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+.portal-slide-left {
+  opacity: 0;
+  transform: translateX(-26px) scale(0.985);
+  animation: portalSlideLeft 760ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+.portal-slide-right {
+  opacity: 0;
+  transform: translateX(26px) scale(0.985);
+  animation: portalSlideRight 760ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+.portal-slide-top {
+  opacity: 0;
+  transform: translateY(-22px) scale(0.985);
+  animation: portalSlideTop 760ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+.portal-slide-bottom {
+  opacity: 0;
+  transform: translateY(24px) scale(0.985);
+  animation: portalSlideBottom 760ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+.portal-stagger > *:nth-child(1) { animation-delay: 60ms; }
+.portal-stagger > *:nth-child(2) { animation-delay: 130ms; }
+.portal-stagger > *:nth-child(3) { animation-delay: 200ms; }
+.portal-stagger > *:nth-child(4) { animation-delay: 270ms; }
+.portal-stagger > *:nth-child(5) { animation-delay: 340ms; }
+.portal-stagger > *:nth-child(6) { animation-delay: 410ms; }
+
+@keyframes portalFadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes portalFloat {
+  0% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+@keyframes portalReveal {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes portalSlideLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-26px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes portalSlideRight {
+  from {
+    opacity: 0;
+    transform: translateX(26px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes portalSlideTop {
+  from {
+    opacity: 0;
+    transform: translateY(-22px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes portalSlideBottom {
+  from {
+    opacity: 0;
+    transform: translateY(24px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}

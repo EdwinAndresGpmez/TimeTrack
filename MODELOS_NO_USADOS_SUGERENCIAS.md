@@ -7,12 +7,12 @@ Este documento identifica los modelos de cada microservicio y su uso real en bac
 - Pacientes que pueden pedir citas de otros pacientes del grupo familiar. (OK)
 - Auditoria para todos las acciones de la aplicación. (OK)
 - Notificaciones, alertas por correo electronico y mensajes de texto.
+- Crear vista para el administrador relacionado con el envio de correos y notificaciones.
 - asignación de Profesional como usuario de la aplicación -medico (OK)
 - Vista para el profesional para ver sus citas asignadas y los comentarios de los pacientes y la funcionarias de la clinica. (OK)
 - Chatbot interno entre funcionarios de la empresa.
-- Terminar desarrollo del portal. --------
-- Crear vistas para el administrador relacionado con el portal y su administración.
-- Crear vista para el administrador relacionado con el envio de correos y notificaciones.
+- Terminar desarrollo del portal. -------- (OK)
+- Crear vistas para el administrador relacionado con el portal y su administración. (OK)
 - Crear chatbot con el modelo de inteligencia artifical para solicitud de citas, cancelacion, y demas componentes.
 - Crear la integracion con whatsapp de meta para la interacion con la ia y la aplicación. 
 - Crear pantalla de gestion de pacientes para activar el turno en sala de espera y ser mas precisos durante la atención. (OK)

@@ -37,5 +37,25 @@ export const portalService = {
             },
         });
         return response.data;
+    },
+
+    // 5. Admin PQRS
+    getAdminPQRS: async () => {
+        const response = await api.get('/portal/admin/pqrs/');
+        return response.data;
+    },
+    updateAdminPQRS: async (id, payload) => {
+        const response = await api.patch(`/portal/admin/pqrs/${id}/`, payload);
+        return response.data;
+    },
+
+    // 6. Admin Convocatorias (Trabaje con Nosotros)
+    getAdminConvocatorias: async () => {
+        const response = await api.get('/portal/admin/convocatorias/');
+        return response.data;
+    },
+    updateAdminConvocatoria: async (id, payload) => {
+        const response = await api.patch(`/portal/admin/convocatorias/${id}/`, payload);
+        return response.data;
     }
 };

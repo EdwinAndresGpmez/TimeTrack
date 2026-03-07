@@ -27,19 +27,19 @@ const ComoTrabajamos = ({ data }) => {
   if (!hasContent) return null;
 
   return (
-    <section className="bg-white">
+    <section className="portal-section">
       <div className="mx-auto max-w-6xl px-4 py-16">
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:items-stretch">
           {/* Imagen grande */}
-          <div className="overflow-hidden rounded-2xl bg-slate-100">
+          <div className="portal-card portal-card-hover overflow-hidden rounded-2xl" style={{ backgroundColor: "var(--portal-surface)" }}>
             {imageUrl ? (
               <img
                 src={imageUrl}
                 alt={title}
-                className="h-full w-full object-cover"
+                className="h-full w-full object-cover transition duration-500 hover:scale-[1.02]"
               />
             ) : (
-              <div className="flex h-[320px] w-full items-center justify-center text-sm text-slate-400">
+              <div className="portal-soft flex h-[320px] w-full items-center justify-center text-sm">
                 Sin imagen (asigna data.image_asset_id en CMS)
               </div>
             )}
@@ -47,9 +47,8 @@ const ComoTrabajamos = ({ data }) => {
 
           {/* Bloque derecho estilo “tarjeta” */}
           <div
-            className="rounded-2xl p-8 text-white shadow-sm"
+            className="portal-gradient-band rounded-2xl p-8 text-white shadow-sm"
             style={{
-              backgroundColor: "var(--portal-primary)",
               borderRadius: "var(--portal-radius)",
             }}
           >

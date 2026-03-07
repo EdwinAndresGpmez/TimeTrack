@@ -118,6 +118,7 @@ class PageSection(models.Model):
     TYPE_FEATURES = "features"
     TYPE_SERVICES = "services"
     TYPE_HOW_WE_WORK = "how_we_work"
+    TYPE_THREE_COLS = "three_cols"
     TYPE_VALUES = "values"
     TYPE_TEAM = "team"
     TYPE_TESTIMONIALS = "testimonials"
@@ -130,6 +131,7 @@ class PageSection(models.Model):
         (TYPE_FEATURES, "Features Strip"),
         (TYPE_SERVICES, "Services"),
         (TYPE_HOW_WE_WORK, "How We Work"),
+        (TYPE_THREE_COLS, "Three Columns"),
         (TYPE_VALUES, "Values"),
         (TYPE_TEAM, "Team"),
         (TYPE_TESTIMONIALS, "Testimonials"),

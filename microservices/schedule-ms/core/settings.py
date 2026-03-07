@@ -82,8 +82,11 @@ STATIC_URL = "static/"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 
-AUTH_MS_AUDIT_URL = env("AUTH_MS_AUDIT_URL", default="http://auth-ms:8000/api/v1/admin/auditoria/registrar/")
+AUDIT_URL = env("AUDIT_URL", default="http://auth-ms:8000/api/v1/users/admin/auditoria/registrar/")
+# Compatibilidad hacia atrás con configuraciones existentes
+AUTH_MS_AUDIT_URL = env("AUTH_MS_AUDIT_URL", default=AUDIT_URL)
 INTERNAL_AUDIT_TOKEN = env("INTERNAL_AUDIT_TOKEN", default="supersecrettoken")
+INTERNAL_SERVICE_TOKEN = env("INTERNAL_SERVICE_TOKEN", default="supersecrettoken")
 
 JWT_SIGNING_KEY = env("JWT_SIGNING_KEY", default=SECRET_KEY)
 

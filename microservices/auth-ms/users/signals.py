@@ -1,4 +1,5 @@
 import logging
+import os
 
 import requests
 from django.contrib.auth.models import Group  # <--- IMPORTANTE
@@ -12,6 +13,11 @@ logger = logging.getLogger(__name__)
 # --- CORRECCIÓN DE PUERTOS: Usamos 8001 para patients-ms ---
 PATIENTS_SERVICE_URL = "http://patients-ms:8001/api/v1/pacientes/internal/sync-user/"
 SOLICITUDES_URL = "http://patients-ms:8001/api/v1/pacientes/solicitudes/"
+
+
+def _internal_headers():
+    token = os.getenv("INTERNAL_SERVICE_TOKEN", "").strip()
+    return {"X-INTERNAL-TOKEN": token} if token else {}
 
 
 @receiver(post_save, sender=CrearCuenta)
@@ -38,7 +44,7 @@ def sincronizar_paciente(sender, instance, created, **kwargs):
             payload = {"documento": instance.documento, "user_id": instance.id}
 
             # 1. Intentamos vincular
-            response = requests.post(PATIENTS_SERVICE_URL, json=payload, timeout=3)
+            response = requests.post(PATIENTS_SERVICE_URL, json=payload, timeout=3, headers=_internal_headers())
 
             if response.status_code == 200:
                 data = response.json()
@@ -58,7 +64,12 @@ def sincronizar_paciente(sender, instance, created, **kwargs):
                         "user_doc": instance.documento,
                         "procesado": False,
                     }
-                    resp_sol = requests.post(SOLICITUDES_URL, json=payload_solicitud, timeout=3)
+                    resp_sol = requests.post(
+                        SOLICITUDES_URL,
+                        json=payload_solicitud,
+                        timeout=3,
+                        headers=_internal_headers(),
+                    )
 
                     if resp_sol.status_code == 201:
                         logger.info("Solicitud creada exitosamente.")

@@ -6,6 +6,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .models import Paciente, SolicitudValidacion, TipoPaciente
+from .permissions import InternalTokenOrAuthenticated, InternalTokenOrAuthenticatedReadOnly
 from .serializers import (
     PacienteSerializer,
     SolicitudValidacionSerializer,
@@ -76,7 +77,7 @@ class TipoPacienteViewSet(viewsets.ModelViewSet):
 
 # 2) Pacientes
 class PacienteViewSet(viewsets.ModelViewSet):
-    permission_classes = [permissions.IsAuthenticated]  # ✅ clave para usuario_id real
+    permission_classes = [InternalTokenOrAuthenticatedReadOnly]
     queryset = Paciente.objects.all()
     serializer_class = PacienteSerializer
     filter_backends = [filters.SearchFilter]
@@ -178,10 +179,7 @@ class PacienteViewSet(viewsets.ModelViewSet):
 class SolicitudValidacionViewSet(viewsets.ModelViewSet):
     queryset = SolicitudValidacion.objects.all()
     serializer_class = SolicitudValidacionSerializer
-
-    # ⚠️ lo dejaste AllowAny para acceso interno: lo respeto para no romper.
-    # Si quieres usuario_id aquí, cámbialo a IsAuthenticated o usa token interno.
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [InternalTokenOrAuthenticated]
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -231,7 +229,7 @@ class SolicitudValidacionViewSet(viewsets.ModelViewSet):
 
 # 4) Sync (Self-healing) - lo dejo AllowAny como lo tenías
 class SyncPacienteUserView(APIView):
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [InternalTokenOrAuthenticated]
 
     def post(self, request):
         documento = request.data.get("documento")
@@ -283,7 +281,7 @@ class SyncPacienteUserView(APIView):
 
 # 5) Bulk info (internal) - lo dejo público para no romper llamadas de otros ms
 class BulkPacienteView(APIView):
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [InternalTokenOrAuthenticatedReadOnly]
 
     def get(self, request):
         ids_param = request.query_params.get("ids", "")

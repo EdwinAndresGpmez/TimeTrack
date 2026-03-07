@@ -33,6 +33,8 @@ import DashboardProfesional from './pages/system/DashboardProfesional';
 import SalaEsperaPantalla from './pages/system/SalaEsperaPantalla';
 import Auditoria from './pages/admin/Auditoria';
 import AdminPortalContentStudio from './pages/admin/AdminPortalContentStudio';
+import AdminPQRSGestion from './pages/admin/AdminPQRSGestion';
+import AdminConvocatoriasGestion from './pages/admin/AdminConvocatoriasGestion';
 
 function App() {
   return (
@@ -150,6 +152,18 @@ function App() {
                  <Route path="/dashboard/admin/auditoria" element={
                       <ProtectedRoute requiredPermission="admin_auditoria">
                         <Auditoria />
+                      </ProtectedRoute>
+                    } />
+
+                 <Route path="/dashboard/admin/pqrs-gestion" element={
+                      <ProtectedRoute requiredPermission="admin_pqrs_gestion">
+                        <AdminPQRSGestion />
+                      </ProtectedRoute>
+                    } />
+
+                 <Route path="/dashboard/admin/convocatorias-gestion" element={
+                      <ProtectedRoute requiredPermission="admin_convocatorias_gestion">
+                        <AdminConvocatoriasGestion />
                       </ProtectedRoute>
                     } />
              </Route>

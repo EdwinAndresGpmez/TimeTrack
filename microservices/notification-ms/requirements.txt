@@ -3,7 +3,10 @@ djangorestframework
 django-environ
 psycopg2-binary
 django-cors-headers
+djangorestframework-simplejwt>=5.5.1,<6.0
 pytest
 pytest-django
 requests-mock
 ruff
+django-filter
+djangorestframework-simplejwt>=5.5.1,<6.0
