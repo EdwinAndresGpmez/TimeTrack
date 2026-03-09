@@ -136,9 +136,9 @@ const GrillaSemanal = ({
         } 
         else if (accion === 'BLOQUEAR') {
             const { value: motivo } = await Swal.fire({
-                title: 'Bloquear Espacio Rápido',
+                title: 'Bloquear Espacio Rapido',
                 input: 'text',
-                inputPlaceholder: 'Ej: Almuerzo, Reunión, Permiso...',
+                inputPlaceholder: 'Ej: Almuerzo, Reunion, Permiso...',
                 showCancelButton: true,
                 confirmButtonText: 'Bloquear',
                 cancelButtonText: 'Cancelar',
@@ -187,6 +187,7 @@ const GrillaSemanal = ({
                 if (!(hInicio <= hora && hFin > hora)) return false;
 
                 if (h.fecha && h.fecha !== fechaColumnaStr) return false; 
+                if (h.fecha_inicio_vigencia && fechaColumnaStr < h.fecha_inicio_vigencia) return false;
                 if (h.fecha_fin_vigencia && fechaColumnaStr > h.fecha_fin_vigencia) return false;
                 
                 return true;
@@ -274,6 +275,7 @@ const GrillaSemanal = ({
                     className={`h-full w-full flex items-center justify-center transition-all z-10 group select-none border-t border-dashed border-gray-100
                         ${isSelectedByDrag ? 'bg-blue-100 border-blue-300 shadow-inner' : 'hover:bg-gray-50 cursor-pointer'}
                     `}
+                    onTouchEnd={() => onCrearTurno(fechaColumna, hora, hora + 1)}
                     onMouseDown={() => handleMouseDown(colIndex, hora)}
                     onMouseEnter={() => handleMouseEnter(colIndex, hora)}
                     onMouseUp={() => handleMouseUp(fechaColumna)}
@@ -286,6 +288,11 @@ const GrillaSemanal = ({
         }
 
         allSlots.sort((a,b) => a.inicio.localeCompare(b.inicio));
+        const profsConSlotEnHora = new Set(allSlots.map(slot => slot.profId));
+        const faltanProfesionalesEnHora = selectedProfs.some(p => !profsConSlotEnHora.has(p.id));
+        const finDeEstaHora = new Date(fechaColumna);
+        finDeEstaHora.setHours(hora + 1, 0, 0, 0);
+        const puedeAgregarOtroProfesional = faltanProfesionalesEnHora && ahora < finDeEstaHora;
 
         return (
             <div className="flex flex-col gap-[1px] w-full p-[1px] relative h-full">
@@ -297,7 +304,7 @@ const GrillaSemanal = ({
                     let textColorClass = "";
                     let borderColorClass = "";
 
-                    // CORRECCIÓN: ASIGNACIÓN DINÁMICA DE COLORES
+                    // CORRECCION: ASIGNACION DINAMICA DE COLORES
                     // Extraemos las clases base del color del profesional (ej: "bg-blue-100 text-blue-800 border-blue-300")
                     if (slot.profColor) {
                         const parts = slot.profColor.clase.split(' ');
@@ -323,8 +330,8 @@ const GrillaSemanal = ({
                         tooltipText = `Cita ocupada - ${slot.cita?.paciente_nombre || 'Paciente'} (Dr. ${slot.profNombre})`;
                     } else {
                         // Libre: Fondo blanco, pero borde y texto con el color del profesional para distinguirlo suavemente
-                        const textOnlyClass = textColorClass.replace('text-', 'text-opacity-70 text-'); // Un poco más claro
-                        containerStyle = `bg-white border-l-[3px] ${borderColorClass} ${textOnlyClass} hover:${bgColorClass} hover:shadow-sm`;
+                        const textOnlyClass = textColorClass.replace('text-', 'text-opacity-70 text-'); // Un poco mas claro
+                        containerStyle = `bg-white/90 backdrop-blur border-l-[3px] ${borderColorClass} ${textOnlyClass} hover:${bgColorClass} hover:shadow-md`;
                         iconoEstado = <FaPlus size={8} className="opacity-50"/>;
                         tooltipText = `Disponible para ${slot.servicioNombre} - Dr. ${slot.profNombre}`;
                     }
@@ -336,9 +343,11 @@ const GrillaSemanal = ({
                             onClick={(e) => { 
                                 e.stopPropagation(); 
                                 if (slot.isAgendado) {
-                                    Swal.fire('Espacio Ocupado', `Paciente: ${slot.cita?.paciente_nombre || 'Desconocido'}\nMédico: ${slot.profNombre}`, 'info');
+                                    Swal.fire('Espacio Ocupado', `Paciente: ${slot.cita?.paciente_nombre || 'Desconocido'}\nMedico: ${slot.profNombre}`, 'info');
                                 } else if (!slot.isBloqueado && !slot.isPasado && onAgendarCita) {
                                     onAgendarCita(slot, fechaColumnaStr); 
+                                } else if (slot.isPasado) {
+                                    Swal.fire('No disponible', 'Este horario ya inicio o ya finalizo. Solo puedes gestionar bloqueos o configurar la serie.', 'warning');
                                 } else {
                                     onGestionarTurno(slot.turno, fechaColumnaStr);
                                 }
@@ -349,7 +358,7 @@ const GrillaSemanal = ({
                             <div className="flex items-center justify-between w-full leading-tight">
                                 <span className="font-mono font-bold">{slot.inicio}</span>
                                 <div className="flex items-center gap-1">
-                                    {/* Mostrar primera palabra del nombre del Dr. si hay más de 1 médico seleccionado */}
+                                    {/* Mostrar primera palabra del nombre del Dr. si hay mas de 1 medico seleccionado */}
                                     {selectedProfs.length > 1 && (
                                         <span className="text-[8px] opacity-70 uppercase tracking-tighter truncate max-w-[40px]">
                                             {slot.profNombre.split(' ')[0]}
@@ -369,6 +378,18 @@ const GrillaSemanal = ({
                         </div>
                     );
                 })}
+                {puedeAgregarOtroProfesional && (
+                    <button
+                        className="mt-1 w-full rounded-sm border border-dashed border-blue-300 bg-blue-50 px-1 py-0.5 text-[10px] font-bold text-blue-700 hover:bg-blue-100"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onCrearTurno(fechaColumna, hora, hora + 1);
+                        }}
+                        title="Crear bloque para otro profesional en esta hora"
+                    >
+                        + Agregar bloque para otro profesional
+                    </button>
+                )}
             </div>
         );
     };
@@ -387,9 +408,9 @@ const GrillaSemanal = ({
     if (calendarView === 'month') gridWidthClass = 'min-w-[2500px]'; 
 
     return (
-        <div className="h-full overflow-auto bg-white relative scrollbar-thin w-full" onMouseLeave={() => { isDragging.current = false; setDragSelection(null); }}>
+        <div className="h-full overflow-auto bg-[radial-gradient(circle_at_20%_20%,#e0f2fe,transparent_40%),radial-gradient(circle_at_90%_10%,#dbeafe,transparent_30%),#f8fafc] relative scrollbar-thin w-full" onMouseLeave={() => { isDragging.current = false; setDragSelection(null); }}>
             
-            {/* MENÚ CONTEXTUAL */}
+            {/* MENU CONTEXTUAL */}
             {contextMenu.visible && contextMenu.data && (
                 <div 
                     className="fixed z-[9999] bg-white rounded-lg shadow-xl border border-gray-200 w-56 py-1 animate-fadeIn"
@@ -402,7 +423,7 @@ const GrillaSemanal = ({
                     
                     {!contextMenu.data.slot.isAgendado && !contextMenu.data.slot.isBloqueado && !contextMenu.data.slot.isPasado && (
                         <button onClick={() => ejecutarAccionRapida('AGENDAR')} className="w-full text-left px-4 py-2 text-sm text-green-700 hover:bg-green-50 flex items-center gap-2 font-bold">
-                            <FaPlus size={12}/> Agendar Paciente Aquí
+                            <FaPlus size={12}/> Agendar Paciente Aqui
                         </button>
                     )}
 
@@ -421,11 +442,11 @@ const GrillaSemanal = ({
             )}
 
             <div className={`${gridWidthClass} h-full flex flex-col`}>
-                <div className="flex border-b bg-gray-50 sticky top-0 z-20 shadow-sm">
-                    <div className="w-14 flex-shrink-0 p-2 text-center text-gray-500 text-[10px] border-r bg-white flex items-center justify-center font-bold">HORA</div>
+                <div className="flex border-b bg-white/80 backdrop-blur sticky top-0 z-20 shadow-sm">
+                    <div className="w-14 flex-shrink-0 p-2 text-center text-slate-500 text-[10px] border-r bg-white/80 backdrop-blur flex items-center justify-center font-bold">HORA</div>
                     {diasColumna.map((fecha, i) => {
                         const esHoy = new Date().toDateString() === fecha.toDateString();
-                        const diasSemanaStr = ['DOM','LUN','MAR','MIÉ','JUE','VIE','SÁB'];
+                        const diasSemanaStr = ['DOM','LUN','MAR','MIE','JUE','VIE','SAB'];
                         const isClipboardSource = clipboardDay?.date.toDateString() === fecha.toDateString();
                         
                         return (
@@ -435,12 +456,12 @@ const GrillaSemanal = ({
 
                                 <div className="absolute top-1 right-1 flex gap-1 z-30 opacity-0 group-hover:opacity-100 transition-opacity">
                                     {!clipboardDay ? (
-                                        <button onClick={(e) => { e.stopPropagation(); onCopyDay(fecha); }} className="p-1.5 bg-white shadow-sm border border-gray-200 rounded text-gray-400 hover:text-blue-600 hover:border-blue-400 transition transform hover:scale-110" title="Copiar día completo">
+                                        <button onClick={(e) => { e.stopPropagation(); onCopyDay(fecha); }} className="p-1.5 bg-white shadow-sm border border-gray-200 rounded text-gray-400 hover:text-blue-600 hover:border-blue-400 transition transform hover:scale-110" title="Copiar dia completo">
                                             <FaRegCopy size={10} />
                                         </button>
                                     ) : (
                                         !isClipboardSource && (
-                                            <button onClick={(e) => { e.stopPropagation(); onPasteDay(fecha); }} className="p-1.5 bg-green-100 shadow-md border border-green-300 rounded text-green-700 hover:bg-green-200 transition animate-pulse" title="Pegar horarios aquí">
+                                            <button onClick={(e) => { e.stopPropagation(); onPasteDay(fecha); }} className="p-1.5 bg-green-100 shadow-md border border-green-300 rounded text-green-700 hover:bg-green-200 transition animate-pulse" title="Pegar horarios aqui">
                                                 <FaPaste size={10} />
                                             </button>
                                         )
@@ -451,7 +472,7 @@ const GrillaSemanal = ({
                     })}
                 </div>
 
-                <div className="flex-1 bg-white select-none"> 
+                <div className="flex-1 bg-white/70 backdrop-blur select-none rounded-t-xl border border-slate-200 shadow-[0_8px_30px_rgba(15,23,42,0.06)]"> 
                     {HORAS.map(hora => (
                         <div key={hora} className="flex border-b min-h-[60px] md:min-h-[70px]"> 
                             <div className="w-14 flex-shrink-0 text-center text-gray-400 text-[10px] font-mono border-r bg-gray-50 flex items-center justify-center relative">
@@ -472,3 +493,4 @@ const GrillaSemanal = ({
 };
 
 export default GrillaSemanal;
+

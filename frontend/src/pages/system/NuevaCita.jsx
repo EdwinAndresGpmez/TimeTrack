@@ -100,6 +100,18 @@ const NuevaCita = ({ adminSelectedPatientId = null, isAdminMode = false, presele
         );
     };
 
+    const getApiErrorMessage = (error, fallback = 'No se pudo completar la solicitud.') => {
+        const data = error?.response?.data;
+        if (!data) return fallback;
+        if (typeof data === 'string') return data;
+        if (data.detalle) return data.detalle;
+        if (data.detail) return data.detail;
+        if (data.error) return data.error;
+        if (Array.isArray(data.non_field_errors) && data.non_field_errors.length > 0) return data.non_field_errors[0];
+        const flat = Object.values(data).flat().filter(Boolean);
+        return flat.length > 0 ? String(flat[0]) : fallback;
+    };
+
     useEffect(() => {
         const init = async () => {
             setLoading(true);
@@ -397,7 +409,9 @@ const NuevaCita = ({ adminSelectedPatientId = null, isAdminMode = false, presele
                     title: 'Cancelar modo Express?', text: "Volveras a la agenda.", icon: 'warning',
                     showCancelButton: true, confirmButtonText: 'Si, volver', cancelButtonText: 'No'
                 }).then((result) => {
-                    if (result.isConfirmed) navigate('/dashboard/admin/agenda');
+                    if (result.isConfirmed) {
+                        navigate('/dashboard/admin/agenda', { state: { restoreAgenda: preselectedSlot.restoreAgenda || null } });
+                    }
                 });
             }
         } else {
@@ -439,6 +453,16 @@ const NuevaCita = ({ adminSelectedPatientId = null, isAdminMode = false, presele
                 return Swal.fire('Nota requerida', 'Escribe una nota inicial del paciente (minimo 5 caracteres).', 'warning');
             }
 
+            const inicioCita = new Date(`${selection.fecha}T${selection.hora}`);
+            if (inicioCita <= new Date()) {
+                setLoading(false);
+                return Swal.fire(
+                    'Horario no valido',
+                    'No se puede agendar en un horario que ya inicio o ya termino. Selecciona un horario futuro.',
+                    'warning'
+                );
+            }
+
             const duracion = selection.servicio?.duracion_minutos || 30;
             const [horas, minutos] = selection.hora.split(':').map(Number);
             const fechaTemp = new Date();
@@ -458,13 +482,13 @@ const NuevaCita = ({ adminSelectedPatientId = null, isAdminMode = false, presele
                 nota: notaInicial.trim()
             });
             await Swal.fire('Cita confirmada', 'La cita ha sido agendada con exito.', 'success');
-            navigate(adminSelectedPatientId ? '/dashboard/admin/citas' : '/dashboard/citas');
-        } catch (error) {
-            let mensajeError = 'No se pudo agendar la cita. Intente nuevamente.';
-            if (error.response?.data) {
-                const data = error.response.data;
-                mensajeError = data.detalle || data.detail || (typeof data === 'object' ? Object.values(data).flat().join('. ') : mensajeError);
+            if (preselectedSlot?.returnToAgenda) {
+                navigate('/dashboard/admin/agenda', { state: { restoreAgenda: preselectedSlot.restoreAgenda || null } });
+            } else {
+                navigate(adminSelectedPatientId ? '/dashboard/admin/citas' : '/dashboard/citas');
             }
+        } catch (error) {
+            const mensajeError = getApiErrorMessage(error, 'No se pudo agendar la cita. Intente nuevamente.');
             Swal.fire({ icon: 'error', title: 'Error', text: mensajeError });
         } finally { 
             setLoading(false); 
@@ -679,7 +703,7 @@ const NuevaCita = ({ adminSelectedPatientId = null, isAdminMode = false, presele
             </div>
             <button onClick={confirmCita} disabled={loading} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl font-bold shadow-lg transition disabled:opacity-50">{loading ? 'Confirmando...' : 'Confirmar Agendamiento'}</button>
             <button onClick={() => {
-                if(preselectedSlot) navigate('/dashboard/admin/agenda');
+                if(preselectedSlot) navigate('/dashboard/admin/agenda', { state: { restoreAgenda: preselectedSlot.restoreAgenda || null } });
                 else { 
                     setSelection({ servicio: null, profesional: null, sede: null, fecha: '', hora: '' }); 
                     setNotaInicial('');

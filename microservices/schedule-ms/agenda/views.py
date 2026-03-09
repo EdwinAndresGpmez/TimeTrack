@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 # Ajusta la URL si tu docker-compose usa otro nombre
 APPOINTMENTS_API_URL = "http://appointments-ms:8004/api/v1/citas/"
+STAFF_INTERNAL_BULK_URL = "http://professionals-ms:8002/api/v1/staff/internal/bulk-info/"
 
 
 def _internal_headers():
@@ -56,26 +57,143 @@ class DisponibilidadViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
     filterset_fields = ["profesional_id", "lugar_id", "servicio_id", "dia_semana"]
     ordering_fields = ["dia_semana", "hora_inicio"]
+    ESTADOS_CITA_BLOQUEANTES = {"PENDIENTE", "ACEPTADA", "EN_SALA", "LLAMADO"}
 
     def _obtener_citas_activas(self, profesional_id, fecha_inicio, fecha_fin=None):
         try:
             f_ini_str = (
                 fecha_inicio.strftime("%Y-%m-%d") if isinstance(fecha_inicio, (date, datetime)) else fecha_inicio
             )
-            params = {
-                "profesional_id": profesional_id,
-                "fecha_inicio": f_ini_str,
-                "estado_ne": "CANCELADA",
-            }
-            if fecha_fin:
-                f_fin_str = fecha_fin.strftime("%Y-%m-%d") if isinstance(fecha_fin, (date, datetime)) else fecha_fin
-                params["fecha_fin"] = f_fin_str
+            f_fin_str = (
+                fecha_fin.strftime("%Y-%m-%d")
+                if fecha_fin and isinstance(fecha_fin, (date, datetime))
+                else fecha_fin
+            )
+
+            # appointments-ms soporta filtro exacto por fecha, no por rango.
+            params = {"profesional_id": profesional_id}
+            if f_fin_str and f_fin_str == f_ini_str:
+                params["fecha"] = f_ini_str
 
             response = requests.get(APPOINTMENTS_API_URL, params=params, timeout=5, headers=_internal_headers())
-            return response.json() if response.status_code == 200 else []
+            if response.status_code != 200:
+                return []
+
+            payload = response.json()
+            citas = payload.get("results", []) if isinstance(payload, dict) else payload
+            if not isinstance(citas, list):
+                return []
+
+            if not fecha_fin:
+                return citas
+
+            # Filtro de rango en schedule-ms para evitar falsos positivos.
+            fecha_ini_obj = datetime.strptime(f_ini_str, "%Y-%m-%d").date()
+            fecha_fin_obj = datetime.strptime(f_fin_str, "%Y-%m-%d").date()
+            citas_filtradas = []
+            for c in citas:
+                try:
+                    c_fecha = datetime.strptime(c.get("fecha", ""), "%Y-%m-%d").date()
+                except Exception:
+                    continue
+                if fecha_ini_obj <= c_fecha <= fecha_fin_obj:
+                    citas_filtradas.append(c)
+            return citas_filtradas
         except Exception as e:
             logger.error(f"Error contactando Appointments MS: {e}")
             return []
+
+    def _obtener_profesional_info(self, profesional_id):
+        try:
+            response = requests.get(
+                STAFF_INTERNAL_BULK_URL,
+                params={"ids": profesional_id},
+                timeout=5,
+                headers=_internal_headers(),
+            )
+            if response.status_code != 200:
+                return None
+            payload = response.json() or {}
+            return payload.get(str(profesional_id))
+        except Exception as e:
+            logger.error(f"Error consultando Professionals MS: {e}")
+            return None
+
+    def _validar_profesional_lugar_servicio(self, attrs):
+        profesional_id = attrs.get("profesional_id")
+        lugar_id = attrs.get("lugar_id")
+        servicio_id = attrs.get("servicio_id")
+
+        if not profesional_id or not lugar_id:
+            return None
+
+        prof_info = self._obtener_profesional_info(profesional_id)
+        if not prof_info:
+            return "No se pudo validar el profesional seleccionado."
+
+        def _ids_norm(values):
+            ids = set()
+            for value in (values or []):
+                if isinstance(value, dict):
+                    value = value.get("id")
+                try:
+                    ids.add(int(value))
+                except (TypeError, ValueError):
+                    continue
+            return ids
+
+        lugares = _ids_norm(prof_info.get("lugares_atencion"))
+        if int(lugar_id) not in lugares:
+            return "El profesional no atiende en la sede seleccionada."
+
+        if servicio_id is not None:
+            servicios = _ids_norm(prof_info.get("servicios_habilitados"))
+            if int(servicio_id) not in servicios:
+                return "El profesional no tiene habilitado el servicio seleccionado."
+        return None
+
+    def _validar_conflicto_con_citas(self, attrs):
+        profesional_id = attrs.get("profesional_id")
+        hora_inicio = attrs.get("hora_inicio")
+        hora_fin = attrs.get("hora_fin")
+        dia_semana = attrs.get("dia_semana")
+        fecha = attrs.get("fecha")
+        fecha_inicio_vigencia = attrs.get("fecha_inicio_vigencia")
+        fecha_fin_vigencia = attrs.get("fecha_fin_vigencia")
+        activo = attrs.get("activo", True)
+
+        if not activo or not profesional_id or not hora_inicio or not hora_fin:
+            return None
+
+        # Para validar cruces contra citas futuras:
+        # - fecha fija: validar ese dia
+        # - recurrente: validar ventana desde inicio hasta fin (max 90 dias)
+        if fecha:
+            fecha_inicio = fecha
+            fecha_fin = fecha
+        else:
+            fecha_inicio = fecha_inicio_vigencia or date.today()
+            fecha_fin = fecha_fin_vigencia or (fecha_inicio + timedelta(days=90))
+            if fecha_fin > (fecha_inicio + timedelta(days=90)):
+                fecha_fin = fecha_inicio + timedelta(days=90)
+
+        citas = self._obtener_citas_activas(profesional_id, fecha_inicio, fecha_fin)
+        for c in citas:
+            if c.get("estado") not in self.ESTADOS_CITA_BLOQUEANTES:
+                continue
+            try:
+                c_fecha = datetime.strptime(c["fecha"], "%Y-%m-%d").date()
+                c_inicio = datetime.strptime(c["hora_inicio"], "%H:%M:%S").time()
+                c_fin = datetime.strptime(c["hora_fin"], "%H:%M:%S").time()
+            except Exception:
+                continue
+
+            aplica_dia = (fecha is not None and c_fecha == fecha) or (fecha is None and c_fecha.weekday() == dia_semana)
+            if not aplica_dia:
+                continue
+            if c_inicio < hora_fin and c_fin > hora_inicio:
+                return f"No puedes guardar este bloque: ya existe una cita en {c['fecha']} {c['hora_inicio']}."
+        return None
 
     # ✅ Guardar usuario_id en el MISMO save
     def perform_create(self, serializer):
@@ -98,6 +216,7 @@ class DisponibilidadViewSet(viewsets.ModelViewSet):
                 "hora_inicio": str(obj.hora_inicio),
                 "hora_fin": str(obj.hora_fin),
                 "fecha": str(obj.fecha) if obj.fecha else None,
+                "fecha_inicio_vigencia": str(obj.fecha_inicio_vigencia) if obj.fecha_inicio_vigencia else None,
                 "fecha_fin_vigencia": str(obj.fecha_fin_vigencia) if obj.fecha_fin_vigencia else None,
                 "activo": obj.activo,
             },
@@ -126,6 +245,7 @@ class DisponibilidadViewSet(viewsets.ModelViewSet):
                 "hora_inicio",
                 "hora_fin",
                 "fecha",
+                "fecha_inicio_vigencia",
                 "fecha_fin_vigencia",
                 "activo",
             ]
@@ -154,6 +274,7 @@ class DisponibilidadViewSet(viewsets.ModelViewSet):
                 "hora_inicio": str(obj.hora_inicio),
                 "hora_fin": str(obj.hora_fin),
                 "fecha": str(obj.fecha) if obj.fecha else None,
+                "fecha_inicio_vigencia": str(obj.fecha_inicio_vigencia) if obj.fecha_inicio_vigencia else None,
                 "fecha_fin_vigencia": str(obj.fecha_fin_vigencia) if obj.fecha_fin_vigencia else None,
                 "activo": obj.activo,
                 "changed": changed,
@@ -173,6 +294,7 @@ class DisponibilidadViewSet(viewsets.ModelViewSet):
             "hora_inicio": str(instance.hora_inicio),
             "hora_fin": str(instance.hora_fin),
             "fecha": str(instance.fecha) if instance.fecha else None,
+            "fecha_inicio_vigencia": str(instance.fecha_inicio_vigencia) if instance.fecha_inicio_vigencia else None,
             "fecha_fin_vigencia": str(instance.fecha_fin_vigencia) if instance.fecha_fin_vigencia else None,
             "activo": instance.activo,
         }
@@ -195,13 +317,58 @@ class DisponibilidadViewSet(viewsets.ModelViewSet):
 
         if f_ini and f_fin and f_ini == f_fin:
             data["fecha"] = f_ini
+            data["fecha_inicio_vigencia"] = None
             data["fecha_fin_vigencia"] = None
 
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
+
+        attrs = serializer.validated_data
+        error_prof = self._validar_profesional_lugar_servicio(attrs)
+        if error_prof:
+            return Response({"error": error_prof}, status=status.HTTP_400_BAD_REQUEST)
+
+        error_citas = self._validar_conflicto_con_citas(attrs)
+        if error_citas:
+            return Response({"error": error_citas}, status=status.HTTP_400_BAD_REQUEST)
+
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop("partial", False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+
+        attrs = {
+            "profesional_id": serializer.validated_data.get("profesional_id", instance.profesional_id),
+            "lugar_id": serializer.validated_data.get("lugar_id", instance.lugar_id),
+            "servicio_id": serializer.validated_data.get("servicio_id", instance.servicio_id),
+            "dia_semana": serializer.validated_data.get("dia_semana", instance.dia_semana),
+            "hora_inicio": serializer.validated_data.get("hora_inicio", instance.hora_inicio),
+            "hora_fin": serializer.validated_data.get("hora_fin", instance.hora_fin),
+            "fecha": serializer.validated_data.get("fecha", instance.fecha),
+            "fecha_inicio_vigencia": serializer.validated_data.get(
+                "fecha_inicio_vigencia", instance.fecha_inicio_vigencia
+            ),
+            "fecha_fin_vigencia": serializer.validated_data.get(
+                "fecha_fin_vigencia", instance.fecha_fin_vigencia
+            ),
+            "activo": serializer.validated_data.get("activo", instance.activo),
+        }
+
+        error_prof = self._validar_profesional_lugar_servicio(attrs)
+        if error_prof:
+            return Response({"error": error_prof}, status=status.HTTP_400_BAD_REQUEST)
+
+        error_citas = self._validar_conflicto_con_citas(attrs)
+        if error_citas:
+            return Response({"error": error_citas}, status=status.HTTP_400_BAD_REQUEST)
+
+        self.perform_update(serializer)
+        return Response(serializer.data)
 
     def destroy(self, request, *args, **kwargs):
         """
@@ -221,12 +388,22 @@ class DisponibilidadViewSet(viewsets.ModelViewSet):
 
                 for c in citas_futuras:
                     try:
+                        if c.get("estado") not in self.ESTADOS_CITA_BLOQUEANTES:
+                            continue
                         c_date = datetime.strptime(c["fecha"], "%Y-%m-%d").date()
                         c_time = datetime.strptime(c["hora_inicio"], "%H:%M:%S").time()
 
                         if c_date.weekday() == instance.dia_semana:
                             if c_time >= instance.hora_inicio and c_time < instance.hora_fin:
-                                if instance.fecha_fin_vigencia is None or c_date <= instance.fecha_fin_vigencia:
+                                cumple_inicio = (
+                                    instance.fecha_inicio_vigencia is None
+                                    or c_date >= instance.fecha_inicio_vigencia
+                                )
+                                cumple_fin = (
+                                    instance.fecha_fin_vigencia is None
+                                    or c_date <= instance.fecha_fin_vigencia
+                                )
+                                if cumple_inicio and cumple_fin:
                                     conflictos.append(f"{c['fecha']} {c['hora_inicio']}")
                     except Exception:
                         continue
@@ -293,7 +470,9 @@ class DisponibilidadViewSet(viewsets.ModelViewSet):
 
                 citas = self._obtener_citas_activas(instance.profesional_id, instance.fecha, instance.fecha)
                 ocupado = any(
-                    instance.hora_inicio <= datetime.strptime(c["hora_inicio"], "%H:%M:%S").time() < instance.hora_fin
+                    c.get("estado") in self.ESTADOS_CITA_BLOQUEANTES
+                    and c.get("fecha") == instance.fecha.strftime("%Y-%m-%d")
+                    and instance.hora_inicio <= datetime.strptime(c["hora_inicio"], "%H:%M:%S").time() < instance.hora_fin
                     for c in citas
                 )
 
@@ -352,6 +531,7 @@ class DisponibilidadViewSet(viewsets.ModelViewSet):
                 | (
                     Q(fecha__isnull=True)
                     & Q(dia_semana=dia_semana_origen)
+                    & (Q(fecha_inicio_vigencia__isnull=True) | Q(fecha_inicio_vigencia__lte=f_origen))
                     & (Q(fecha_fin_vigencia__isnull=True) | Q(fecha_fin_vigencia__gte=f_origen))
                 )
             )
@@ -373,6 +553,7 @@ class DisponibilidadViewSet(viewsets.ModelViewSet):
                         hora_inicio=h.hora_inicio,
                         hora_fin=h.hora_fin,
                         fecha=f_destino,
+                        fecha_inicio_vigencia=None,
                         fecha_fin_vigencia=None,
                         activo=True,
                     )
@@ -509,12 +690,13 @@ class SlotGeneratorView(APIView):
         start_dt = timezone.make_aware(datetime.combine(fecha_obj, time.min))
         end_dt = timezone.make_aware(datetime.combine(fecha_obj, time.max))
 
-        if BloqueoAgenda.objects.filter(
-            profesional_id=profesional_id,
-            fecha_inicio__lte=end_dt,
-            fecha_fin__gte=start_dt,
-        ).exists():
-            return Response([], status=200)
+        bloqueos_dia = list(
+            BloqueoAgenda.objects.filter(
+                profesional_id=profesional_id,
+                fecha_inicio__lte=end_dt,
+                fecha_fin__gte=start_dt,
+            )
+        )
 
         horarios = Disponibilidad.objects.filter(
             profesional_id=profesional_id, dia_semana=dia_semana, activo=True
@@ -522,6 +704,7 @@ class SlotGeneratorView(APIView):
             models.Q(fecha=fecha_obj)
             | (
                 models.Q(fecha__isnull=True)
+                & (models.Q(fecha_inicio_vigencia__isnull=True) | models.Q(fecha_inicio_vigencia__lte=fecha_obj))
                 & (models.Q(fecha_fin_vigencia__isnull=True) | models.Q(fecha_fin_vigencia__gte=fecha_obj))
             )
         )
@@ -549,9 +732,17 @@ class SlotGeneratorView(APIView):
             while cursor + timedelta(minutes=duracion) <= fin_turno:
                 s_ini = cursor.strftime("%H:%M")
                 s_fin = (cursor + timedelta(minutes=duracion)).strftime("%H:%M")
+                slot_start = cursor
+                slot_end = cursor + timedelta(minutes=duracion)
+                if timezone.is_naive(slot_start):
+                    slot_start = timezone.make_aware(slot_start)
+                if timezone.is_naive(slot_end):
+                    slot_end = timezone.make_aware(slot_end)
 
                 ocupado = any((s_ini < oc_fin and s_fin > oc_ini) for oc_ini, oc_fin in citas_ocupadas)
-                if not ocupado:
+                bloqueado = any(b.fecha_inicio < slot_end and b.fecha_fin > slot_start for b in bloqueos_dia)
+
+                if not ocupado and not bloqueado:
                     slots_disponibles.append(s_ini)
                 cursor += timedelta(minutes=duracion)
 

@@ -2,7 +2,12 @@ import os
 from pathlib import Path
 from urllib.parse import urlparse
 
+import environ
+
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+env = environ.Env(DEBUG=(bool, False))
+environ.Env.read_env(os.path.join(BASE_DIR, ".env"))
 
 SECRET_KEY = os.getenv(
     "SECRET_KEY",
@@ -54,34 +59,11 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "core.wsgi.application"
 
-database_url = os.getenv("DATABASE_URL", "").strip()
-if database_url:
-    parsed = urlparse(database_url)
-    engine_map = {
-        "postgres": "django.db.backends.postgresql",
-        "postgresql": "django.db.backends.postgresql",
-    }
-    DATABASES = {
-        "default": {
-            "ENGINE": engine_map.get(parsed.scheme, "django.db.backends.sqlite3"),
-            "NAME": parsed.path.lstrip("/"),
-            "USER": parsed.username or "",
-            "PASSWORD": parsed.password or "",
-            "HOST": parsed.hostname or "",
-            "PORT": str(parsed.port or ""),
-        }
-    }
-else:
-    DATABASES = {
-        "default": {
-            "ENGINE": os.getenv("DB_ENGINE", "django.db.backends.sqlite3"),
-            "NAME": os.getenv("DB_NAME", str(BASE_DIR / "db.sqlite3")),
-            "USER": os.getenv("DB_USER", ""),
-            "PASSWORD": os.getenv("DB_PASSWORD", ""),
-            "HOST": os.getenv("DB_HOST", ""),
-            "PORT": os.getenv("DB_PORT", ""),
-        }
-    }
+# Usamos la misma DB del .env
+DATABASES = {
+    "default": env.db(),
+}
+
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (

@@ -6,24 +6,25 @@ Este documento identifica los modelos de cada microservicio y su uso real en bac
 # FALTA EN RESUME:
 - Pacientes que pueden pedir citas de otros pacientes del grupo familiar. (OK)
 - Auditoria para todos las acciones de la aplicación. (OK)
+- asignación de Profesional como usuario de la aplicación -medico (OK)
+- Terminar desarrollo del portal. -------- (OK)
+- Vista para el profesional para ver sus citas asignadas y los comentarios de los pacientes y la funcionarias de la clinica. (OK)
+- Crear pantalla de gestion de pacientes para activar el turno en sala de espera y ser mas precisos durante la atención. (OK)
+- Crear vistas para el administrador relacionado con el portal y su administración. (OK)
+- Revisar las transiciones de los estados y agregar la transicion rechazada. (OK)
+- Mejorar los archivos .py para la creación automatica de las vistas y permisos por vista segun los grupos y roles y tambien cambiar los iconos para que tengan mejor diseño.(OK)(Segmentos)
+
 - Notificaciones, alertas por correo electronico y mensajes de texto.
 - Crear vista para el administrador relacionado con el envio de correos y notificaciones.
-- asignación de Profesional como usuario de la aplicación -medico (OK)
-- Vista para el profesional para ver sus citas asignadas y los comentarios de los pacientes y la funcionarias de la clinica. (OK)
 - Chatbot interno entre funcionarios de la empresa.
-- Terminar desarrollo del portal. -------- (OK)
-- Crear vistas para el administrador relacionado con el portal y su administración. (OK)
-- Crear chatbot con el modelo de inteligencia artifical para solicitud de citas, cancelacion, y demas componentes.
+- Crear chatbot con el modelo de inteligencia artifical para solicitud de citas, cancelacion, y demas componentes. tambien predictivo para citas
 - Crear la integracion con whatsapp de meta para la interacion con la ia y la aplicación. 
-- Crear pantalla de gestion de pacientes para activar el turno en sala de espera y ser mas precisos durante la atención. (OK)
 - Crear API para integración con otras aplicaciones para que consuman los datos basicos relacionado con la citas.- webservices metodo get
-- Mejorar los archivos .py para la creación automatica de las vistas y permisos por vista segun los grupos y roles y tambien cambiar los iconos para que tengan mejor diseño.(OK)(Segmentos)
 - validar las vulnerabilidades al final y corregirlas todas.
 - Crear un flujo de ayuda con IA para los administradores de la aplicación. -********************
 - Validar el uso de memoria y optimización de los recursos.
 - Implementar modo oscuro para los usuarios.
 - Validar los horarios relacionados con los servicios.
-- Revisar las transiciones de los estados y agregar la transicion rechazada. (OK)
 - hacer 2FA y autenticacion con google o outlook
 
 # NOTA IMPORTANTE: Programar el borrado de la auditoria de 90 dias docker exec -it auth_service python manage.py purge_auditoria --days 90 --batch 5000

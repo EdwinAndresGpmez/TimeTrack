@@ -33,6 +33,7 @@ class Disponibilidad(models.Model):
     # --- VIGENCIA RECURRENTE (Nuevo) ---
     # Si fecha es NULL, esto define hasta cuándo se repite.
     # NULL = Infinito.
+    fecha_inicio_vigencia = models.DateField(null=True, blank=True, verbose_name="Vigente desde")
     fecha_fin_vigencia = models.DateField(null=True, blank=True, verbose_name="Vigente hasta")
 
     activo = models.BooleanField(default=True)
@@ -51,6 +52,7 @@ class Disponibilidad(models.Model):
 
 
 class BloqueoAgenda(models.Model):
+    usuario_id = models.BigIntegerField(null=True, blank=True, db_index=True)
     profesional_id = models.BigIntegerField(db_index=True)
     fecha_inicio = models.DateTimeField()
     fecha_fin = models.DateTimeField()

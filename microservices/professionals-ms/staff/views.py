@@ -222,7 +222,13 @@ class BulkProfesionalView(APIView):
         data = {}
         for p in objs:
             especialidad_str = str(p.especialidades.first()) if p.especialidades.exists() else "General"
-            data[str(p.id)] = {"nombre": p.nombre, "especialidad": especialidad_str}
+            data[str(p.id)] = {
+                "nombre": p.nombre,
+                "especialidad": especialidad_str,
+                "activo": p.activo,
+                "lugares_atencion": list(p.lugares_atencion.values_list("id", flat=True)),
+                "servicios_habilitados": list(p.servicios_habilitados.values_list("id", flat=True)),
+            }
 
         return Response(data)
 
