@@ -12,6 +12,7 @@ import {
 import ListaProfesionales from './ListaProfesionales';
 import GrillaSemanal from './GrillaSemanal';
 import HistorialPanel from './HistorialAgendas'; 
+import useTenantPolicy from '../../../hooks/useTenantPolicy';
 
 const PALETA_COLORES = [
     { nombre: '#2563eb', clase: 'bg-blue-100 text-blue-800 border-blue-300' },
@@ -132,6 +133,27 @@ const GestionAgenda = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const [pendingRestore, setPendingRestore] = useState(location.state?.restoreAgenda || null);
+    const { planCode, hasFeature } = useTenantPolicy();
+    const agendaAvanzadaEnabled = hasFeature('agenda_avanzada');
+
+    const showAgendaUpsell = () => {
+        Swal.fire({
+            icon: 'info',
+            title: 'Función disponible en plan superior',
+            html: `
+                <div style="text-align:left">
+                    <p><b>Plan actual:</b> ${planCode || 'FREE'}</p>
+                    <p>La funcionalidad de <b>Agenda Avanzada</b> incluye:</p>
+                    <ul style="margin:6px 0 0 18px">
+                        <li>Repeticiones semanales/mensuales.</li>
+                        <li>Copiar y pegar agenda entre días/profesionales.</li>
+                        <li>Configuración operativa avanzada por bloques.</li>
+                    </ul>
+                </div>
+            `,
+            confirmButtonText: 'Entendido',
+        });
+    };
 
     useEffect(() => {
         const cargarDatos = async () => {
@@ -468,6 +490,10 @@ const GestionAgenda = () => {
     };
 
     const handleCopySchedule = (fechaOrigen) => {
+        if (!agendaAvanzadaEnabled) {
+            showAgendaUpsell();
+            return;
+        }
         if (selectedProfs.length !== 1) {
             return Swal.fire('Atencion', 'Selecciona un solo medico como origen para copiar el dia.', 'warning');
         }
@@ -478,6 +504,10 @@ const GestionAgenda = () => {
 
     // CORRECCION: PEGADO INTELIGENTE (Cruzado entre profesionales)
     const handlePasteSchedule = async (fechaDestino) => {
+        if (!agendaAvanzadaEnabled) {
+            showAgendaUpsell();
+            return;
+        }
         if (!clipboardDay) return;
 
         let targetProfId = null;
@@ -661,28 +691,39 @@ const GestionAgenda = () => {
             `)
         ].join('');
 
-        const recurrenciasCards = `
-            <button type="button" data-rec="HOY" class="swal-rec-card w-full text-left p-3 rounded-xl border border-blue-400 bg-blue-50 transition">
-                <p class="text-sm font-bold text-slate-800">Solo por hoy</p>
-                <p class="text-xs text-slate-500">${fechaStr}</p>
-            </button>
-            <button type="button" data-rec="INDEFINIDO" class="swal-rec-card w-full text-left p-3 rounded-xl border border-slate-200 hover:border-blue-400 hover:bg-blue-50 transition">
-                <p class="text-sm font-bold text-slate-800">Indefinido</p>
-                <p class="text-xs text-slate-500">Todos los ${diaNombre}s</p>
-            </button>
-            <button type="button" data-rec="1_SEMANA" class="swal-rec-card w-full text-left p-3 rounded-xl border border-slate-200 hover:border-blue-400 hover:bg-blue-50 transition">
-                <p class="text-sm font-bold text-slate-800">1 semana</p>
-                <p class="text-xs text-slate-500">2 repeticiones</p>
-            </button>
-            <button type="button" data-rec="15_DIAS" class="swal-rec-card w-full text-left p-3 rounded-xl border border-slate-200 hover:border-blue-400 hover:bg-blue-50 transition">
-                <p class="text-sm font-bold text-slate-800">15 dias</p>
-                <p class="text-xs text-slate-500">3 repeticiones</p>
-            </button>
-            <button type="button" data-rec="1_MES" class="swal-rec-card w-full text-left p-3 rounded-xl border border-slate-200 hover:border-blue-400 hover:bg-blue-50 transition">
-                <p class="text-sm font-bold text-slate-800">1 mes</p>
-                <p class="text-xs text-slate-500">4-5 repeticiones</p>
-            </button>
-        `;
+        const recurrenciasCards = agendaAvanzadaEnabled
+            ? `
+                <button type="button" data-rec="HOY" class="swal-rec-card w-full text-left p-3 rounded-xl border border-blue-400 bg-blue-50 transition">
+                    <p class="text-sm font-bold text-slate-800">Solo por hoy</p>
+                    <p class="text-xs text-slate-500">${fechaStr}</p>
+                </button>
+                <button type="button" data-rec="INDEFINIDO" class="swal-rec-card w-full text-left p-3 rounded-xl border border-slate-200 hover:border-blue-400 hover:bg-blue-50 transition">
+                    <p class="text-sm font-bold text-slate-800">Indefinido</p>
+                    <p class="text-xs text-slate-500">Todos los ${diaNombre}s</p>
+                </button>
+                <button type="button" data-rec="1_SEMANA" class="swal-rec-card w-full text-left p-3 rounded-xl border border-slate-200 hover:border-blue-400 hover:bg-blue-50 transition">
+                    <p class="text-sm font-bold text-slate-800">1 semana</p>
+                    <p class="text-xs text-slate-500">2 repeticiones</p>
+                </button>
+                <button type="button" data-rec="15_DIAS" class="swal-rec-card w-full text-left p-3 rounded-xl border border-slate-200 hover:border-blue-400 hover:bg-blue-50 transition">
+                    <p class="text-sm font-bold text-slate-800">15 dias</p>
+                    <p class="text-xs text-slate-500">3 repeticiones</p>
+                </button>
+                <button type="button" data-rec="1_MES" class="swal-rec-card w-full text-left p-3 rounded-xl border border-slate-200 hover:border-blue-400 hover:bg-blue-50 transition">
+                    <p class="text-sm font-bold text-slate-800">1 mes</p>
+                    <p class="text-xs text-slate-500">4-5 repeticiones</p>
+                </button>
+            `
+            : `
+                <button type="button" data-rec="HOY" class="swal-rec-card w-full text-left p-3 rounded-xl border border-blue-400 bg-blue-50 transition">
+                    <p class="text-sm font-bold text-slate-800">Solo por hoy</p>
+                    <p class="text-xs text-slate-500">${fechaStr}</p>
+                </button>
+                <div class="w-full p-3 rounded-xl border border-slate-200 bg-slate-100 opacity-70">
+                    <p class="text-sm font-bold text-slate-600">Repeticiones avanzadas</p>
+                    <p class="text-xs text-slate-500">Disponible desde plan STARTER.</p>
+                </div>
+            `;
 
         const horaInicio = `${hora.toString().padStart(2, '0')}:00`;
         const horaFin = `${(horaFinSugerida || (hora + 1)).toString().padStart(2, '0')}:00`;
@@ -1011,6 +1052,18 @@ const GestionAgenda = () => {
                         <button onClick={() => setViewMode('historial')} className={`px-4 py-2 text-sm font-bold rounded-md flex items-center gap-2 transition ${viewMode === 'historial' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}><FaHistory /> Historial</button>
                     </div>
                 </div>
+                {!agendaAvanzadaEnabled && (
+                    <div className="mx-6 mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+                        <b>Modo básico activo:</b> las funciones avanzadas de agenda están bloqueadas en este plan.
+                        <button
+                            type="button"
+                            onClick={showAgendaUpsell}
+                            className="ml-2 underline font-bold"
+                        >
+                            Ver beneficios de upgrade
+                        </button>
+                    </div>
+                )}
                 {viewMode === 'historial' ? <HistorialPanel profesionalSeleccionado={selectedProfs[0]} /> : (
                     <div className="flex-1 flex flex-col items-center justify-center text-gray-400 p-8 text-center">
                         <div className="bg-white p-8 rounded-2xl shadow-sm max-w-md border border-gray-100">
@@ -1083,6 +1136,8 @@ const GestionAgenda = () => {
                                 onPasteDay={handlePasteSchedule}
                                 clipboardDay={clipboardDay}
                                 refreshAgenda={cargarMultiplesAgendas} 
+                                agendaAvanzadaEnabled={agendaAvanzadaEnabled}
+                                onAgendaUpsell={showAgendaUpsell}
                             />
                         )}
                     </div>

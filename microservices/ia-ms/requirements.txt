@@ -2,6 +2,7 @@ Django>=5.0
 djangorestframework
 djangorestframework-simplejwt>=5.5.1,<6.0
 django-cors-headers
+django-environ
 psycopg2-binary
 python-dotenv
 requests

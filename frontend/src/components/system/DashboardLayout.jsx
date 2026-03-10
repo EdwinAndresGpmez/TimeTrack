@@ -5,6 +5,7 @@ import Sidebar from './Sidebar';
 import { FaBars, FaBell } from 'react-icons/fa';
 import DataUpdateEnforcer from './DataUpdateEnforcer';
 import { patientService } from '../../services/patientService';
+import ClinicGuideAssistant from './ClinicGuideAssistant';
 
 // Evento global para refrescar campana sin esperar polling
 const NOTIF_REFRESH_EVENT = 'tt:audit-notifications-refresh';
@@ -132,6 +133,7 @@ const DashboardLayout = () => {
     return (
         <div className="min-h-screen bg-gray-50 flex" key={sidebarKey}>
             <DataUpdateEnforcer />
+            <ClinicGuideAssistant />
 
             {/* Sidebar o Topbar */}
             {sidebarVariant !== 'sidebar-right' && <Sidebar isOpen={isSidebarOpen} logout={logout} />}
@@ -145,7 +147,7 @@ const DashboardLayout = () => {
                     paddingTop: topbarHeight
                 }}
             >
-                <header className="bg-white shadow-sm h-20 flex items-center justify-between px-8 sticky top-0 z-40 backdrop-blur-md bg-white/90">
+                <header className="bg-white shadow-sm h-20 flex items-center justify-between px-8 sticky top-0 z-40 border-b border-slate-200 text-slate-900">
                     <button
                         onClick={() => setSidebarOpen(!isSidebarOpen)}
                         className="text-gray-500 hover:text-blue-900 text-2xl focus:outline-none transition-transform active:scale-95"

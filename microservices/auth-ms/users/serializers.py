@@ -3,7 +3,7 @@ from django.contrib.auth.models import Group
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
-from .models import Auditoria, CrearCuenta, MenuItem, PermisoVista, SidebarBranding, TipoDocumento
+from .models import Auditoria, CrearCuenta, GuideContent, MenuItem, PermisoVista, SidebarBranding, TenantMembership, TipoDocumento
 
 
 class DependienteSerializer(serializers.ModelSerializer):
@@ -34,6 +34,7 @@ class UserSerializer(serializers.ModelSerializer):
             "acepta_tratamiento_datos",
             "paciente_id",
             "profesional_id",
+            "tenant_id",
             "is_staff",
             "dependientes_detalle",
         ]
@@ -41,6 +42,7 @@ class UserSerializer(serializers.ModelSerializer):
             "password": {"write_only": True},
             "paciente_id": {"required": False, "allow_null": True},
             "profesional_id": {"required": False, "allow_null": True},
+            "tenant_id": {"required": False, "allow_null": True},
             "apellidos": {"required": False, "allow_blank": True},
         }
 
@@ -99,6 +101,8 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     Personalizamos el token para incluir roles y IDs de enlace
     directamente en el payload del JWT.
     """
+    tenant_id = serializers.IntegerField(required=False)
+    tenant_slug = serializers.CharField(required=False)
 
     @classmethod
     def get_token(cls, user):
@@ -111,6 +115,8 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         token["is_staff"] = user.is_staff
         token["paciente_id"] = user.paciente_id
         token["profesional_id"] = user.profesional_id
+        token["tenant_id"] = user.tenant_id
+        token["tenant_slug"] = None
         token["roles"] = list(user.groups.values_list("name", flat=True))
 
         if user.groups.filter(name="Pantalla Sala").exists():
@@ -118,6 +124,79 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             token.set_exp(lifetime=timedelta(days=365))
 
         return token
+
+    def validate(self, attrs):
+        data = super().validate(attrs)
+
+        request = self.context.get("request")
+        requested_tenant = attrs.get("tenant_id")
+        if requested_tenant is None and request is not None:
+            requested_tenant = request.data.get("tenant_id")
+
+        if requested_tenant in ("", None):
+            requested_tenant = None
+
+        if requested_tenant is not None:
+            try:
+                requested_tenant = int(requested_tenant)
+            except (TypeError, ValueError):
+                raise serializers.ValidationError({"tenant_id": "tenant_id invalido"})
+
+        memberships = TenantMembership.objects.filter(user=self.user, is_active=True)
+        default_membership = memberships.filter(is_default=True).order_by("-updated_at").first()
+        first_membership = memberships.order_by("tenant_id", "id").first()
+
+        active_tenant_id = requested_tenant
+        active_tenant_slug = None
+        if active_tenant_id is None:
+            if default_membership:
+                active_tenant_id = default_membership.tenant_id
+                active_tenant_slug = default_membership.tenant_slug
+            elif first_membership:
+                active_tenant_id = first_membership.tenant_id
+                active_tenant_slug = first_membership.tenant_slug
+            else:
+                active_tenant_id = self.user.tenant_id
+
+        tenant_roles = []
+        if active_tenant_id is not None:
+            if not active_tenant_slug:
+                active_membership = memberships.filter(tenant_id=active_tenant_id).order_by("-is_default", "id").first()
+                if active_membership:
+                    active_tenant_slug = active_membership.tenant_slug
+            tenant_roles = list(
+                memberships.filter(tenant_id=active_tenant_id).values_list("role_name", flat=True).distinct()
+            )
+            if not tenant_roles:
+                # Compatibilidad retro: permitir tenant_id directo en usuario.
+                if self.user.tenant_id != active_tenant_id:
+                    raise serializers.ValidationError(
+                        {"tenant_id": "El usuario no pertenece al tenant solicitado"}
+                    )
+                tenant_roles = list(self.user.groups.values_list("name", flat=True))
+
+        # Mantener roles globales (ej. SuperAdmin SaaS) dentro del JWT activo del tenant.
+        global_roles = list(self.user.groups.values_list("name", flat=True))
+        for role in global_roles:
+            if role not in tenant_roles:
+                tenant_roles.append(role)
+
+        refresh = self.get_token(self.user)
+        refresh["tenant_id"] = active_tenant_id
+        refresh["tenant_slug"] = active_tenant_slug
+        refresh["roles"] = tenant_roles
+        data["refresh"] = str(refresh)
+        data["access"] = str(refresh.access_token)
+        data["tenant_id"] = active_tenant_id
+        data["tenant_slug"] = active_tenant_slug
+        data["roles"] = tenant_roles
+        return data
+
+
+class TenantMembershipSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TenantMembership
+        fields = ["id", "tenant_id", "tenant_slug", "role_name", "is_active", "is_default", "created_at", "updated_at"]
 
 
 class MenuItemSerializer(serializers.ModelSerializer):
@@ -152,6 +231,7 @@ class UserAdminSerializer(serializers.ModelSerializer):
             "is_staff",
             "groups",
             "paciente_id",
+            "tenant_id",
             "dependientes_detalle",
         ]
         read_only_fields = ["paciente_id"]
@@ -207,3 +287,9 @@ class AuditoriaSerializer(serializers.ModelSerializer):
             "recurso",
             "recurso_id",
         ]
+
+
+class GuideContentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = GuideContent
+        fields = ["id", "key", "title", "content", "is_active", "updated_at"]

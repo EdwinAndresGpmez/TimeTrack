@@ -1,9 +1,13 @@
 from django_filters.rest_framework import DjangoFilterBackend
+from django.conf import settings
 from rest_framework import filters, viewsets
+from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from .utils.permissions import InternalTokenOrAuthenticated
+from .utils.tenant_policy import get_current_tenant_policy, get_feature_rule
 from .models import Especialidad, Lugar, Profesional, Servicio
 from .serializers import (
     EspecialidadSerializer,
@@ -30,6 +34,79 @@ def _audit_from_view(request, *, descripcion, accion, recurso, recurso_id=None, 
         ip=request.META.get("REMOTE_ADDR"),
         user_agent=request.META.get("HTTP_USER_AGENT"),
     )
+
+
+def _enforce_cap_profesionales(request):
+    policy = get_current_tenant_policy(request)
+    cap_profesionales = get_feature_rule(policy, "cap_profesionales")
+    cap_habilitado = bool(cap_profesionales.get("enabled", False))
+    limite = cap_profesionales.get("limit_int")
+
+    if not cap_habilitado or limite is None:
+        return
+
+    activos = Profesional.objects.filter(activo=True).count()
+    if activos >= int(limite):
+        raise ValidationError(
+            {
+                "detail": (
+                    f"El plan actual permite maximo {limite} profesional(es) activos. "
+                    "Actualiza el plan o desactiva uno para continuar."
+                )
+            }
+        )        
+
+
+def _enforce_cap_sedes(request, *, instance=None, incoming_active=True):
+    if not incoming_active:
+        return
+
+    policy = get_current_tenant_policy(request)
+    cap_sedes = get_feature_rule(policy, "cap_sedes")
+    sedes_habilitado = bool(cap_sedes.get("enabled", False))
+    limite_sedes = cap_sedes.get("limit_int")
+
+    if not sedes_habilitado or limite_sedes is None:
+        return
+
+    activos = Lugar.objects.filter(activo=True).count()
+    limite = int(limite_sedes)
+    projected = activos
+
+    if instance is None:
+        projected = activos + 1
+    elif not instance.activo and incoming_active:
+        projected = activos + 1
+
+    if projected > limite:
+        raise ValidationError(
+            {
+                "detail": (
+                    f"El plan actual permite maximo {limite} sede(s) activas. "
+                    "Actualiza el plan o desactiva una sede para continuar."
+                )
+            }
+        )
+
+
+def _is_internal_call(request) -> bool:
+    token = request.headers.get("X-INTERNAL-TOKEN", "")
+    return bool(token and token == getattr(settings, "INTERNAL_SERVICE_TOKEN", ""))
+
+
+def _api_publica_enabled(request) -> bool:
+    policy = get_current_tenant_policy(request)
+    regla = get_feature_rule(policy, "api_publica")
+    return bool(regla.get("enabled", False))
+
+
+def _enforce_api_publica_for_external(request):
+    if _is_internal_call(request):
+        return
+    if not _api_publica_enabled(request):
+        raise PermissionDenied(
+            "Tu plan no incluye API Publica. Este endpoint de integracion no esta disponible."
+        )
 
 
 class EspecialidadViewSet(viewsets.ModelViewSet):
@@ -85,6 +162,9 @@ class LugarViewSet(viewsets.ModelViewSet):
     filterset_fields = ["activo", "ciudad"]
 
     def perform_create(self, serializer):
+        activo_nuevo = serializer.validated_data.get("activo", True)
+        _enforce_cap_sedes(self.request, instance=None, incoming_active=activo_nuevo)
+
         obj = serializer.save()
         _audit_from_view(
             self.request,
@@ -96,6 +176,10 @@ class LugarViewSet(viewsets.ModelViewSet):
         )
 
     def perform_update(self, serializer):
+        instance = serializer.instance
+        nuevo_activo = serializer.validated_data.get("activo", instance.activo)
+        _enforce_cap_sedes(self.request, instance=instance, incoming_active=nuevo_activo)
+
         obj = serializer.save()
         _audit_from_view(
             self.request,
@@ -119,6 +203,70 @@ class LugarViewSet(viewsets.ModelViewSet):
             metadata=meta,
         )
 
+    @action(detail=False, methods=["post"], url_path="import-masivo")
+    def import_masivo(self, request):
+        rows = request.data.get("rows", [])
+        skip_duplicates = bool(request.data.get("skip_duplicates", True))
+
+        if not isinstance(rows, list) or not rows:
+            raise ValidationError(
+                {"detail": "Payload invalido. Envia 'rows' como lista con sedes a importar."}
+            )
+
+        created = []
+        errors = []
+
+        for idx, row in enumerate(rows):
+            if not isinstance(row, dict):
+                errors.append({"index": idx, "detail": "Fila invalida: se esperaba un objeto JSON."})
+                continue
+
+            if skip_duplicates:
+                nombre = (row.get("nombre") or "").strip()
+                direccion = (row.get("direccion") or "").strip()
+                ciudad = (row.get("ciudad") or "").strip()
+                if nombre and direccion and ciudad:
+                    exists = Lugar.objects.filter(
+                        nombre__iexact=nombre,
+                        direccion__iexact=direccion,
+                        ciudad__iexact=ciudad,
+                    ).exists()
+                    if exists:
+                        errors.append({"index": idx, "detail": "Duplicado omitido (nombre+direccion+ciudad)."})
+                        continue
+
+            serializer = self.get_serializer(data=row)
+            if not serializer.is_valid():
+                errors.append({"index": idx, "detail": serializer.errors})
+                continue
+
+            try:
+                activo_nuevo = serializer.validated_data.get("activo", True)
+                _enforce_cap_sedes(self.request, incoming_active=activo_nuevo)
+                obj = serializer.save()
+            except ValidationError as exc:
+                errors.append({"index": idx, "detail": getattr(exc, "detail", str(exc))})
+                continue
+
+            _audit_from_view(
+                request,
+                descripcion=f"IMPORT_CREATE Lugar #{obj.pk}",
+                accion="IMPORT_CREATE",
+                recurso="Lugar",
+                recurso_id=obj.pk,
+                metadata={"nombre": obj.nombre, "ciudad": obj.ciudad},
+            )
+            created.append(self.get_serializer(obj).data)
+
+        return Response(
+            {
+                "created_count": len(created),
+                "error_count": len(errors),
+                "created": created,
+                "errors": errors,
+            }
+        )
+
 
 class ProfesionalViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
@@ -129,6 +277,10 @@ class ProfesionalViewSet(viewsets.ModelViewSet):
     filterset_fields = ["activo", "especialidades", "lugares_atencion", "servicios_habilitados"]
 
     def perform_create(self, serializer):
+        activo_nuevo = serializer.validated_data.get("activo", True)
+        if activo_nuevo:
+            _enforce_cap_profesionales(self.request)
+
         obj = serializer.save()
         _audit_from_view(
             self.request,
@@ -140,6 +292,11 @@ class ProfesionalViewSet(viewsets.ModelViewSet):
         )
 
     def perform_update(self, serializer):
+        instance = serializer.instance
+        nuevo_activo = serializer.validated_data.get("activo", instance.activo)
+        if (not instance.activo) and nuevo_activo:
+            _enforce_cap_profesionales(self.request)
+
         obj = serializer.save()
         _audit_from_view(
             self.request,
@@ -212,6 +369,8 @@ class BulkProfesionalView(APIView):
     permission_classes = [InternalTokenOrAuthenticated]
 
     def get(self, request):
+        _enforce_api_publica_for_external(request)
+
         ids_param = request.query_params.get("ids", "")
         if not ids_param:
             return Response({})
@@ -237,6 +396,8 @@ class BulkServicioView(APIView):
     permission_classes = [InternalTokenOrAuthenticated]
 
     def get(self, request):
+        _enforce_api_publica_for_external(request)
+
         ids = request.query_params.get("ids", "").split(",")
         objs = Servicio.objects.filter(id__in=ids)
 
@@ -255,6 +416,8 @@ class BulkLugarView(APIView):
     permission_classes = [InternalTokenOrAuthenticated]
 
     def get(self, request):
+        _enforce_api_publica_for_external(request)
+
         ids = request.query_params.get("ids", "").split(",")
         objs = Lugar.objects.filter(id__in=ids)
 

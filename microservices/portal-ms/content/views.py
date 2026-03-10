@@ -4,6 +4,7 @@ from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from core.tenant_policy import get_current_tenant_policy_public, get_feature_rule
 
 from .models import (
     Banner,
@@ -21,6 +22,11 @@ from .serializers import (
     PageSerializer,
     PageSectionSerializer,
 )
+
+
+def _portal_web_completo_enabled(request) -> bool:
+    policy = get_current_tenant_policy_public(request)
+    return bool(get_feature_rule(policy, "portal_web_completo").get("enabled", False))
 
 
 # ------------------------
@@ -164,6 +170,11 @@ class AdminRoleMixin:
             return
         if not self._is_admin(request):
             raise PermissionDenied("No autorizado (se requiere rol Administrador / staff).")
+        if not _portal_web_completo_enabled(request):
+            raise PermissionDenied(
+                "Tu plan no incluye Portal Web Completo. "
+                "La administracion avanzada del portal no esta disponible."
+            )
 
 
 # ------------------------
@@ -189,6 +200,12 @@ class ThemePublicView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
+        policy = get_current_tenant_policy_public(request)
+        portal_simple = bool(get_feature_rule(policy, "portal_citas_simple").get("enabled", False))
+        portal_full = bool(get_feature_rule(policy, "portal_web_completo").get("enabled", False))
+        if not (portal_simple or portal_full):
+            raise PermissionDenied("Tu plan no incluye Portal de Citas.")
+
         theme, _ = PortalTheme.objects.get_or_create(id=1)
         ser = PortalThemeSerializer(theme, context={"request": request})
         return Response(ser.data)
@@ -206,11 +223,20 @@ class PagePublicView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request, slug):
+        policy = get_current_tenant_policy_public(request)
+        portal_simple = bool(get_feature_rule(policy, "portal_citas_simple").get("enabled", False))
+        portal_full = bool(get_feature_rule(policy, "portal_web_completo").get("enabled", False))
+        if not (portal_simple or portal_full):
+            raise PermissionDenied("Tu plan no incluye Portal de Citas.")
+
         page, _ = Page.objects.get_or_create(slug=slug, defaults={"title": slug})
 
         # Serial base (PageSerializer ya devuelve secciones activas)
         base = PageSerializer(page, context={"request": request}).data
         sections = base.get("sections") or []
+        if not portal_full:
+            allowed_types = {"hero", "services", "contact"}
+            sections = [s for s in sections if s.get("type") in allowed_types]
 
         # 1) Recolectar asset_ids desde data de todas las secciones
         asset_ids = set()
@@ -243,6 +269,32 @@ class PagePublicView(APIView):
         # 5) Respuesta final
         base["sections"] = sections
         return Response(base)
+
+
+class PortalPublicPolicyView(APIView):
+    """
+    Public policy snapshot for portal rendering decisions (simple vs completo).
+    """
+
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        policy = get_current_tenant_policy_public(request)
+        feature_codes = ["portal_citas_simple", "portal_web_completo", "pqrs"]
+        features = {
+            code: {
+                "enabled": bool(get_feature_rule(policy, code).get("enabled", False)),
+                "limit_int": get_feature_rule(policy, code).get("limit_int"),
+            }
+            for code in feature_codes
+        }
+        return Response(
+            {
+                "tenant": policy.get("tenant") or {},
+                "subscription": policy.get("subscription") or {},
+                "features": features,
+            }
+        )
 
 
 # ------------------------

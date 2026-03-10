@@ -1,6 +1,7 @@
 import React, { createContext, useState, useEffect, useCallback } from 'react';
 import { jwtDecode } from "jwt-decode";
 import { authService } from '../services/authService';
+import { setActiveTenantContext } from '../utils/tenantContext';
 
 export const AuthContext = createContext();
 
@@ -43,6 +44,23 @@ export const AuthProvider = ({ children }) => {
         }
     }, []);
 
+    const ensureTenantSlugContext = useCallback(async (decodedToken) => {
+        if (!decodedToken?.tenant_id || decodedToken?.tenant_slug) return;
+        try {
+            const memberships = await authService.getMisTenants();
+            const list = Array.isArray(memberships) ? memberships : (memberships?.results || []);
+            const selected = list.find((x) => x.tenant_id === decodedToken.tenant_id && x.tenant_slug);
+            if (selected?.tenant_slug) {
+                setActiveTenantContext({
+                    tenantId: decodedToken.tenant_id,
+                    tenantSlug: selected.tenant_slug,
+                });
+            }
+        } catch (_error) {
+            // no-op
+        }
+    }, []);
+
     useEffect(() => {
         const checkSession = async () => {
             const access = localStorage.getItem('access');
@@ -55,6 +73,11 @@ export const AuthProvider = ({ children }) => {
                         logout();
                     } else {
                         setUser(decoded);
+                        setActiveTenantContext({
+                            tenantId: decoded?.tenant_id ?? null,
+                            tenantSlug: decoded?.tenant_slug ?? null,
+                        });
+                        await ensureTenantSlugContext(decoded);
                         await fetchRolesYPermisos();
                     }
                 } catch (error) {
@@ -67,7 +90,7 @@ export const AuthProvider = ({ children }) => {
         };
 
         checkSession();
-    }, [logout, fetchRolesYPermisos]);
+    }, [logout, fetchRolesYPermisos, ensureTenantSlugContext]);
 
     const login = async (credentials) => {
         const data = await authService.login(credentials);
@@ -78,6 +101,11 @@ export const AuthProvider = ({ children }) => {
 
             const decoded = jwtDecode(data.access);
             setUser(decoded);
+            setActiveTenantContext({
+                tenantId: decoded?.tenant_id ?? null,
+                tenantSlug: decoded?.tenant_slug ?? null,
+            });
+            await ensureTenantSlugContext(decoded);
 
             await fetchRolesYPermisos();
 

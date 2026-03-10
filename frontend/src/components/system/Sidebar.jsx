@@ -2,14 +2,18 @@ import React, { useContext, useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
 import { authService } from '../../services/authService';
+import { tenancyService } from '../../services/tenancyService';
 import * as FaIcons from 'react-icons/fa';
-import { FaSignOutAlt, FaSyncAlt, FaChevronDown, FaChevronRight } from 'react-icons/fa';
+import { FaSignOutAlt, FaChevronDown, FaBell } from 'react-icons/fa';
+import { getActiveTenantId, setActiveTenantContext } from '../../utils/tenantContext';
 
 const Sidebar = ({ isOpen, toggleSidebar, logout }) => {
     const location = useLocation();
-    const { user } = useContext(AuthContext);
+    const { user, permissions } = useContext(AuthContext);
     const [menuItems, setMenuItems] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [tenantOptions, setTenantOptions] = useState([]);
+    const [activeTenantId, setActiveTenantId] = useState(() => getActiveTenantId());
     
     // Rastrea qué categorías están abiertas/cerradas
     const [openCategories, setOpenCategories] = useState({});
@@ -21,12 +25,18 @@ const Sidebar = ({ isOpen, toggleSidebar, logout }) => {
         logo_url: null,
         empresa_nombre: 'IDEFNOVA'
     });
+    const isSaaSSuperAdmin = user?.is_superuser || (permissions?.roles || []).includes('SuperAdmin SaaS');
+    const canOpenSaasTenants = (permissions?.codenames || []).includes('saas_tenants_admin');
+
+    const tenantCacheKey = activeTenantId || user?.tenant_id || 'default';
+    const brandingStorageKey = `branding_${tenantCacheKey}`;
+    const menuStorageKey = `menuItems_${tenantCacheKey}`;
 
     // Cargar branding y menú lo más rápido posible desde localStorage (optimista)
     useEffect(() => {
         const loadBrandingAndMenu = () => {
-            const localBranding = localStorage.getItem('branding');
-            const localMenu = localStorage.getItem('menuItems');
+            const localBranding = localStorage.getItem(brandingStorageKey);
+            const localMenu = localStorage.getItem(menuStorageKey);
             if (localBranding) setBranding(JSON.parse(localBranding));
             if (localMenu) setMenuItems(JSON.parse(localMenu));
             setLoading(false);
@@ -38,7 +48,7 @@ const Sidebar = ({ isOpen, toggleSidebar, logout }) => {
         };
         window.addEventListener('brandingChanged', handler);
         return () => window.removeEventListener('brandingChanged', handler);
-    }, []);
+    }, [brandingStorageKey, menuStorageKey]);
 
     useEffect(() => {
         const fetchBrandingAndMenu = async () => {
@@ -50,11 +60,11 @@ const Sidebar = ({ isOpen, toggleSidebar, logout }) => {
                 ]);
                 if (dataBranding) {
                     setBranding(dataBranding);
-                    localStorage.setItem('branding', JSON.stringify(dataBranding));
+                    localStorage.setItem(brandingStorageKey, JSON.stringify(dataBranding));
                 }
                 if (dataMenu) {
                     setMenuItems(dataMenu);
-                    localStorage.setItem('menuItems', JSON.stringify(dataMenu));
+                    localStorage.setItem(menuStorageKey, JSON.stringify(dataMenu));
                     // Por defecto, todas las categorías inician comprimidas (cerradas)
                     const initialCats = {};
                     dataMenu.forEach(item => {
@@ -71,7 +81,7 @@ const Sidebar = ({ isOpen, toggleSidebar, logout }) => {
             }
         };
         if (user) fetchBrandingAndMenu();
-    }, [user]);
+    }, [user, brandingStorageKey, menuStorageKey]);
 
     const toggleCategory = (catName) => {
         setOpenCategories(prev => {
@@ -93,6 +103,77 @@ const Sidebar = ({ isOpen, toggleSidebar, logout }) => {
         }
     }, []);
 
+    useEffect(() => {
+        const loadTenants = async () => {
+            if (!user) return;
+            try {
+                const memberships = await authService.getMisTenants();
+                const list = Array.isArray(memberships) ? memberships : (memberships?.results || []);
+
+                let options = list
+                    .filter((x) => !!x.tenant_id)
+                    .map((x) => ({
+                        tenant_id: x.tenant_id,
+                        tenant_slug: x.tenant_slug || null,
+                        label: x.tenant_slug ? `${x.tenant_slug}` : `Tenant #${x.tenant_id}`,
+                        is_default: !!x.is_default,
+                    }));
+
+                if ((user?.is_superuser || (permissions?.roles || []).includes('SuperAdmin SaaS')) && options.length < 2) {
+                    try {
+                        const t = await tenancyService.getTenants();
+                        const tenants = Array.isArray(t) ? t : (t?.results || []);
+                        if (tenants.length > 0) {
+                            options = tenants.map((item) => ({
+                                tenant_id: item.id,
+                                tenant_slug: item.slug,
+                                label: item.legal_name ? `${item.legal_name} (${item.slug})` : item.slug,
+                                is_default: item.id === (user?.tenant_id || activeTenantId),
+                            }));
+                        }
+                    } catch (_err) {
+                        // no-op: si no tiene permiso, mantenemos memberships
+                    }
+                }
+
+                setTenantOptions(options);
+
+                const preferred = options.find((x) => x.tenant_id === (activeTenantId || user?.tenant_id))
+                    || options.find((x) => x.is_default)
+                    || options[0];
+
+                if (preferred) {
+                    setActiveTenantId(preferred.tenant_id);
+                    setActiveTenantContext({
+                        tenantId: preferred.tenant_id,
+                        tenantSlug: preferred.tenant_slug || null,
+                    });
+                }
+            } catch (error) {
+                console.error('Error cargando tenants del usuario:', error);
+            }
+        };
+
+        loadTenants();
+    }, [user, permissions, activeTenantId]);
+
+    const onChangeTenant = async (e) => {
+        const nextTenantId = parseInt(e.target.value, 10);
+        if (Number.isNaN(nextTenantId) || !user) return;
+        try {
+            const selected = tenantOptions.find((x) => x.tenant_id === nextTenantId);
+            const switched = await authService.switchTenant(nextTenantId, selected?.tenant_slug || null);
+            setActiveTenantId(nextTenantId);
+            setActiveTenantContext({
+                tenantId: nextTenantId,
+                tenantSlug: switched?.tenant_slug || selected?.tenant_slug || null,
+            });
+            window.location.reload();
+        } catch (error) {
+            console.error('Error cambiando tenant:', error);
+        }
+    };
+
     const getContrastColor = (hexcolor) => {
         if (!hexcolor) return '#ffffff';
         const r = parseInt(hexcolor.substr(1, 2), 16);
@@ -107,6 +188,12 @@ const Sidebar = ({ isOpen, toggleSidebar, logout }) => {
         const IconComponent = FaIcons[iconName];
         return IconComponent ? <IconComponent /> : <FaIcons.FaCircle />;
     };
+    const normalizeCategory = (value) =>
+        String(value || '')
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .trim();
 
     const groups = menuItems.reduce((acc, item) => {
         const cat = item.category_name || "General";
@@ -207,6 +294,19 @@ const Sidebar = ({ isOpen, toggleSidebar, logout }) => {
                 <div className={`transition-all duration-500 ${!isOpen || branding.variant === 'compact' ? 'opacity-0 scale-0 w-0' : 'opacity-100'}`}>
                     <h1 className="font-black tracking-tighter text-lg leading-tight truncate uppercase">{branding.empresa_nombre}</h1>
                     <p className="text-[10px] font-bold opacity-50 uppercase tracking-widest">Enterprise</p>
+                    {isSaaSSuperAdmin && tenantOptions.length > 0 && (
+                        <select
+                            className="mt-2 w-full rounded-lg bg-white/10 border border-white/20 text-xs px-2 py-1 outline-none"
+                            value={activeTenantId || ''}
+                            onChange={onChangeTenant}
+                        >
+                            {tenantOptions.map((opt) => (
+                                <option key={opt.tenant_id} value={opt.tenant_id}>
+                                    {opt.label}
+                                </option>
+                            ))}
+                        </select>
+                    )}
                 </div>
             </div>
 
@@ -219,6 +319,7 @@ const Sidebar = ({ isOpen, toggleSidebar, logout }) => {
                             <div key={item.id} className="relative group">
                                 <Link
                                     to={item.url}
+                                    data-guide-route={item.url}
                                     className={`
                                         relative flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all duration-300 group
                                         ${active ? 'bg-white/10 shadow-lg' : 'hover:bg-white/5'}
@@ -248,6 +349,7 @@ const Sidebar = ({ isOpen, toggleSidebar, logout }) => {
                                 {/* BOTÓN DE CATEGORÍA (ACCORDEON) */}
                                 <button
                                     onClick={() => isOpen && toggleCategory(cat)}
+                                    data-guide-category={normalizeCategory(cat)}
                                     className={`w-full flex items-center justify-between px-4 py-2 transition-all group
                                     ${!isOpen ? 'cursor-default' : 'cursor-pointer hover:bg-white/5 rounded-xl'}`}
                                 >
@@ -272,6 +374,7 @@ const Sidebar = ({ isOpen, toggleSidebar, logout }) => {
                                             <div key={item.id} className="relative group">
                                                 <Link
                                                     to={item.url}
+                                                    data-guide-route={item.url}
                                                     className={`
                                                         relative flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all duration-300 group
                                                         ${active ? 'bg-white/10 shadow-lg' : 'hover:bg-white/5'}
@@ -303,6 +406,16 @@ const Sidebar = ({ isOpen, toggleSidebar, logout }) => {
 
             {/* Footer */}
             <div className={`p-4 border-t border-white/5 ${!isOpen || branding.variant === 'compact' ? 'flex flex-col items-center' : ''}`}>
+                {isSaaSSuperAdmin && canOpenSaasTenants && (
+                    <Link
+                        to="/dashboard/admin/tenants?tab=notifications"
+                        className={`w-full mb-2 flex items-center gap-4 p-3 rounded-2xl transition-all hover:bg-blue-500/10 hover:text-blue-300 ${!isOpen || branding.variant === 'compact' ? 'justify-center' : ''}`}
+                        title="Centro de Notificaciones SaaS"
+                    >
+                        <FaBell className="text-lg opacity-70" />
+                        <span className={`font-bold text-xs transition-all ${!isOpen || branding.variant === 'compact' ? 'hidden' : 'block'}`}>Notificaciones SaaS</span>
+                    </Link>
+                )}
                 <button onClick={logout} className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all group hover:bg-red-500/10 hover:text-red-400 ${!isOpen || branding.variant === 'compact' ? 'justify-center' : ''}`}>
                     <FaSignOutAlt className="text-xl group-hover:translate-x-1 transition-transform opacity-60 group-hover:opacity-100" />
                     <span className={`font-bold text-sm transition-all ${!isOpen || branding.variant === 'compact' ? 'hidden' : 'block'}`}>Cerrar Sesión</span>

@@ -39,6 +39,8 @@ export const staffService = {
     createLugar: async (data) => (await api.post('/staff/lugares/', data)).data,
     updateLugar: async (id, data) => (await api.patch(`/staff/lugares/${id}/`, data)).data,
     deleteLugar: async (id) => (await api.delete(`/staff/lugares/${id}/`)).data,
+    importLugaresMasivo: async (rows, skipDuplicates = true) =>
+        (await api.post('/staff/lugares/import-masivo/', { rows, skip_duplicates: skipDuplicates })).data,
 
     createServicio: async (data) => (await api.post('/staff/servicios/', data)).data,
     updateServicio: async (id, data) => (await api.patch(`/staff/servicios/${id}/`, data)).data,

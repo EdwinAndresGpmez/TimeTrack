@@ -10,6 +10,7 @@ from content.views import (
     VideoListView,
     ThemePublicView,
     PagePublicView,
+    PortalPublicPolicyView,
 
     # Admin
     BannerAdminViewSet,
@@ -78,6 +79,7 @@ urlpatterns = [
     path("api/v1/portal/banners/", BannerListView.as_view(), name="banner-list"),
     path("api/v1/portal/videos/", VideoListView.as_view(), name="video-list"),
     path("api/v1/portal/theme/", ThemePublicView.as_view(), name="theme-public"),
+    path("api/v1/portal/policy/", PortalPublicPolicyView.as_view(), name="portal-policy-public"),
     path("api/v1/portal/pages/<slug:slug>/", PagePublicView.as_view(), name="page-public"),
     
 

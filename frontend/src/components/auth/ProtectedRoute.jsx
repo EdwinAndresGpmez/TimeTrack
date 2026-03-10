@@ -2,11 +2,13 @@ import React, { useContext } from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
 import Swal from 'sweetalert2';
+import useTenantPolicy from '../../hooks/useTenantPolicy';
 
-const ProtectedRoute = ({ children, requiredPermission, requiredRole }) => {
+const ProtectedRoute = ({ children, requiredPermission, requiredRole, requiredFeature }) => {
     const { user, loading, permissions } = useContext(AuthContext);
+    const { loading: policyLoading, hasFeature } = useTenantPolicy();
 
-    if (loading) return (
+    if (loading || policyLoading) return (
         <div className="flex justify-center items-center h-screen bg-gray-50">
             <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
             <span className="ml-3 font-bold text-gray-500">Verificando seguridad...</span>
@@ -16,8 +18,8 @@ const ProtectedRoute = ({ children, requiredPermission, requiredRole }) => {
     // 1. Validar Login
     if (!user) return <Navigate to="/login" replace />;
 
-    // 2. Superusuario y Staff siempre tienen acceso (Puerta trasera administrativa)
-    if (user.is_superuser || user.is_staff) return children ? children : <Outlet />;
+    // 2. Superusuario siempre tiene acceso
+    if (user.is_superuser) return children ? children : <Outlet />;
 
     // 3. Validación por ROL (Nuevo: Más fácil para reglas generales)
     // Ejemplo: requiredRole="Paciente"
@@ -50,6 +52,21 @@ const ProtectedRoute = ({ children, requiredPermission, requiredRole }) => {
                 title: 'Acceso Denegado',
                 text: 'No tienes los permisos asignados para esta operación.',
                 timer: 2000,
+                showConfirmButton: false
+            });
+            return <Navigate to="/dashboard" replace />;
+        }
+    }
+
+    // 5. Validación por FEATURE del plan (tenant policy)
+    if (requiredFeature) {
+        const enabled = hasFeature(requiredFeature);
+        if (!enabled) {
+            Swal.fire({
+                icon: 'info',
+                title: 'Funcionalidad no incluida en tu plan',
+                text: `Esta sección requiere el módulo: ${requiredFeature}`,
+                timer: 2600,
                 showConfirmButton: false
             });
             return <Navigate to="/dashboard" replace />;

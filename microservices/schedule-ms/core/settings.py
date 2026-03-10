@@ -31,6 +31,8 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
+    "core.tenant_security.TenantSignatureMiddleware",
+    "core.tenant_schema.TenantSchemaMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
@@ -87,6 +89,15 @@ AUDIT_URL = env("AUDIT_URL", default="http://auth-ms:8000/api/v1/users/admin/aud
 AUTH_MS_AUDIT_URL = env("AUTH_MS_AUDIT_URL", default=AUDIT_URL)
 INTERNAL_AUDIT_TOKEN = env("INTERNAL_AUDIT_TOKEN", default="supersecrettoken")
 INTERNAL_SERVICE_TOKEN = env("INTERNAL_SERVICE_TOKEN", default="supersecrettoken")
+TENANT_HEADER_SIGNING_KEY = env("TENANT_HEADER_SIGNING_KEY", default=SECRET_KEY)
+TENANT_SIGNATURE_REQUIRED = env.bool("TENANT_SIGNATURE_REQUIRED", default=not DEBUG)
+TENANT_SIGNATURE_MAX_SKEW_SEC = env.int("TENANT_SIGNATURE_MAX_SKEW_SEC", default=300)
+TENANT_SCHEMA_ENFORCE_HEADER = env.bool("TENANT_SCHEMA_ENFORCE_HEADER", default=not DEBUG)
+TENANT_SCHEMA_DEFAULT = env("TENANT_SCHEMA_DEFAULT", default="public")
+TENANT_SCHEMA_REQUIRE_HEADER = env.bool("TENANT_SCHEMA_REQUIRE_HEADER", default=not DEBUG)
+TENANT_SCHEMA_ALLOW_PUBLIC = env.bool("TENANT_SCHEMA_ALLOW_PUBLIC", default=DEBUG)
+TENANT_POLICY_URL = env("TENANT_POLICY_URL", default="http://tenant-billing-ms:8008/api/v1/tenancy/policy/current")
+TENANT_POLICY_TIMEOUT_SEC = env.int("TENANT_POLICY_TIMEOUT_SEC", default=5)
 
 JWT_SIGNING_KEY = env("JWT_SIGNING_KEY", default=SECRET_KEY)
 

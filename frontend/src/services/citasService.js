@@ -29,6 +29,11 @@ export const citasService = {
         return response.data;
     },
 
+    getDashboardResumen: async () => {
+        const response = await api.get('/citas/reportes/dashboard-resumen/');
+        return response.data;
+    },
+
     cancel: async (id) => {
         const response = await api.patch(`${BASE_URL}/${id}/`, { estado: 'CANCELADA' });
         return response.data;

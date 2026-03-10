@@ -1,4 +1,6 @@
 import axios from 'axios';
+import { getTenantSlugFromPath } from '../utils/tenantRouting';
+import { getActiveTenantSlug } from '../utils/tenantContext';
 
 const rawBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
 const normalizedBaseUrl = rawBaseUrl.replace(/\/+$/, '');
@@ -19,6 +21,11 @@ api.interceptors.request.use(
 
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+    }
+
+    const tenantSlug = getTenantSlugFromPath() || getActiveTenantSlug();
+    if (tenantSlug) {
+      config.headers['X-Tenant-Slug-Override'] = tenantSlug;
     }
 
     return config;

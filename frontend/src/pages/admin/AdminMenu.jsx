@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { authService } from '../../services/authService';
 import Swal from 'sweetalert2';
 import * as FaIcons from 'react-icons/fa';
@@ -64,11 +64,13 @@ const IconSelector = ({ value, onChange }) => {
     );
 };
 
-const AdminMenu = () => {
+const AdminMenu = ({ isSaaSSuperAdmin = false }) => {
     const [menus, setMenus] = useState([]);
     const [permisos, setPermisos] = useState([]);
     const [groups, setGroups] = useState([]);
     const [loading, setLoading] = useState(true);
+    const ADVANCED_MENU_URLS = ['/dashboard/admin/tenants', '/dashboard/admin/guia-ayuda'];
+    const ADVANCED_PERMISSION_CODENAMES = ['saas_tenants_admin', 'saas_guide_content_admin'];
 
     useEffect(() => {
         loadConfigData();
@@ -87,17 +89,28 @@ const AdminMenu = () => {
                 if (typeof g === 'string') return { id: g, name: g };
                 return { id: g.id || g.pk || g.name || `group-${idx}`, name: g.name || g.nombre || String(g) };
             });
+            const visibleGroups = isSaaSSuperAdmin
+                ? normalizedGroups
+                : normalizedGroups.filter((g) => g.name !== 'SuperAdmin SaaS');
 
             const normalizeItems = (items) => items.map(item => ({
                 ...item,
                 roles: (item.roles || []).map(r => (typeof r === 'object' ? r.id : r))
             }));
 
-            setGroups(normalizedGroups);
-            setMenus(normalizeItems(dataMenus || []));
-            setPermisos(normalizeItems(dataPermisos || []));
+            const allMenus = normalizeItems(dataMenus || []);
+            const allPermisos = normalizeItems(dataPermisos || []);
+
+            setGroups(visibleGroups);
+            if (isSaaSSuperAdmin) {
+                setMenus(allMenus);
+                setPermisos(allPermisos);
+            } else {
+                setMenus(allMenus.filter((m) => !ADVANCED_MENU_URLS.includes(m.url)));
+                setPermisos(allPermisos.filter((p) => !ADVANCED_PERMISSION_CODENAMES.includes(p.codename)));
+            }
         } catch (error) {
-            console.error("Error cargando configuración:", error);
+            console.error("Error cargando configuraciÃ³n:", error);
         } finally {
             setLoading(false);
         }
@@ -129,11 +142,11 @@ const AdminMenu = () => {
 
         const isMenu = type === 'menu';
         const { value: formValues } = await Swal.fire({
-            title: isMenu ? 'Nuevo Ítem de Menú' : 'Nuevo Permiso (App.jsx)',
+            title: isMenu ? 'Nuevo Ãtem de MenÃº' : 'Nuevo Permiso (App.jsx)',
             html: isMenu ? 
                 `<input id="swal-label" class="swal2-input" placeholder="Etiqueta (Ej: Mi Agenda)">` +
                 `<input id="swal-url" class="swal2-input" placeholder="URL (Ej: /dashboard/mi-agenda)">` +
-                `<input id="swal-cat" class="swal2-input" placeholder="Categoría (Ej: GESTIÓN)">` :
+                `<input id="swal-cat" class="swal2-input" placeholder="CategorÃ­a (Ej: GESTIÃ“N)">` :
                 `<input id="swal-code" class="swal2-input" placeholder="Codename (Ej: acceso_agenda)">`,
             showCancelButton: true,
             confirmButtonText: 'Crear',
@@ -156,23 +169,57 @@ const AdminMenu = () => {
                 if (isMenu) await authService.createMenuItem(formValues);
                 else await authService.createPermisoVista(formValues);
                 await loadConfigData();
-                Swal.fire('¡Éxito!', 'Creado correctamente', 'success');
+                Swal.fire('Â¡Ã‰xito!', 'Creado correctamente', 'success');
             } catch (err) {
                 Swal.fire('Error', 'No se pudo crear el registro.', 'error');
             }
         }
     };
 
+    const handleCreateRole = async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const { value: roleName } = await Swal.fire({
+            title: 'Nuevo Rol',
+            input: 'text',
+            inputLabel: 'Nombre del rol',
+            inputPlaceholder: 'Ej: Recepcion',
+            showCancelButton: true,
+            confirmButtonText: 'Crear',
+            preConfirm: (value) => {
+                const clean = (value || '').trim();
+                if (!clean) {
+                    Swal.showValidationMessage('Debes ingresar un nombre de rol.');
+                    return null;
+                }
+                return clean;
+            },
+        });
+
+        if (!roleName) return;
+
+        try {
+            await authService.createGroup({ name: roleName });
+            await loadConfigData();
+            Swal.fire('Listo', 'Rol creado correctamente.', 'success');
+        } catch (err) {
+            const msg = err?.response?.data?.name || 'No se pudo crear el rol.';
+            Swal.fire('Error', Array.isArray(msg) ? msg.join(', ') : msg, 'error');
+        }
+    };
+
     const handleDelete = async (e, id, type) => {
+        if (!isSaaSSuperAdmin) return;
         e.preventDefault();
         e.stopPropagation();
         const result = await Swal.fire({
-            title: '¿Eliminar?',
-            text: 'Esta acción borrará el registro de la base de datos.',
+            title: 'Â¿Eliminar?',
+            text: 'Esta acciÃ³n borrarÃ¡ el registro de la base de datos.',
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#d33',
-            confirmButtonText: 'Sí, eliminar'
+            confirmButtonText: 'SÃ­, eliminar'
         });
 
         if (result.isConfirmed) {
@@ -180,7 +227,7 @@ const AdminMenu = () => {
                 if (type === 'menu') await authService.deleteMenuItem(id);
                 else await authService.deletePermisoVista(id);
                 await loadConfigData();
-                Swal.fire('Eliminado', 'El ítem ha sido borrado.', 'success');
+                Swal.fire('Eliminado', 'El Ã­tem ha sido borrado.', 'success');
             } catch (err) {
                 Swal.fire('Error', 'No se pudo eliminar el registro.', 'error');
             }
@@ -198,25 +245,37 @@ const AdminMenu = () => {
         }
     };
 
-    if (loading) return <div className="p-10 text-center animate-pulse uppercase font-black text-gray-400">Cargando módulos de navegación...</div>;
+    if (loading) return <div className="p-10 text-center animate-pulse uppercase font-black text-gray-400">Cargando mÃ³dulos de navegaciÃ³n...</div>;
 
     return (
         <div className="space-y-12 animate-fadeIn">
-            {/* SECCIÓN MENÚ LATERAL */}
-            <section className="bg-white rounded-[2rem] border border-gray-100 shadow-xl p-8">
+            {/* SECCIÃ“N MENÃš LATERAL */}
+                        <section className="bg-white rounded-[2rem] border border-gray-100 shadow-xl p-8">
                 <div className="flex justify-between items-center mb-8">
                     <div className="flex items-center gap-4">
                         <div className="p-3 bg-indigo-600 text-white rounded-xl shadow-lg shadow-indigo-100"><FaBars size={20} /></div>
                         <h2 className="text-xl font-black text-gray-800 uppercase tracking-tighter">Arquitectura del Sidebar</h2>
                     </div>
-                    <AnimatedActionButton
-                        type="button"
-                        onClick={(e) => handleCreateItem(e, 'menu')}
-                        icon={<FaPlusCircle />}
-                        label="Nuevo Ítem"
-                        sublabel="Crear"
-                        className="!py-2.5 !px-5"
-                    />
+                    <div className="flex items-center gap-2">
+                        <AnimatedActionButton
+                            type="button"
+                            onClick={(e) => handleCreateRole(e)}
+                            icon={<FaPlusCircle />}
+                            label="Nuevo Rol"
+                            sublabel="Crear"
+                            className="!py-2.5 !px-5 !bg-slate-700 hover:!bg-slate-800"
+                        />
+                        {isSaaSSuperAdmin && (
+                            <AnimatedActionButton
+                                type="button"
+                                onClick={(e) => handleCreateItem(e, 'menu')}
+                                icon={<FaPlusCircle />}
+                                label="Nuevo Ítem"
+                                sublabel="Crear"
+                                className="!py-2.5 !px-5"
+                            />
+                        )}
+                    </div>
                 </div>
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-separate border-spacing-y-2">
@@ -251,7 +310,7 @@ const AdminMenu = () => {
                                             value={menu.label} 
                                             onChange={(e) => setMenus(menus.map(m => m.id === menu.id ? {...m, label: e.target.value} : m))}
                                             className="bg-transparent border-none font-bold text-gray-700 focus:ring-0 w-full"
-                                            placeholder="Nombre del ítem"
+                                            placeholder="Nombre del Ã­tem"
                                         />
                                     </td>
                                     <td className="px-4 py-4">
@@ -259,16 +318,17 @@ const AdminMenu = () => {
                                             type="text" 
                                             value={menu.url} 
                                             onChange={(e) => setMenus(menus.map(m => m.id === menu.id ? {...m, url: e.target.value} : m))}
-                                            className="bg-white border border-gray-100 rounded-xl px-3 py-1.5 text-xs font-mono text-indigo-500 w-full outline-none focus:ring-2 focus:ring-indigo-400"
+                                            readOnly={!isSaaSSuperAdmin}
+                                            className={`bg-white border border-gray-100 rounded-xl px-3 py-1.5 text-xs font-mono text-indigo-500 w-full outline-none ${isSaaSSuperAdmin ? 'focus:ring-2 focus:ring-indigo-400' : 'cursor-not-allowed opacity-80'}`}
                                         />
                                     </td>
-                                    {/* CAMPO DE CATEGORÍA AGREGADO */}
+                                    {/* CAMPO DE CATEGORÃA AGREGADO */}
                                     <td className="px-4 py-4">
                                         <div className="flex items-center gap-2">
                                             <FaLayerGroup className="text-emerald-400 text-xs shrink-0" />
                                             <input 
                                                 type="text" 
-                                                placeholder="SIN CATEGORÍA"
+                                                placeholder="SIN CATEGORÃA"
                                                 value={menu.category_name || ''} 
                                                 onChange={(e) => setMenus(menus.map(m => m.id === menu.id ? {...m, category_name: e.target.value.toUpperCase()} : m))} 
                                                 className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-xl border-none w-full placeholder:text-emerald-200 focus:ring-2 focus:ring-emerald-400 outline-none uppercase" 
@@ -291,7 +351,9 @@ const AdminMenu = () => {
                                     <td className="px-4 py-4 last:rounded-r-2xl">
                                         <div className="flex justify-center gap-2">
                                             <button type="button" onClick={(e) => handleSaveItem(e, menu, 'menu')} className="p-2.5 bg-green-500 text-white rounded-xl shadow-lg shadow-green-100 hover:bg-green-600 active:scale-90 transition-all" title="Guardar"><FaSave size={14}/></button>
-                                            <button type="button" onClick={(e) => handleDelete(e, menu.id, 'menu')} className="p-2.5 bg-red-100 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all active:scale-90" title="Eliminar"><FaTrash size={14}/></button>
+                                            {isSaaSSuperAdmin && (
+                                                <button type="button" onClick={(e) => handleDelete(e, menu.id, 'menu')} className="p-2.5 bg-red-100 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all active:scale-90" title="Eliminar"><FaTrash size={14}/></button>
+                                            )}
                                         </div>
                                     </td>
                                 </tr>
@@ -301,7 +363,8 @@ const AdminMenu = () => {
                 </div>
             </section>
 
-            {/* SECCIÓN PERMISOS */}
+            {/* SECCIÃ“N PERMISOS */}
+            {isSaaSSuperAdmin && (
             <section className="bg-white rounded-[2rem] border border-gray-100 shadow-xl p-8">
                 <div className="flex justify-between items-center mb-8">
                     <div className="flex items-center gap-4">
@@ -315,6 +378,7 @@ const AdminMenu = () => {
                         label="Nuevo Permiso"
                         sublabel="Crear"
                         className="!bg-gray-800 hover:!bg-black !py-2.5 !px-5"
+                        disabled={!isSaaSSuperAdmin}
                     />
                 </div>
 
@@ -334,7 +398,9 @@ const AdminMenu = () => {
                                 </div>
                                 <div className="flex gap-1">
                                     <button type="button" onClick={(e) => handleSaveItem(e, p, 'permiso')} className="p-2 text-green-600 hover:bg-green-50 rounded-xl transition-colors" title="Guardar"><FaSave size={16}/></button>
-                                    <button type="button" onClick={(e) => handleDelete(e, p.id, 'permiso')} className="p-2 text-red-400 hover:bg-red-50 rounded-xl transition-colors" title="Eliminar"><FaTrash size={16}/></button>
+                                    {isSaaSSuperAdmin && (
+                                        <button type="button" onClick={(e) => handleDelete(e, p.id, 'permiso')} className="p-2 text-red-400 hover:bg-red-50 rounded-xl transition-colors" title="Eliminar"><FaTrash size={16}/></button>
+                                    )}
                                 </div>
                             </div>
                             <div className="flex flex-wrap gap-1.5 mt-3 pt-4 border-t border-gray-200/50">
@@ -352,8 +418,10 @@ const AdminMenu = () => {
                     ))}
                 </div>
             </section>
+            )}
         </div>
     );
 };
 
 export default AdminMenu;
+

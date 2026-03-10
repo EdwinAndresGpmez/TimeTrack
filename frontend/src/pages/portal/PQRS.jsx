@@ -1,10 +1,14 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useParams } from 'react-router-dom';
 import Navbar from '../../components/portal/Navbar';
 import Footer from '../../components/portal/Footer';
 import { portalService } from '../../services/portalService';
 import { FaCheckCircle, FaExclamationTriangle, FaPaperclip, FaSpinner } from 'react-icons/fa';
 
 const PQRS = () => {
+    const { tenantSlug } = useParams();
+    const [blockedByPlan, setBlockedByPlan] = useState(false);
+    const [checkingPolicy, setCheckingPolicy] = useState(true);
     const [formData, setFormData] = useState({
         tipo: 'PETICION',
         nombre_remitente: '',
@@ -31,6 +35,25 @@ const PQRS = () => {
     const inputBase =
         'w-full rounded-2xl border border-slate-900/10 bg-white/70 backdrop-blur px-4 py-3 text-slate-900 placeholder-slate-400 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400/40 focus:border-indigo-400/40';
     const labelBase = 'block text-slate-700 font-extrabold text-sm mb-2';
+
+    useEffect(() => {
+        let mounted = true;
+        const checkPolicy = async () => {
+            try {
+                const policy = await portalService.getPublicPolicy();
+                const portalCompleto = Boolean(policy?.features?.portal_web_completo?.enabled);
+                if (mounted) setBlockedByPlan(!portalCompleto);
+            } catch (_err) {
+                if (mounted) setBlockedByPlan(false);
+            } finally {
+                if (mounted) setCheckingPolicy(false);
+            }
+        };
+        checkPolicy();
+        return () => {
+            mounted = false;
+        };
+    }, []);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -70,7 +93,7 @@ const PQRS = () => {
 
     return (
         <>
-            <Navbar />
+            <Navbar tenantSlug={tenantSlug} portalWebCompletoEnabled={!blockedByPlan} />
 
             <div className="relative pt-24 md:pt-28 pb-16 overflow-hidden">
                 {/* Ambient background claro */}
@@ -89,6 +112,15 @@ const PQRS = () => {
                 </div>
 
                 <div className="container mx-auto px-4 max-w-4xl">
+                    {!checkingPolicy && blockedByPlan && (
+                        <div className="mb-6 rounded-2xl border border-amber-500/20 bg-amber-50/80 backdrop-blur px-4 py-4 text-amber-900">
+                            <div className="font-black">PQRS no disponible en este plan</div>
+                            <div className="text-sm">
+                                Tu tenant está en modo <b>portal_citas_simple</b>. Esta funcionalidad requiere <b>portal_web_completo</b>.
+                            </div>
+                        </div>
+                    )}
+
                     {/* Header */}
                     <div className="text-center mb-8">
                         <div className="inline-flex items-center gap-2 rounded-full border border-slate-900/10 bg-white/70 backdrop-blur px-4 py-2 shadow-sm">
@@ -137,7 +169,7 @@ const PQRS = () => {
                     )}
 
                     {/* Form card */}
-                    <form
+                    {!blockedByPlan && <form
                         onSubmit={handleSubmit}
                         className="relative overflow-hidden rounded-3xl border border-slate-900/10 bg-white/65 backdrop-blur-xl shadow-[0_30px_80px_rgba(15,23,42,0.08)]"
                     >
@@ -280,11 +312,11 @@ const PQRS = () => {
                                 </button>
                             </div>
                         </div>
-                    </form>
+                    </form>}
                 </div>
             </div>
 
-            <Footer />
+            <Footer tenantSlug={tenantSlug} portalWebCompletoEnabled={!blockedByPlan} />
         </>
     );
 };

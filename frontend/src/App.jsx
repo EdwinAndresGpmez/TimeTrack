@@ -1,13 +1,15 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 
 // Importaciones de Páginas Públicas
 import Home from './pages/portal/Home';
+import SaasLanding from './pages/portal/SaasLanding';
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
 import PQRS from './pages/portal/PQRS'; 
 import TrabajeConNosotros from './pages/portal/TrabajeConNosotros'; 
+import SaasSignup from './pages/portal/SaasSignup';
 
 // Importaciones de Páginas Privadas
 import PrivateRoute from './components/auth/PrivateRoute';
@@ -35,6 +37,9 @@ import Auditoria from './pages/admin/Auditoria';
 import AdminPortalContentStudio from './pages/admin/AdminPortalContentStudio';
 import AdminPQRSGestion from './pages/admin/AdminPQRSGestion';
 import AdminConvocatoriasGestion from './pages/admin/AdminConvocatoriasGestion';
+import AdminTenants from './pages/admin/AdminTenants';
+import ConfiguracionInicialClinica from './pages/admin/ConfiguracionInicialClinica';
+import AdminGuideContent from './pages/admin/AdminGuideContent';
 
 function App() {
   return (
@@ -42,11 +47,15 @@ function App() {
       <BrowserRouter>
         <Routes>
           {/* --- RUTAS PÚBLICAS --- */}
-          <Route path="/" element={<Home />} />
+          <Route path="/" element={<SaasLanding />} />
+          <Route path="/t/:tenantSlug" element={<Home />} />
+          <Route path="/t/:tenantSlug/pqrs" element={<PQRS />} />
+          <Route path="/t/:tenantSlug/trabaje-con-nosotros" element={<TrabajeConNosotros />} />
+          <Route path="/pqrs" element={<Navigate to="/" replace />} />
+          <Route path="/trabaje-con-nosotros" element={<Navigate to="/" replace />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
-          <Route path="/pqrs" element={<PQRS />} />
-          <Route path="/trabaje-con-nosotros" element={<TrabajeConNosotros />} />
+          <Route path="/saas/signup" element={<SaasSignup />} />
           
           {/* --- RUTAS PRIVADAS --- */}
           <Route element={<PrivateRoute />}>
@@ -79,7 +88,7 @@ function App() {
 
                  {/* --- MÓDULO MÉDICO OPERATIVO --- */}
                  <Route path="/dashboard/doctor/atencion" element={
-                    <ProtectedRoute requiredPermission="atencion_consultorio">
+                    <ProtectedRoute requiredPermission="atencion_consultorio" requiredFeature="agenda_basica">
                         <DashboardProfesional />
                     </ProtectedRoute>
                  } />
@@ -104,7 +113,7 @@ function App() {
                  } />
 
                  <Route path="/dashboard/admin/pacientes" element={
-                    <ProtectedRoute requiredPermission="gestion_pacientes">
+                    <ProtectedRoute requiredPermission="gestion_pacientes" requiredFeature="registro_pacientes">
                         <GestionPacientes />
                     </ProtectedRoute>
                  } />
@@ -128,23 +137,23 @@ function App() {
                  } />
 
                  <Route path="/dashboard/admin/citas" element={
-                    <ProtectedRoute requiredPermission="admin_citas">
+                    <ProtectedRoute requiredPermission="admin_citas" requiredFeature="agenda_basica">
                         <AdminCitas />
                     </ProtectedRoute>
                  } />
 
                  <Route path="/dashboard/admin/agenda" element={
-                    <ProtectedRoute requiredPermission="gestion_agenda">
+                    <ProtectedRoute requiredPermission="gestion_agenda" requiredFeature="agenda_basica">
                         <GestionAgenda />
                     </ProtectedRoute>
                  } />
                  <Route path="/admin/portal/content" element={
-                      <ProtectedRoute requiredPermission="portal_content_admin">
+                      <ProtectedRoute requiredPermission="portal_content_admin" requiredFeature="portal_web_completo">
                         <AdminPortalContentStudio />
                       </ProtectedRoute>
                     } />
                  <Route path="/dashboard/admin/recepcion" element={
-                    <ProtectedRoute requiredPermission="recepcion_sala">
+                    <ProtectedRoute requiredPermission="recepcion_sala" requiredFeature="agenda_basica">
                         <RecepcionConsultorio />
                     </ProtectedRoute>
                  } />
@@ -156,14 +165,32 @@ function App() {
                     } />
 
                  <Route path="/dashboard/admin/pqrs-gestion" element={
-                      <ProtectedRoute requiredPermission="admin_pqrs_gestion">
+                      <ProtectedRoute requiredPermission="admin_pqrs_gestion" requiredFeature="pqrs">
                         <AdminPQRSGestion />
                       </ProtectedRoute>
                     } />
 
                  <Route path="/dashboard/admin/convocatorias-gestion" element={
-                      <ProtectedRoute requiredPermission="admin_convocatorias_gestion">
+                      <ProtectedRoute requiredPermission="admin_convocatorias_gestion" requiredFeature="portal_web_completo">
                         <AdminConvocatoriasGestion />
+                      </ProtectedRoute>
+                    } />
+
+                 <Route path="/dashboard/admin/tenants" element={
+                      <ProtectedRoute requiredPermission="saas_tenants_admin" requiredFeature="api_publica">
+                        <AdminTenants />
+                      </ProtectedRoute>
+                    } />
+
+                 <Route path="/dashboard/admin/guia-ayuda" element={
+                      <ProtectedRoute requiredPermission="saas_guide_content_admin" requiredFeature="api_publica">
+                        <AdminGuideContent />
+                      </ProtectedRoute>
+                    } />
+
+                 <Route path="/dashboard/admin/configuracion-inicial" element={
+                      <ProtectedRoute requiredRole="Administrador">
+                        <ConfiguracionInicialClinica />
                       </ProtectedRoute>
                     } />
              </Route>

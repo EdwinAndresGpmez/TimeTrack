@@ -4,11 +4,18 @@ import Swal from 'sweetalert2';
 import { AuthContext } from '../../context/AuthContext';
 import { patientService } from '../../services/patientService';
 import { authService } from '../../services/authService';
+import { getClinicOnboardingKeys } from '../../utils/clinicOnboarding';
+import { GUIDE_OPEN_EVENT } from './ClinicGuideAssistant';
 
 const PatientOnboarding = () => {
     const { user, setUser } = useContext(AuthContext); 
     const navigate = useNavigate();
     const hasChecked = useRef(false);
+    const hasAdminRole = Boolean(
+        user?.is_staff ||
+        user?.is_superuser ||
+        (Array.isArray(user?.roles) && user.roles.includes('Administrador'))
+    );
 
     const checkPendingRedirect = useCallback(() => {
         const intencion = localStorage.getItem('intencionCita');
@@ -192,13 +199,31 @@ const PatientOnboarding = () => {
         }
     }, [abrirFormularioParticular, crearSolicitudValidacion]);
 
+    const showClinicOnboarding = useCallback(async () => {
+        const keys = getClinicOnboardingKeys(user);
+        if (localStorage.getItem(keys.done) === '1') return;
+        if (sessionStorage.getItem(keys.seenSession) === '1') return;
+
+        const snoozeUntil = Number(localStorage.getItem(keys.snoozeUntil) || 0);
+        if (snoozeUntil && Date.now() < snoozeUntil) return;
+
+        sessionStorage.setItem(keys.seenSession, '1');
+        localStorage.setItem(keys.assistantOpen, '1');
+        window.dispatchEvent(new CustomEvent(GUIDE_OPEN_EVENT));
+    }, [user]);
+
     useEffect(() => {
         if (!user || hasChecked.current) return;
         
         const verificarEstado = async () => {
             hasChecked.current = true;
 
-            if (user.profesional_id || user.is_staff) return;
+            if (hasAdminRole) {
+                await showClinicOnboarding();
+                return;
+            }
+
+            if (user.profesional_id) return;
 
             if (user.paciente_id) {
                 checkPendingRedirect();
@@ -230,7 +255,7 @@ const PatientOnboarding = () => {
         };
 
         verificarEstado();
-    }, [user, setUser, checkPendingRedirect, showRegistrationModal]);
+    }, [user, setUser, checkPendingRedirect, showRegistrationModal, hasAdminRole, showClinicOnboarding]);
 
     return null; 
 };

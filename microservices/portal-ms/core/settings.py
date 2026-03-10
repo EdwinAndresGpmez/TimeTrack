@@ -55,6 +55,8 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
+    "core.tenant_security.TenantSignatureMiddleware",
+    "core.tenant_schema.TenantSchemaMiddleware",
 
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -133,6 +135,18 @@ SIMPLE_JWT = {
         minutes=env.int("JWT_ACCESS_MINUTES", default=60)
     ),
 }
+TENANT_HEADER_SIGNING_KEY = env("TENANT_HEADER_SIGNING_KEY", default=SECRET_KEY)
+TENANT_SIGNATURE_REQUIRED = env.bool("TENANT_SIGNATURE_REQUIRED", default=not DEBUG)
+TENANT_SIGNATURE_MAX_SKEW_SEC = env.int("TENANT_SIGNATURE_MAX_SKEW_SEC", default=300)
+TENANT_SCHEMA_ENFORCE_HEADER = env.bool("TENANT_SCHEMA_ENFORCE_HEADER", default=not DEBUG)
+TENANT_SCHEMA_DEFAULT = env("TENANT_SCHEMA_DEFAULT", default="public")
+TENANT_SCHEMA_REQUIRE_HEADER = env.bool("TENANT_SCHEMA_REQUIRE_HEADER", default=not DEBUG)
+TENANT_SCHEMA_ALLOW_PUBLIC = env.bool("TENANT_SCHEMA_ALLOW_PUBLIC", default=DEBUG)
+TENANT_POLICY_PUBLIC_URL = env(
+    "TENANT_POLICY_PUBLIC_URL",
+    default="http://tenant-billing-ms:8008/api/v1/tenancy/policy/public-current",
+)
+TENANT_POLICY_TIMEOUT_SEC = env.int("TENANT_POLICY_TIMEOUT_SEC", default=5)
 
 # Internationalization
 LANGUAGE_CODE = env("LANGUAGE_CODE", default="es-co")

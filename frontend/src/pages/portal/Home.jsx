@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import Swal from "sweetalert2";
 
 import Navbar from "../../components/portal/Navbar";
@@ -16,16 +16,20 @@ import Testimonios from "../../components/portal/Testimonios";
 import VideoGaleria from "../../components/portal/VideoGaleria";
 import Contacto from "../../components/portal/Contacto";
 import "../../components/portal/portalTheme.css";
+import { withTenantPath } from "../../utils/tenantRouting";
+import { portalService } from "../../services/portalService";
 
-// Usa la misma base URL que ya vienes usando
-const BASE_URL = import.meta?.env?.VITE_PORTAL_MS_URL || "http://localhost:8007";
+const API_BASE = import.meta?.env?.VITE_API_URL || "http://localhost:8080/api";
+const PORTAL_BASE = `${API_BASE.replace(/\/+$/, "")}/v1/portal`;
 
 const Home = () => {
   const navigate = useNavigate();
+  const { tenantSlug } = useParams();
 
   const [loading, setLoading] = useState(true);
   const [theme, setTheme] = useState(null);
   const [page, setPage] = useState(null);
+  const [policy, setPolicy] = useState(null);
   const [error, setError] = useState("");
 
   const handleCitaParticular = (e) => {
@@ -76,9 +80,16 @@ const Home = () => {
         setLoading(true);
         setError("");
 
-        const [tRes, pRes] = await Promise.all([
-          fetch(`${BASE_URL}/api/v1/portal/theme/`, { cache: "no-store" }),
-          fetch(`${BASE_URL}/api/v1/portal/pages/home/`, { cache: "no-store" }),
+        const [tRes, pRes, policyData] = await Promise.all([
+          fetch(`${PORTAL_BASE}/theme/`, {
+            cache: "no-store",
+            headers: tenantSlug ? { "X-Tenant-Slug-Override": tenantSlug } : {},
+          }),
+          fetch(`${PORTAL_BASE}/pages/home/`, {
+            cache: "no-store",
+            headers: tenantSlug ? { "X-Tenant-Slug-Override": tenantSlug } : {},
+          }),
+          portalService.getPublicPolicy().catch(() => null),
         ]);
 
         const tData = tRes.ok ? await tRes.json() : null;
@@ -88,6 +99,7 @@ const Home = () => {
 
         setTheme(tData);
         setPage(pData);
+        setPolicy(policyData);
 
         if (!tRes.ok || !pRes.ok) {
           setError("No se pudo cargar la configuración del portal (theme/page).");
@@ -106,12 +118,15 @@ const Home = () => {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [tenantSlug]);
 
   const sections = useMemo(() => {
     const arr = page?.sections;
     return Array.isArray(arr) ? arr : [];
   }, [page]);
+
+  const portalWebCompletoEnabled =
+    policy?.features?.portal_web_completo?.enabled ?? true;
 
   // --------------------------
   // 3) Render por tipo de sección
@@ -146,7 +161,11 @@ const Home = () => {
           <Contacto
             data={data}
             onAgendarCita={handleCitaParticular}
-            onIrPQRS={() => navigate("/pqrs")}
+            onIrPQRS={
+              portalWebCompletoEnabled
+                ? () => navigate(withTenantPath(tenantSlug, "/pqrs"))
+                : null
+            }
           />
         );
 
@@ -187,7 +206,11 @@ const Home = () => {
       <VideoGaleria />
       <Contacto
         onAgendarCita={handleCitaParticular}
-        onIrPQRS={() => navigate("/pqrs")}
+        onIrPQRS={
+          portalWebCompletoEnabled
+            ? () => navigate(withTenantPath(tenantSlug, "/pqrs"))
+            : null
+        }
       />
     </main>
   );
@@ -200,7 +223,13 @@ const Home = () => {
         color: "var(--portal-text)",
       }}
     >
-      <Navbar theme={theme} contactData={sections?.find(s => s.type==="contact")?.data} servicesData={sections?.find(s => s.type==="services")?.data} />
+      <Navbar
+        theme={theme}
+        tenantSlug={tenantSlug}
+        portalWebCompletoEnabled={portalWebCompletoEnabled}
+        contactData={sections?.find(s => s.type==="contact")?.data}
+        servicesData={sections?.find(s => s.type==="services")?.data}
+      />
 
       {loading ? (
         <div className="mx-auto max-w-6xl px-4 py-16">
@@ -224,7 +253,13 @@ const Home = () => {
         </div>
       )}
 
-      <Footer theme={theme} contactData={sections?.find(s => s.type==="contact")?.data} servicesData={sections?.find(s => s.type==="services")?.data} />
+      <Footer
+        theme={theme}
+        tenantSlug={tenantSlug}
+        portalWebCompletoEnabled={portalWebCompletoEnabled}
+        contactData={sections?.find(s => s.type==="contact")?.data}
+        servicesData={sections?.find(s => s.type==="services")?.data}
+      />
     </div>
   );
 };

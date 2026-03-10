@@ -34,6 +34,8 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
+    "core.tenant_security.TenantSignatureMiddleware",
+    "core.tenant_schema.TenantSchemaMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
@@ -79,6 +81,25 @@ SIMPLE_JWT = {
     "ALGORITHM": "HS256",
     "SIGNING_KEY": JWT_SIGNING_KEY,
 }
+TENANT_HEADER_SIGNING_KEY = os.getenv("TENANT_HEADER_SIGNING_KEY", SECRET_KEY)
+TENANT_SIGNATURE_REQUIRED = os.getenv(
+    "TENANT_SIGNATURE_REQUIRED",
+    "true" if not DEBUG else "false",
+).lower() == "true"
+TENANT_SIGNATURE_MAX_SKEW_SEC = int(os.getenv("TENANT_SIGNATURE_MAX_SKEW_SEC", "300"))
+TENANT_SCHEMA_ENFORCE_HEADER = os.getenv(
+    "TENANT_SCHEMA_ENFORCE_HEADER",
+    "true" if not DEBUG else "false",
+).lower() == "true"
+TENANT_SCHEMA_DEFAULT = os.getenv("TENANT_SCHEMA_DEFAULT", "public")
+TENANT_SCHEMA_REQUIRE_HEADER = os.getenv(
+    "TENANT_SCHEMA_REQUIRE_HEADER",
+    "true" if not DEBUG else "false",
+).lower() == "true"
+TENANT_SCHEMA_ALLOW_PUBLIC = os.getenv(
+    "TENANT_SCHEMA_ALLOW_PUBLIC",
+    "false" if not DEBUG else "true",
+).lower() == "true"
 
 LANGUAGE_CODE = os.getenv("LANGUAGE_CODE", "es-co")
 TIME_ZONE = os.getenv("TIME_ZONE", "America/Bogota")

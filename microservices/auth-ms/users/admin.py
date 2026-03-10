@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 
-from .models import Auditoria, CrearCuenta, MenuItem, PermisoVista, TipoDocumento
+from .models import Auditoria, CrearCuenta, MenuItem, PermisoVista, TenantMembership, TipoDocumento
 
 
 # --- ADMINISTRACIÓN DE USUARIOS ---
@@ -146,9 +146,17 @@ class TipoDocumentoAdmin(admin.ModelAdmin):
     ordering = ("orden", "nombre")
 
 
+class TenantMembershipAdmin(admin.ModelAdmin):
+    list_display = ("user", "tenant_id", "role_name", "is_active", "is_default", "updated_at")
+    list_filter = ("tenant_id", "role_name", "is_active", "is_default")
+    search_fields = ("user__documento", "user__correo", "role_name")
+    ordering = ("tenant_id", "user__documento", "role_name")
+
+
 # --- REGISTRO DE MODELOS (UNA SOLA VEZ CADA UNO) ---
 admin.site.register(CrearCuenta, CustomUserAdmin)
 admin.site.register(MenuItem, MenuItemAdmin)
 admin.site.register(PermisoVista, PermisoVistaAdmin)
 admin.site.register(Auditoria, AuditoriaAdmin)
 admin.site.register(TipoDocumento, TipoDocumentoAdmin)
+admin.site.register(TenantMembership, TenantMembershipAdmin)

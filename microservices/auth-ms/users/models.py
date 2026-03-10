@@ -41,6 +41,7 @@ class CrearCuenta(AbstractBaseUser, PermissionsMixin):
     # --- REFERENCIAS A OTROS MICROSERVICIOS (IDs) ---
     paciente_id = models.BigIntegerField(null=True, blank=True, db_index=True)
     profesional_id = models.BigIntegerField(null=True, blank=True, db_index=True)
+    tenant_id = models.BigIntegerField(null=True, blank=True, db_index=True)
 
     acepta_tratamiento_datos = models.BooleanField(default=False)
     usuario_estado = models.BooleanField(default=True, null=True)
@@ -64,6 +65,27 @@ class CrearCuenta(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return f"{self.nombre_completo} - {self.documento}"
+
+
+class TenantMembership(models.Model):
+    user = models.ForeignKey(CrearCuenta, on_delete=models.CASCADE, related_name="tenant_memberships")
+    tenant_id = models.BigIntegerField(db_index=True)
+    tenant_slug = models.SlugField(max_length=100, null=True, blank=True, db_index=True)
+    role_name = models.CharField(max_length=100)
+    is_active = models.BooleanField(default=True)
+    is_default = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ("user", "tenant_id", "role_name")
+        indexes = [
+            models.Index(fields=["user", "tenant_id", "is_active"]),
+            models.Index(fields=["tenant_id", "role_name", "is_active"]),
+        ]
+
+    def __str__(self):
+        return f"user={self.user_id} tenant={self.tenant_id} role={self.role_name}"
 
 
 class TipoDocumento(models.Model):
@@ -135,6 +157,7 @@ class MenuItem(models.Model):
         return f"{self.category_name or 'Sin Cat'} - {self.label}"
 
 class SidebarBranding(models.Model):
+    tenant_id = models.BigIntegerField(null=True, blank=True, db_index=True)
     empresa_nombre = models.CharField(max_length=100, default="Idefnova")
     # CAMBIO: De URLField a TextField para soportar Base64
     logo_url = models.TextField(blank=True, null=True) 
@@ -145,3 +168,17 @@ class SidebarBranding(models.Model):
 
     def __str__(self): # Corregido de __clon__ a __str__
         return self.empresa_nombre
+
+
+class GuideContent(models.Model):
+    key = models.CharField(max_length=120, unique=True, db_index=True)
+    title = models.CharField(max_length=180)
+    content = models.JSONField(default=dict, blank=True)
+    is_active = models.BooleanField(default=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("key",)
+
+    def __str__(self):
+        return f"{self.key} ({'active' if self.is_active else 'inactive'})"

@@ -37,6 +37,7 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
+    "core.tenant_security.TenantSignatureMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
@@ -134,6 +135,11 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Token interno para auditoría entre microservicios
 INTERNAL_AUDIT_TOKEN = env('INTERNAL_AUDIT_TOKEN', default='supersecrettoken')
+TENANT_HEADER_SIGNING_KEY = env("TENANT_HEADER_SIGNING_KEY", default=SECRET_KEY)
+TENANT_SIGNATURE_REQUIRED = env.bool("TENANT_SIGNATURE_REQUIRED", default=not DEBUG)
+TENANT_SIGNATURE_MAX_SKEW_SEC = env.int("TENANT_SIGNATURE_MAX_SKEW_SEC", default=300)
+TENANT_POLICY_URL = env("TENANT_POLICY_URL", default="http://tenant-billing-ms:8008/api/v1/tenancy/policy/current")
+TENANT_POLICY_TIMEOUT_SEC = env.int("TENANT_POLICY_TIMEOUT_SEC", default=5)
 
 
 

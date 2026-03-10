@@ -5,6 +5,7 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from .views import (
     CustomTokenObtainPairView,
     DynamicMenuView,
+    MisTenantsView,
     MisPermisosView,
     RegistroView,
     UserAdminViewSet,
@@ -13,8 +14,11 @@ from .views import (
     PermisoVistaAdminViewSet,
     GroupViewSet,
     SidebarBrandingView,
+    SwitchTenantView,
     MiRedFamiliarView,
     AuditoriaViewSet,
+    GuideContentPublicView,
+    GuideContentViewSet,
 )
 
 # Configuración del Router para el ViewSet de Admin
@@ -24,6 +28,7 @@ router.register(r"admin/menu-items", MenuItemAdminViewSet, basename="admin_menu_
 router.register(r"admin/permisos-vista", PermisoVistaAdminViewSet, basename="admin_permisos_vista")
 router.register(r"admin/groups", GroupViewSet, basename="admin_groups")
 router.register(r"admin/auditoria", AuditoriaViewSet, basename="admin_auditoria")
+router.register(r"admin/guide-content", GuideContentViewSet, basename="admin_guide_content")
 
 urlpatterns = [
     # Rutas manuales existentes
@@ -34,6 +39,9 @@ urlpatterns = [
     path("me/red/", MiRedFamiliarView.as_view(), name="user_family_network"),
     path("menu/", DynamicMenuView.as_view(), name="dynamic_menu"),
     path("me/permisos/", MisPermisosView.as_view(), name="user_permissions"),
+    path("me/tenants/", MisTenantsView.as_view(), name="user_tenants"),
+    path("guide-content/", GuideContentPublicView.as_view(), name="guide_content_public"),
+    path("switch-tenant/", SwitchTenantView.as_view(), name="switch_tenant"),
     path("admin/branding/", SidebarBrandingView.as_view(), name="admin_branding"),
     # Rutas generadas por el Router (para gestión de usuarios)
     path("", include(router.urls)),

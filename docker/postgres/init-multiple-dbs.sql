@@ -6,3 +6,4 @@ CREATE DATABASE appointments_db;
 CREATE DATABASE notifications_db;
 CREATE DATABASE ia_db;
 CREATE DATABASE portal_db;
+CREATE DATABASE tenant_billing_db;

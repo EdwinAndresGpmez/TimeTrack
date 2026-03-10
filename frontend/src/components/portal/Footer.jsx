@@ -8,8 +8,9 @@ import {
   FaEnvelope,
 } from "react-icons/fa";
 import { Link } from "react-router-dom";
+import { withTenantPath } from "../../utils/tenantRouting";
 
-const Footer = ({ theme, contactData, servicesData }) => {
+const Footer = ({ theme, contactData, servicesData, tenantSlug, portalWebCompletoEnabled = true }) => {
   const brandName = theme?.company_name || "Tu Clínica";
   const logoUrl = theme?.logo_url || "";
 
@@ -92,25 +93,29 @@ const Footer = ({ theme, contactData, servicesData }) => {
             <h4 className="text-sm font-extrabold tracking-wider">ENLACES</h4>
             <ul className="mt-4 space-y-3 text-sm text-white/85">
               <li>
-                <Link to="/" className="hover:text-white">
+                <Link to={withTenantPath(tenantSlug, "/")} className="hover:text-white">
                   Inicio
                 </Link>
               </li>
               <li>
-                <Link to="/servicios" className="hover:text-white">
+                <a href={`${withTenantPath(tenantSlug, "/")}#servicios`} className="hover:text-white">
                   Servicios
-                </Link>
+                </a>
               </li>
-              <li>
-                <Link to="/pqrs" className="hover:text-white">
-                  PQRS
-                </Link>
-              </li>
-              <li>
-                <Link to="/trabaje-con-nosotros" className="hover:text-white">
-                  Trabaje con nosotros
-                </Link>
-              </li>
+              {portalWebCompletoEnabled && (
+                <>
+                  <li>
+                    <Link to={withTenantPath(tenantSlug, "/pqrs")} className="hover:text-white">
+                      PQRS
+                    </Link>
+                  </li>
+                  <li>
+                    <Link to={withTenantPath(tenantSlug, "/trabaje-con-nosotros")} className="hover:text-white">
+                      Trabaje con nosotros
+                    </Link>
+                  </li>
+                </>
+              )}
             </ul>
           </div>
 

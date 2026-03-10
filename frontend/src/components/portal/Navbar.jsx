@@ -2,21 +2,26 @@ import React, { useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { FaBars, FaTimes, FaPhone, FaWhatsapp } from "react-icons/fa";
 import Swal from "sweetalert2";
+import { withTenantPath } from "../../utils/tenantRouting";
 
-const Navbar = ({ theme }) => {
+const Navbar = ({ theme, tenantSlug, portalWebCompletoEnabled = true }) => {
   const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
-  const menuItems = useMemo(
-    () => [
-      { label: "Inicio", path: "/" },
-      { label: "Servicios", path: "/servicios" },
-      { label: "PQRS", path: "/pqrs" },
-      { label: "Trabaje con Nosotros", path: "/trabaje-con-nosotros" },
-    ],
-    []
-  );
+  const menuItems = useMemo(() => {
+    const items = [
+      { label: "Inicio", path: withTenantPath(tenantSlug, "/") },
+      { label: "Servicios", path: `${withTenantPath(tenantSlug, "/")}#servicios` },
+    ];
+    if (portalWebCompletoEnabled) {
+      items.push(
+        { label: "PQRS", path: withTenantPath(tenantSlug, "/pqrs") },
+        { label: "Trabaje con Nosotros", path: withTenantPath(tenantSlug, "/trabaje-con-nosotros") }
+      );
+    }
+    return items;
+  }, [tenantSlug, portalWebCompletoEnabled]);
 
   const handleAgendarClick = (e) => {
     e.preventDefault();
@@ -83,7 +88,7 @@ const Navbar = ({ theme }) => {
         <div className="mx-auto max-w-6xl px-4 py-4">
           <div className="flex items-center justify-between">
             {/* Brand */}
-            <Link to="/" className="flex items-center gap-3">
+            <Link to={withTenantPath(tenantSlug, "/")} className="flex items-center gap-3">
               {logoUrl ? (
                 <img
                   src={logoUrl}

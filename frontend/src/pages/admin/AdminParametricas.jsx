@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { staffService } from '../../services/staffService';
 import { patientService } from '../../services/patientService';
 import Swal from 'sweetalert2';
+import useTenantPolicy from '../../hooks/useTenantPolicy';
 
 import { 
     FaHospital, FaStethoscope, FaNotesMedical, FaEdit, 
@@ -22,6 +23,7 @@ const AdminParametricas = () => {
     const [isEditing, setIsEditing] = useState(false);
     const [currentId, setCurrentId] = useState(null);
     const [formData, setFormData] = useState({});
+    const { loading: policyLoading, planCode, getFeatureRule } = useTenantPolicy();
 
     // Carga de datos unificada
     const cargarDatos = useCallback(async () => {
@@ -86,6 +88,32 @@ const AdminParametricas = () => {
         setIsModalOpen(true);
     };
 
+    const capSedes = getFeatureRule('cap_sedes');
+    const limiteSedes = capSedes?.limit_int;
+    const sedesActivas = dataList.filter((x) => x.activo).length;
+    const bloqueoCapSedes =
+        activeTab === 'sedes' &&
+        !policyLoading &&
+        Boolean(capSedes?.enabled) &&
+        limiteSedes !== null &&
+        limiteSedes !== undefined &&
+        sedesActivas >= Number(limiteSedes);
+
+    const showCapSedesUpsell = () => {
+        Swal.fire({
+            icon: 'info',
+            title: 'Funcionalidad limitada por plan',
+            html: `
+                <div style="text-align:left">
+                    <p><b>Plan actual:</b> ${planCode || 'FREE'}</p>
+                    <p><b>Límite de sedes activas:</b> ${limiteSedes ?? 'N/A'}</p>
+                    <p style="margin-top:8px">Para habilitar más sedes debes subir de plan o desactivar una sede actual.</p>
+                </div>
+            `,
+            confirmButtonText: 'Entendido',
+        });
+    };
+
     const handleChange = (e) => {
         const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         setFormData({ ...formData, [e.target.name]: value });
@@ -131,6 +159,10 @@ const AdminParametricas = () => {
     const handleToggle = async (item) => {
         try {
             const newState = !item.activo;
+            if (activeTab === 'sedes' && newState === true && bloqueoCapSedes) {
+                showCapSedesUpsell();
+                return;
+            }
             const payload = { ...item, activo: newState };
             
             if (activeTab === 'sedes') await staffService.updateLugar(item.id, payload);
@@ -179,10 +211,24 @@ const AdminParametricas = () => {
                 </div>
 
                 <AnimatedActionButton
-                    onClick={() => openModal()}
+                    onClick={() => {
+                        if (activeTab === 'sedes' && !isEditing && bloqueoCapSedes) {
+                            showCapSedesUpsell();
+                            return;
+                        }
+                        openModal();
+                    }}
                     icon={<FaPlusCircle />}
-                    label={getButtonLabel().title}
-                    sublabel={getButtonLabel().subtitle || 'Crear'}
+                    label={
+                        activeTab === 'sedes' && bloqueoCapSedes
+                            ? 'Límite de sedes'
+                            : getButtonLabel().title
+                    }
+                    sublabel={
+                        activeTab === 'sedes' && bloqueoCapSedes
+                            ? `Plan ${planCode || 'N/A'}`
+                            : (getButtonLabel().subtitle || 'Crear')
+                    }
                 />
             </div>
 

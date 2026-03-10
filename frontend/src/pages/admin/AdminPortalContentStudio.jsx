@@ -11,17 +11,21 @@ import {
   FaCode,
   FaEye,
 } from "react-icons/fa";
+import { authService } from "../../services/authService";
+import { getActiveTenantSlug, setActiveTenantContext } from "../../utils/tenantContext";
 
-const BASE_URL = import.meta?.env?.VITE_PORTAL_MS_URL || "http://localhost:8007";
+const RAW_API_BASE = import.meta?.env?.VITE_API_URL || "http://localhost:8080/api";
+const API_BASE = RAW_API_BASE.replace(/\/+$/, "");
+const V1_BASE = API_BASE.endsWith("/v1") ? API_BASE : `${API_BASE}/v1`;
 
 const ENDPOINTS = {
-  homeSections: `${BASE_URL}/api/v1/portal/admin/home/sections/`,
-  sections: `${BASE_URL}/api/v1/portal/admin/sections/`,
-  theme: `${BASE_URL}/api/v1/portal/admin/theme/`,
-  media: `${BASE_URL}/api/v1/portal/admin/media/`,
-  pages: `${BASE_URL}/api/v1/portal/admin/pages/`,
-  bannersAdmin: `${BASE_URL}/api/v1/portal/admin/banners/`,
-  videosAdmin: `${BASE_URL}/api/v1/portal/admin/videos/`,
+  homeSections: `${V1_BASE}/portal/admin/home/sections/`,
+  sections: `${V1_BASE}/portal/admin/sections/`,
+  theme: `${V1_BASE}/portal/admin/theme/`,
+  media: `${V1_BASE}/portal/admin/media/`,
+  pages: `${V1_BASE}/portal/admin/pages/`,
+  bannersAdmin: `${V1_BASE}/portal/admin/banners/`,
+  videosAdmin: `${V1_BASE}/portal/admin/videos/`,
 };
 
 const getToken = () => localStorage.getItem("access") || "";
@@ -29,7 +33,9 @@ const getToken = () => localStorage.getItem("access") || "";
 async function apiRequest(url, { method = "GET", json, formData, headers = {} } = {}) {
   const token = getToken();
   const h = { ...headers };
+  const tenantSlug = getActiveTenantSlug();
   if (token) h.Authorization = `Bearer ${token}`;
+  if (tenantSlug) h["X-Tenant-Slug-Override"] = tenantSlug;
 
   let body;
   if (formData) {
@@ -657,6 +663,7 @@ const AdminPortalContentStudio = () => {
   const [subTab, setSubTab] = useState("visual"); // visual | json | preview
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [activeTenantSlug, setActiveTenantSlug] = useState(() => getActiveTenantSlug());
 
   const [homePageId, setHomePageId] = useState(null);
   const [sections, setSections] = useState([]);
@@ -672,6 +679,8 @@ const AdminPortalContentStudio = () => {
 
   const [banners, setBanners] = useState([]);
   const [videos, setVideos] = useState([]);
+  const portalUrl = activeTenantSlug ? `${window.location.origin}/t/${activeTenantSlug}` : null;
+  const portalDomain = activeTenantSlug ? `${activeTenantSlug}.app.idefnova.com` : null;
 
   const selectedSection = useMemo(
     () => sections.find((s) => s.id === selectedSectionId) || null,
@@ -749,6 +758,27 @@ const AdminPortalContentStudio = () => {
     refreshAll();
     // eslint-disable-next-line
   }, []);
+
+  useEffect(() => {
+    const ensureTenantContext = async () => {
+      if (activeTenantSlug) return;
+      try {
+        const memberships = await authService.getMisTenants();
+        const list = Array.isArray(memberships) ? memberships : memberships?.results || [];
+        const preferred = list.find((x) => x.is_default) || list[0];
+        if (preferred?.tenant_slug) {
+          setActiveTenantContext({
+            tenantId: preferred.tenant_id,
+            tenantSlug: preferred.tenant_slug,
+          });
+          setActiveTenantSlug(preferred.tenant_slug);
+        }
+      } catch (_err) {
+        // no-op
+      }
+    };
+    ensureTenantContext();
+  }, [activeTenantSlug]);
 
   useEffect(() => {
     if (!selectedSection) return;
@@ -1040,6 +1070,27 @@ const AdminPortalContentStudio = () => {
         {error && (
           <div className="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
         )}
+
+        <div className="mt-6 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+          <p className="font-extrabold">Portal del tenant actual</p>
+          {portalUrl ? (
+            <>
+              <p className="mt-1">
+                URL app:{" "}
+                <a className="font-bold underline" href={portalUrl} target="_blank" rel="noreferrer">
+                  {portalUrl}
+                </a>
+              </p>
+              <p className="mt-1 text-xs text-blue-800">
+                Dominio esperado: <span className="font-semibold">{portalDomain}</span>
+              </p>
+            </>
+          ) : (
+            <p className="mt-1 text-xs">
+              No hay tenant activo detectado. Cambia tenant en el sidebar para editar el portal correcto.
+            </p>
+          )}
+        </div>
 
         <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-[1fr_520px]">
           {/* LEFT: Sections list + preview */}
@@ -1431,7 +1482,7 @@ const AdminPortalContentStudio = () => {
         </div>
 
         <p className="mt-6 text-xs text-slate-400">
-          Base URL: <span className="font-semibold">{BASE_URL}</span>
+          API Base: <span className="font-semibold">{V1_BASE}</span>
         </p>
       </div>
     </div>
@@ -1439,3 +1490,4 @@ const AdminPortalContentStudio = () => {
 };
 
 export default AdminPortalContentStudio;
+

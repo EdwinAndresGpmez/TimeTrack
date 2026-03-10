@@ -1,10 +1,13 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useContext, useEffect, useState, useRef } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { configService } from '../../services/configService';
 import { authService } from '../../services/authService'; 
 import Swal from 'sweetalert2';
 import * as FaIcons from 'react-icons/fa';
 import AdminMenu from './AdminMenu';
 import AdminSidebarBranding from './AdminSidebarBranding'; 
+import { AuthContext } from '../../context/AuthContext';
+import { getActiveTenantId } from '../../utils/tenantContext';
 import {
     FaCogs, FaSave, FaClock, FaCalendarCheck, FaToggleOn,
     FaUserEdit, FaUserSlash, FaMagic, FaPlus, FaTrash,
@@ -171,6 +174,9 @@ const ButtonStyleSelector = ({ value, onChange }) => {
 };
 
 const ConfiguracionSistema = () => {
+    const navigate = useNavigate();
+    const location = useLocation();
+    const { user, permissions } = useContext(AuthContext);
     const [activeTab, setActiveTab] = useState('reglas');
     const [loading, setLoading] = useState(true);
 
@@ -195,10 +201,19 @@ const ConfiguracionSistema = () => {
         variant: 'floating',
         border_radius: 24
     });
+    const isSaaSSuperAdmin = user?.is_superuser || (permissions?.roles || []).includes('SuperAdmin SaaS');
 
     useEffect(() => {
         cargarTodo();
     }, []);
+
+    useEffect(() => {
+        const tab = new URLSearchParams(location.search).get('tab');
+        const validTabs = new Set(['reglas', 'inasistencias', 'tiempos', 'workflow', 'menus', 'branding']);
+        if (tab && validTabs.has(tab)) {
+            setActiveTab(tab);
+        }
+    }, [location.search]);
 
     const cargarTodo = async () => {
         setLoading(true);
@@ -299,7 +314,8 @@ const ConfiguracionSistema = () => {
             await configService.updateConfig(config);
             await authService.updateBranding(brandingConfig);
             // Actualizar localStorage y disparar evento brandingChanged SOLO al guardar
-            localStorage.setItem('branding', JSON.stringify(brandingConfig));
+            const tenantCacheKey = getActiveTenantId() || user?.tenant_id || 'default';
+            localStorage.setItem(`branding_${tenantCacheKey}`, JSON.stringify(brandingConfig));
             window.dispatchEvent(new Event('brandingChanged'));
             Swal.fire('¡Guardado!', 'La configuración fue actualizada.', 'success');
             // Recargar datos
@@ -323,6 +339,16 @@ const ConfiguracionSistema = () => {
                     <h1 className="text-3xl font-black text-gray-800 tracking-tight">Configuración del Sistema</h1>
                     <p className="text-gray-500 font-medium">Gestiona reglas de negocio, políticas e identidad visual.</p>
                 </div>
+                {isSaaSSuperAdmin && (
+                    <div className="ml-auto">
+                        <Link
+                            to="/dashboard/admin/tenants"
+                            className="inline-flex items-center gap-2 rounded-xl bg-slate-900 text-white px-4 py-2 text-sm font-bold hover:opacity-90"
+                        >
+                            <FaLayerGroup /> Tenants SaaS
+                        </Link>
+                    </div>
+                )}
             </div>
 
             <form onSubmit={handleSubmit}>
@@ -340,7 +366,10 @@ const ConfiguracionSistema = () => {
                         <button
                             key={tab.id}
                             type="button"
-                            onClick={() => setActiveTab(tab.id)}
+                            onClick={() => {
+                                setActiveTab(tab.id);
+                                navigate(`/dashboard/admin/configuracion?tab=${tab.id}`, { replace: true });
+                            }}
                             className={`
                                 flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg text-sm font-bold transition-all duration-200
                                 ${activeTab === tab.id
@@ -638,7 +667,7 @@ const ConfiguracionSistema = () => {
                         </div>
                     )}
 
-                    {activeTab === 'menus' && <AdminMenu />}
+                    {activeTab === 'menus' && <AdminMenu isSaaSSuperAdmin={isSaaSSuperAdmin} />}
                     
                     {activeTab === 'branding' && (
                         <AdminSidebarBranding

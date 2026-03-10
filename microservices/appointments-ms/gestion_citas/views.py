@@ -4,9 +4,10 @@ from datetime import datetime, timedelta
 
 import requests
 from django.db import transaction
-from django.db.models import Count, Max
+from django.db.models import Count, Max, Q
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.exceptions import PermissionDenied
 from rest_framework import filters, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -20,6 +21,7 @@ from .serializers import (
     NotaMedicaSerializer,
 )
 from .utils.audit_client import audit_log
+from .utils.tenant_policy import get_current_tenant_policy, get_feature_rule
 
 # URLs de Microservicios
 PATIENTS_MS_URL = "http://patients-ms:8001/api/v1/pacientes/internal/bulk-info/"
@@ -160,6 +162,125 @@ class CitaViewSet(viewsets.ModelViewSet):
                 "bloqueado_por_inasistencias": bloqueado,
             }
         return Response(resultado)
+
+    @action(detail=False, methods=["get"], url_path="reportes/dashboard-resumen")
+    def dashboard_resumen(self, request):
+        policy = get_current_tenant_policy(request)
+        dashboard_basico = bool(get_feature_rule(policy, "dashboard_basico").get("enabled", False))
+        dashboard_avanzado = bool(get_feature_rule(policy, "dashboard_avanzado").get("enabled", False))
+
+        if not dashboard_basico:
+            raise PermissionDenied(
+                "Tu plan actual no incluye Dashboard Basico. Activa el modulo para ver metricas operativas."
+            )
+
+        today = timezone.localdate()
+        start_7 = today - timedelta(days=6)
+        start_30 = today - timedelta(days=29)
+
+        qs_30 = Cita.objects.filter(fecha__gte=start_30, fecha__lte=today)
+        qs_today = qs_30.filter(fecha=today)
+        qs_7 = qs_30.filter(fecha__gte=start_7)
+
+        total_hoy = qs_today.count()
+        realizadas_hoy = qs_today.filter(estado="REALIZADA").count()
+        en_sala_hoy = qs_today.filter(estado="EN_SALA").count()
+        llamado_hoy = qs_today.filter(estado="LLAMADO").count()
+        pendientes_hoy = qs_today.filter(estado__in=["PENDIENTE", "ACEPTADA"]).count()
+        canceladas_hoy = qs_today.filter(estado="CANCELADA").count()
+
+        no_asistio_30 = qs_30.filter(estado="NO_ASISTIO").count()
+        realizadas_30 = qs_30.filter(estado="REALIZADA").count()
+        canceladas_30 = qs_30.filter(estado="CANCELADA").count()
+        total_30 = qs_30.count()
+
+        series_rows = qs_7.values("fecha").annotate(
+            total=Count("id"),
+            realizadas=Count("id", filter=Q(estado="REALIZADA")),
+            no_asistio=Count("id", filter=Q(estado="NO_ASISTIO")),
+            canceladas=Count("id", filter=Q(estado="CANCELADA")),
+        )
+        series_map = {row["fecha"]: row for row in series_rows}
+
+        ultimos_7_dias = []
+        for idx in range(7):
+            day = start_7 + timedelta(days=idx)
+            row = series_map.get(day, {})
+            ultimos_7_dias.append(
+                {
+                    "fecha": day.isoformat(),
+                    "total": int(row.get("total", 0) or 0),
+                    "realizadas": int(row.get("realizadas", 0) or 0),
+                    "no_asistio": int(row.get("no_asistio", 0) or 0),
+                    "canceladas": int(row.get("canceladas", 0) or 0),
+                }
+            )
+
+        ocupacion_hoy_pct = round((realizadas_hoy / total_hoy) * 100, 1) if total_hoy else 0.0
+        no_show_rate_30 = round((no_asistio_30 / total_30) * 100, 1) if total_30 else 0.0
+        completion_rate_30 = round((realizadas_30 / total_30) * 100, 1) if total_30 else 0.0
+
+        payload = {
+            "periodo": {
+                "hoy": today.isoformat(),
+                "desde_7_dias": start_7.isoformat(),
+                "desde_30_dias": start_30.isoformat(),
+            },
+            "features": {
+                "dashboard_basico": dashboard_basico,
+                "dashboard_avanzado": dashboard_avanzado,
+            },
+            "kpis_basicos": {
+                "citas_hoy": total_hoy,
+                "realizadas_hoy": realizadas_hoy,
+                "en_sala_hoy": en_sala_hoy,
+                "llamado_hoy": llamado_hoy,
+                "pendientes_hoy": pendientes_hoy,
+                "canceladas_hoy": canceladas_hoy,
+                "ocupacion_hoy_pct": ocupacion_hoy_pct,
+                "citas_30_dias": total_30,
+                "no_asistio_30_dias": no_asistio_30,
+            },
+            "series_basicas": {"ultimos_7_dias": ultimos_7_dias},
+        }
+
+        if dashboard_avanzado:
+            estado_rows = (
+                qs_30.values("estado").annotate(total=Count("id")).order_by("-total")
+            )
+            top_servicios_rows = (
+                qs_30.exclude(servicio_id__isnull=True)
+                .values("servicio_id")
+                .annotate(total=Count("id"))
+                .order_by("-total")[:5]
+            )
+            top_profesionales_rows = (
+                qs_30.exclude(profesional_id__isnull=True)
+                .values("profesional_id")
+                .annotate(total=Count("id"))
+                .order_by("-total")[:5]
+            )
+
+            payload["kpis_avanzados"] = {
+                "no_show_rate_30_dias_pct": no_show_rate_30,
+                "completion_rate_30_dias_pct": completion_rate_30,
+                "realizadas_30_dias": realizadas_30,
+                "canceladas_30_dias": canceladas_30,
+                "por_estado_30_dias": [
+                    {"estado": row["estado"], "total": int(row["total"])}
+                    for row in estado_rows
+                ],
+                "top_servicios_30_dias": [
+                    {"servicio_id": row["servicio_id"], "total": int(row["total"])}
+                    for row in top_servicios_rows
+                ],
+                "top_profesionales_30_dias": [
+                    {"profesional_id": row["profesional_id"], "total": int(row["total"])}
+                    for row in top_profesionales_rows
+                ],
+            }
+
+        return Response(payload)
 
     # ✅ CREATE: set usuario_id + auditar
     def perform_create(self, serializer):

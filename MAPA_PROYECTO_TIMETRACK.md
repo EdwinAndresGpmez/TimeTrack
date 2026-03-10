@@ -869,3 +869,26 @@ Este documento identifica los modelos de cada microservicio y su uso real en bac
   - **Sugerencia:** Mejorar la gestión administrativa de PQRS y postulaciones (ConvocatoriaHV) en el frontend, permitiendo seguimiento, respuesta y cierre, así como notificaciones al usuario.
 
 ---
+
+
+Ejemplos prácticos por feature code (qué tiene / qué no)
+
+agenda_basica: tiene agenda simple; no reglas complejas.
+agenda_avanzada: tiene reglas y configuraciones avanzadas; sin esto solo básico.
+registro_pacientes: permite CRUD pacientes; sin esto no hay gestión clínica base.
+portal_citas_simple: portal público mínimo de citas; no portal completo.
+portal_web_completo: landing/portal extendido; sin esto solo portal simple.
+dashboard_basico: métricas operativas básicas; no analítica profunda.
+dashboard_avanzado: KPIs avanzados y cruces; sin esto reportes limitados.
+pqrs: gestión PQRS; sin esto no flujo formal de casos.
+api_publica: acceso API/integraciones administrativas; sin esto bloqueado.
+confirmacion_email: notificación de citas por email; sin esto no confirmación automática.
+whatsapp: canal WhatsApp activo; sin esto solo otros canales.
+ia_prediccion: predicción IA (demanda/no-show, etc.); sin esto analítica clásica.
+chatbot: bot para citas/reagenda/cancelación; sin esto atención manual/web.
+integraciones: conectores con terceros; sin esto sistema más cerrado.
+cap_profesionales: límite de profesionales por plan.
+cap_pacientes: límite de pacientes por plan.
+cap_sedes: límite de sedes por plan.
+cap_mensajes_mes: bolsa mensual de mensajes.
+cap_tokens_ia_mes: consumo mensual de IA.

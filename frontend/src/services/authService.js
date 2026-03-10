@@ -1,4 +1,28 @@
 import api from '../api/axiosConfig';
+import { clearActiveTenantContext, setActiveTenantContext } from '../utils/tenantContext';
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const isTransientNetworkError = (error) =>
+  error?.code === 'ERR_NETWORK' ||
+  String(error?.message || '').toLowerCase().includes('network error') ||
+  String(error?.message || '').toLowerCase().includes('connection reset');
+
+const getWithRetry = async (url, config = {}, retries = 2, delayMs = 300) => {
+  let lastError;
+  for (let attempt = 0; attempt <= retries; attempt += 1) {
+    try {
+      return await api.get(url, config);
+    } catch (error) {
+      lastError = error;
+      if (!isTransientNetworkError(error) || attempt === retries) {
+        throw error;
+      }
+      await sleep(delayMs * (attempt + 1));
+    }
+  }
+  throw lastError;
+};
 
 export const authService = {
   // 1. Registro
@@ -46,6 +70,13 @@ export const authService = {
         localStorage.setItem('token', response.data.access);
       }
 
+      if (response.data?.tenant_id || response.data?.tenant_slug) {
+        setActiveTenantContext({
+          tenantId: response.data?.tenant_id || null,
+          tenantSlug: response.data?.tenant_slug || null,
+        });
+      }
+
       return response.data;
     } catch (error) {
       console.error('Error Login:', error.response?.data || error.message);
@@ -64,6 +95,7 @@ export const authService = {
     localStorage.removeItem('refresh');
     localStorage.removeItem('user');
     localStorage.removeItem('intencionCita');
+    clearActiveTenantContext();
   },
 
   // 4. Actualizar MI Propio Perfil
@@ -74,13 +106,34 @@ export const authService = {
 
   // 5. Obtener Menú Dinámico (Para el Sidebar)
   getMenu: async () => {
-    const response = await api.get('/auth/menu/');
+    const response = await getWithRetry('/auth/menu/');
     return response.data;
   },
 
   // 6. Obtener Roles y Permisos (Mios)
   getMisPermisos: async () => {
     const response = await api.get('/auth/me/permisos/');
+    return response.data;
+  },
+
+  getMisTenants: async () => {
+    const response = await getWithRetry('/users/me/tenants/');
+    return response.data;
+  },
+
+  switchTenant: async (tenantId, tenantSlug = null) => {
+    const payload = { tenant_id: tenantId };
+    if (tenantSlug) payload.tenant_slug = tenantSlug;
+    const response = await api.post('/users/switch-tenant/', payload);
+    if (response.data?.access) {
+      localStorage.setItem('access', response.data.access);
+      localStorage.setItem('refresh', response.data.refresh);
+      localStorage.setItem('token', response.data.access);
+    }
+    setActiveTenantContext({
+      tenantId: response.data?.tenant_id || tenantId,
+      tenantSlug: response.data?.tenant_slug || null,
+    });
     return response.data;
   },
 
@@ -140,6 +193,11 @@ export const authService = {
     return response.data;
   },
 
+  createGroup: async (data) => {
+    const response = await api.post('/users/admin/groups/', data);
+    return response.data;
+  },
+
   createMenuItem: async (data) => {
     const response = await api.post('/users/admin/menu-items/', data);
     return response.data;
@@ -159,7 +217,7 @@ export const authService = {
   },
 
   getBranding: async () => {
-    const response = await api.get('/users/admin/branding/');
+    const response = await getWithRetry('/users/admin/branding/');
     return response.data;
   },
 
@@ -175,6 +233,28 @@ export const authService = {
 
   getMiRedFamiliar: async () => {
     const response = await api.get('/users/me/red/');
+    return response.data;
+  },
+
+  getGuideContent: async (key = null) => {
+    const response = await api.get('/users/guide-content/', {
+      params: key ? { key } : {},
+    });
+    return response.data;
+  },
+
+  getGuideContentAdmin: async () => {
+    const response = await api.get('/users/admin/guide-content/');
+    return response.data;
+  },
+
+  createGuideContent: async (payload) => {
+    const response = await api.post('/users/admin/guide-content/', payload);
+    return response.data;
+  },
+
+  updateGuideContent: async (id, payload) => {
+    const response = await api.patch(`/users/admin/guide-content/${id}/`, payload);
     return response.data;
   },
 

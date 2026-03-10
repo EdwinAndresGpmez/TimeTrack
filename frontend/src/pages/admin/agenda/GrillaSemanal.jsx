@@ -22,7 +22,9 @@ const GrillaSemanal = ({
     onCopyDay,
     onPasteDay,
     clipboardDay,
-    refreshAgenda
+    refreshAgenda,
+    agendaAvanzadaEnabled = true,
+    onAgendaUpsell
 }) => {
     
     const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, data: null });
@@ -132,6 +134,10 @@ const GrillaSemanal = ({
             onAgendarCita(slot, fecha);
         } 
         else if (accion === 'CONFIGURAR') {
+            if (!agendaAvanzadaEnabled) {
+                if (onAgendaUpsell) onAgendaUpsell();
+                return;
+            }
             onGestionarTurno(slot.turno, fecha);
         } 
         else if (accion === 'BLOQUEAR') {
@@ -435,8 +441,12 @@ const GrillaSemanal = ({
 
                     <div className="border-t my-1"></div>
 
-                    <button onClick={() => ejecutarAccionRapida('CONFIGURAR')} className="w-full text-left px-4 py-2 text-sm text-blue-700 hover:bg-blue-50 flex items-center gap-2 font-bold">
+                    <button
+                        onClick={() => ejecutarAccionRapida('CONFIGURAR')}
+                        className={`w-full text-left px-4 py-2 text-sm flex items-center gap-2 font-bold ${agendaAvanzadaEnabled ? 'text-blue-700 hover:bg-blue-50' : 'text-slate-500 bg-slate-50'}`}
+                    >
                         <FaCogs size={12}/> Configurar Serie Completa
+                        {!agendaAvanzadaEnabled && <FaLock size={11} className="ml-auto" />}
                     </button>
                 </div>
             )}
@@ -455,7 +465,15 @@ const GrillaSemanal = ({
                                 <span className={`text-sm md:text-lg font-light leading-none mt-0.5 ${esHoy ? 'text-blue-900' : 'text-gray-800'}`}>{fecha.getDate()}</span>
 
                                 <div className="absolute top-1 right-1 flex gap-1 z-30 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    {!clipboardDay ? (
+                                    {!agendaAvanzadaEnabled ? (
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); if (onAgendaUpsell) onAgendaUpsell(); }}
+                                            className="p-1.5 bg-slate-100 shadow-sm border border-slate-200 rounded text-slate-500 hover:text-slate-700 transition"
+                                            title="Disponible con plan superior"
+                                        >
+                                            <FaLock size={10} />
+                                        </button>
+                                    ) : !clipboardDay ? (
                                         <button onClick={(e) => { e.stopPropagation(); onCopyDay(fecha); }} className="p-1.5 bg-white shadow-sm border border-gray-200 rounded text-gray-400 hover:text-blue-600 hover:border-blue-400 transition transform hover:scale-110" title="Copiar dia completo">
                                             <FaRegCopy size={10} />
                                         </button>

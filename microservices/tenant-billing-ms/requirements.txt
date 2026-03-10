@@ -1,0 +1,7 @@
+django>=4.2,<7.0
+djangorestframework
+django-environ
+psycopg2-binary
+django-filter
+djangorestframework-simplejwt>=5.5.1,<6.0
+requests

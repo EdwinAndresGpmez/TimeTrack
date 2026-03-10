@@ -16,6 +16,7 @@ from rest_framework.views import APIView
 from .models import BloqueoAgenda, Disponibilidad
 from .serializers import BloqueoAgendaSerializer, DisponibilidadSerializer
 from .utils.audit_client import audit_log
+from .utils.tenant_policy import get_current_tenant_policy, get_feature_rule
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +48,38 @@ def _audit_from_view(request, *, descripcion, accion, recurso, recurso_id=None, 
         metadata=metadata or {},
         ip=request.META.get("REMOTE_ADDR"),
         user_agent=request.META.get("HTTP_USER_AGENT"),
+    )
+
+
+def _agenda_avanzada_enabled(request) -> bool:
+    policy = get_current_tenant_policy(request)
+    regla = get_feature_rule(policy, "agenda_avanzada")
+    return bool(regla.get("enabled", False))
+
+
+def _agenda_basica_enabled(request) -> bool:
+    policy = get_current_tenant_policy(request)
+    regla = get_feature_rule(policy, "agenda_basica")
+    return bool(regla.get("enabled", False))
+
+
+def _agenda_basica_block_response():
+    return Response(
+        {
+            "detail": (
+                "Tu plan no incluye Agenda Basica. "
+                "No puedes gestionar disponibilidad, bloqueos ni generar slots."
+            )
+        },
+        status=status.HTTP_403_FORBIDDEN,
+    )
+
+
+def _is_recurrent_payload(payload: dict) -> bool:
+    return (
+        payload.get("fecha") is None
+        or bool(payload.get("fecha_inicio_vigencia"))
+        or bool(payload.get("fecha_fin_vigencia"))
     )
 
 
@@ -309,6 +342,9 @@ class DisponibilidadViewSet(viewsets.ModelViewSet):
         )
 
     def create(self, request, *args, **kwargs):
+        if not _agenda_basica_enabled(request):
+            return _agenda_basica_block_response()
+
         data = request.data.copy()
 
         # Lógica para convertir recurrencia "HOY" en fecha fija
@@ -324,6 +360,17 @@ class DisponibilidadViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
 
         attrs = serializer.validated_data
+        if _is_recurrent_payload(attrs) and not _agenda_avanzada_enabled(request):
+            return Response(
+                {
+                    "detail": (
+                        "Tu plan no incluye Agenda Avanzada. "
+                        "Solo puedes crear bloques de fecha especifica (agenda basica)."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         error_prof = self._validar_profesional_lugar_servicio(attrs)
         if error_prof:
             return Response({"error": error_prof}, status=status.HTTP_400_BAD_REQUEST)
@@ -337,6 +384,9 @@ class DisponibilidadViewSet(viewsets.ModelViewSet):
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
     def update(self, request, *args, **kwargs):
+        if not _agenda_basica_enabled(request):
+            return _agenda_basica_block_response()
+
         partial = kwargs.pop("partial", False)
         instance = self.get_object()
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
@@ -359,6 +409,17 @@ class DisponibilidadViewSet(viewsets.ModelViewSet):
             "activo": serializer.validated_data.get("activo", instance.activo),
         }
 
+        if _is_recurrent_payload(attrs) and not _agenda_avanzada_enabled(request):
+            return Response(
+                {
+                    "detail": (
+                        "Tu plan no incluye Agenda Avanzada. "
+                        "No puedes guardar/editar configuraciones recurrentes."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         error_prof = self._validar_profesional_lugar_servicio(attrs)
         if error_prof:
             return Response({"error": error_prof}, status=status.HTTP_400_BAD_REQUEST)
@@ -377,6 +438,9 @@ class DisponibilidadViewSet(viewsets.ModelViewSet):
         - específica -> hard delete
         + auditoría desde aquí
         """
+        if not _agenda_basica_enabled(request):
+            return _agenda_basica_block_response()
+
         try:
             instance = self.get_object()
             hoy = date.today()
@@ -497,6 +561,20 @@ class DisponibilidadViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["post"], url_path="duplicar_dia")
     def duplicar_dia(self, request):
+        if not _agenda_basica_enabled(request):
+            return _agenda_basica_block_response()
+
+        if not _agenda_avanzada_enabled(request):
+            return Response(
+                {
+                    "detail": (
+                        "Tu plan no incluye Agenda Avanzada. "
+                        "La accion 'duplicar dia' no esta disponible."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         profesional_id = request.data.get("profesional_id")
         fecha_origen_str = request.data.get("fecha_origen")
         fecha_destino_str = request.data.get("fecha_destino")
@@ -588,6 +666,26 @@ class BloqueoAgendaViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
     filterset_fields = ["profesional_id"]
 
+    def create(self, request, *args, **kwargs):
+        if not _agenda_basica_enabled(request):
+            return _agenda_basica_block_response()
+        return super().create(request, *args, **kwargs)
+
+    def update(self, request, *args, **kwargs):
+        if not _agenda_basica_enabled(request):
+            return _agenda_basica_block_response()
+        return super().update(request, *args, **kwargs)
+
+    def partial_update(self, request, *args, **kwargs):
+        if not _agenda_basica_enabled(request):
+            return _agenda_basica_block_response()
+        return super().partial_update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        if not _agenda_basica_enabled(request):
+            return _agenda_basica_block_response()
+        return super().destroy(request, *args, **kwargs)
+
     def perform_create(self, serializer):
         uid = _uid(self.request)
         obj = serializer.save(usuario_id=uid)
@@ -675,6 +773,9 @@ class SlotGeneratorView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        if not _agenda_basica_enabled(request):
+            return _agenda_basica_block_response()
+
         profesional_id = request.query_params.get("profesional_id")
         fecha_str = request.query_params.get("fecha")
         servicio_id = request.query_params.get("servicio_id")

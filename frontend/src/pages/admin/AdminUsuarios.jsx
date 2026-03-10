@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { authService } from '../../services/authService';
 import { patientService } from '../../services/patientService';
 import Swal from 'sweetalert2';
@@ -9,11 +9,14 @@ import {
 } from 'react-icons/fa';
 import AnimatedActionButton from '../../components/system/AnimatedActionButton';
 import { Link } from 'react-router-dom';
+import { AuthContext } from '../../context/AuthContext';
 
 // IMPORTACIÓN DEL NUEVO COMPONENTE
 import MapaFamiliar from './MapaFamiliar';
 
 const AdminUsuarios = () => {
+    const { user, permissions } = useContext(AuthContext);
+    const isSaaSSuperAdmin = user?.is_superuser || (permissions?.roles || []).includes('SuperAdmin SaaS');
     const fallbackDocumentTypes = [
         { codigo: 'CC', nombre: 'Cedula' },
         { codigo: 'TI', nombre: 'Tarjeta Identidad' },
@@ -120,9 +123,19 @@ const AdminUsuarios = () => {
                 pacientesData.results.forEach(p => { if (p.user_id) map[p.user_id] = p; });
             }
 
-            setUsers(usersData);
-            setFilteredUsers(usersData);
-            setAvailableGroups(gruposData);
+            const sanitizedUsers = isSaaSSuperAdmin
+                ? (usersData || [])
+                : (usersData || []).map((u) => ({
+                    ...u,
+                    groups: (u.groups || []).filter((g) => (typeof g === 'object' ? g.name : g) !== 'SuperAdmin SaaS'),
+                }));
+
+            setUsers(sanitizedUsers);
+            setFilteredUsers(sanitizedUsers);
+            const visibleGroups = isSaaSSuperAdmin
+                ? gruposData
+                : (gruposData || []).filter((g) => (g?.name || g) !== 'SuperAdmin SaaS');
+            setAvailableGroups(visibleGroups);
             setTiposPaciente(tiposData);
             setPatientsMap(map);
             if (Array.isArray(docsData) && docsData.length > 0) {
@@ -177,7 +190,11 @@ const AdminUsuarios = () => {
     };
 
     const handleEditGroups = async (user) => {
-        const groupsHtml = availableGroups.map(group => {
+        const selectableGroups = isSaaSSuperAdmin
+            ? availableGroups
+            : availableGroups.filter((group) => (group.name || group) !== 'SuperAdmin SaaS');
+
+        const groupsHtml = selectableGroups.map(group => {
             const groupName = group.name || group;
             const isChecked = user.groups.some(ug => {
                 const uName = typeof ug === 'object' ? ug.name : ug;
@@ -195,7 +212,7 @@ const AdminUsuarios = () => {
             title: `Roles: ${getNombreCompleto(user)}`, html: groupsHtml, showCancelButton: true,
             preConfirm: () => {
                 const selected = [];
-                availableGroups.forEach(g => {
+                selectableGroups.forEach(g => {
                     const groupName = g.name || g;
                     const el = document.getElementById(`chk-${groupName}`);
                     if (el && el.checked) selected.push(groupName);
@@ -464,7 +481,9 @@ const AdminUsuarios = () => {
 
                                     <td className="px-6 py-4">
                                         <div className="flex flex-wrap gap-2 cursor-pointer" onClick={() => handleEditGroups(u)}>
-                                            {u.groups.length > 0 ? u.groups.map((g, idx) => {
+                                            {u.groups.length > 0 ? u.groups
+                                                .filter((g) => isSaaSSuperAdmin || ((typeof g === 'object' ? g.name : g) !== 'SuperAdmin SaaS'))
+                                                .map((g, idx) => {
                                                 const gName = typeof g === 'object' ? g.name : g;
                                                 return (
                                                     <span key={idx} className={`px-2 py-1 rounded-md text-xs font-bold border ${gName.toLowerCase() === 'admin' ? 'bg-purple-50 text-purple-700 border-purple-200' :

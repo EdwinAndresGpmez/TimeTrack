@@ -1,6 +1,11 @@
 import api from '../api/axiosConfig';
 
 export const portalService = {
+    getPublicPolicy: async () => {
+        const response = await api.get('/portal/policy/');
+        return response.data;
+    },
+
     // 1. Obtener Banners (Público)
     getBanners: async () => {
         try {
@@ -59,3 +64,4 @@ export const portalService = {
         return response.data;
     }
 };
+

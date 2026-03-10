@@ -7,8 +7,28 @@ import {
     FaSearch, FaChevronLeft, FaChevronRight, FaLink, FaIdCard, FaEnvelope, FaPlusCircle
 } from 'react-icons/fa';
 import AnimatedActionButton from '../../components/system/AnimatedActionButton';
+import useTenantPolicy from '../../hooks/useTenantPolicy';
 
 const ITEMS_PER_PAGE = 10;
+
+const getApiErrorMessage = (error, fallback = 'Error al procesar la solicitud.') => {
+    const data = error?.response?.data;
+    if (!data) return fallback;
+    if (typeof data === 'string') return data;
+    if (typeof data?.detail === 'string') return data.detail;
+    if (typeof data?.error === 'string') return data.error;
+    if (Array.isArray(data?.non_field_errors) && data.non_field_errors.length) {
+        return String(data.non_field_errors[0]);
+    }
+
+    const firstKey = Object.keys(data || {})[0];
+    if (firstKey) {
+        const val = data[firstKey];
+        if (Array.isArray(val) && val.length) return String(val[0]);
+        if (typeof val === 'string') return val;
+    }
+    return fallback;
+};
 
 const AdminProfesionales = () => {
     const [profesionales, setProfesionales] = useState([]);
@@ -32,6 +52,7 @@ const AdminProfesionales = () => {
         especialidades: [], lugares_atencion: [], servicios_habilitados: [],
         activo: true, user_id: null
     });
+    const { loading: policyLoading, planCode, getFeatureRule } = useTenantPolicy();
 
     useEffect(() => {
         cargarDatos();
@@ -109,7 +130,7 @@ const AdminProfesionales = () => {
             cargarDatos();
         } catch (error) {
             console.error(error);
-            Swal.fire('Error', 'Error al procesar la solicitud.', 'error');
+            Swal.fire('Error', getApiErrorMessage(error), 'error');
         }
     };
 
@@ -131,13 +152,48 @@ const AdminProfesionales = () => {
         try {
             await staffService.updateProfesional(p.id, { activo: !p.activo });
             cargarDatos();
-        } catch { Swal.fire('Error', 'No se pudo cambiar el estado.', 'error'); }
+        } catch (error) {
+            Swal.fire('Error', getApiErrorMessage(error, 'No se pudo cambiar el estado.'), 'error');
+        }
     };
 
     const filtered = profesionales.filter(p => {
         const q = query.toLowerCase();
         return !q || p.nombre.toLowerCase().includes(q) || p.numero_documento.includes(q);
     });
+
+    const capProfesionales = getFeatureRule('cap_profesionales');
+    const profesionalesActivos = profesionales.filter((p) => p.activo).length;
+    const limiteProfesionales = capProfesionales?.limit_int;
+    const bloqueoCapProfesionales =
+        policyLoading ||
+        (
+            Boolean(capProfesionales?.enabled) &&
+            limiteProfesionales !== null &&
+            limiteProfesionales !== undefined &&
+            profesionalesActivos >= Number(limiteProfesionales)
+        );
+
+    const showCapProfesionalesUpsell = () => {
+        const plan = planCode || 'FREE';
+        Swal.fire({
+            icon: 'info',
+            title: 'Funcionalidad limitada por plan',
+            html: `
+                <div style="text-align:left">
+                    <p><b>Plan actual:</b> ${plan}</p>
+                    <p><b>Límite actual:</b> ${limiteProfesionales ?? 'N/A'} profesional(es) activos.</p>
+                    <p style="margin-top:8px">Con un plan superior puedes:</p>
+                    <ul style="margin:6px 0 0 18px">
+                        <li>Habilitar más profesionales simultáneos.</li>
+                        <li>Escalar cobertura por sede y especialidad.</li>
+                        <li>Mantener operación sin bloqueos por capacidad.</li>
+                    </ul>
+                </div>
+            `,
+            confirmButtonText: 'Entendido',
+        });
+    };
 
     const pages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
     const visible = filtered.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
@@ -147,16 +203,33 @@ const AdminProfesionales = () => {
             <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
                 <div>
                     <h1 className="text-3xl font-black text-gray-800 flex items-center gap-3">
-                        <FaUserMd className="text-indigo-600" /> Cuerpo Médico
+                        <FaUserMd className="text-indigo-600" /> Cuerpo Medico
                     </h1>
-                    <p className="text-gray-500 font-medium">Gestión de profesionales y servicios habilitados.</p>
+                    <p className="text-gray-500 font-medium">Gestion de profesionales y servicios habilitados.</p>
+                    <p className="text-[11px] text-slate-500 mt-2">
+                        Plan {planCode || 'N/A'}: {profesionalesActivos}
+                        {limiteProfesionales !== null && limiteProfesionales !== undefined ? ` / ${limiteProfesionales}` : ''} profesionales activos
+                    </p>
                 </div>
-                <AnimatedActionButton
-                    onClick={() => { setEditing(null); setForm({ nombre: '', numero_documento: '', registro_medico: '', email_profesional: '', telefono_profesional: '', especialidades: [], lugares_atencion: [], servicios_habilitados: [], activo: true, user_id: null }); setModalOpen(true); }}
-                    icon={<FaPlusCircle />}
-                    label="Nuevo Profesional"
-                    sublabel="Agregar"
-                />
+                <div className="flex flex-col items-end gap-2">
+                    <div className={bloqueoCapProfesionales ? 'opacity-50 pointer-events-none' : ''}>
+                        <AnimatedActionButton
+                            onClick={() => { setEditing(null); setForm({ nombre: '', numero_documento: '', registro_medico: '', email_profesional: '', telefono_profesional: '', especialidades: [], lugares_atencion: [], servicios_habilitados: [], activo: true, user_id: null }); setModalOpen(true); }}
+                            icon={<FaPlusCircle />}
+                            label={policyLoading ? 'Validando plan...' : 'Nuevo Profesional'}
+                            sublabel="Agregar"
+                        />
+                    </div>
+                    {!policyLoading && bloqueoCapProfesionales && (
+                        <button
+                            type="button"
+                            onClick={showCapProfesionalesUpsell}
+                            className="text-[11px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-3 py-1.5 rounded-lg hover:bg-indigo-100"
+                        >
+                            Disponible con plan superior
+                        </button>
+                    )}
+                </div>
             </div>
 
             <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-6 flex flex-col md:flex-row gap-4">
@@ -371,3 +444,4 @@ const AdminProfesionales = () => {
 };
 
 export default AdminProfesionales;
+

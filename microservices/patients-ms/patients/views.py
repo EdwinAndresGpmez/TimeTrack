@@ -1,7 +1,9 @@
 from django.utils import timezone
 from django.db.models import Q
+from django.conf import settings
 from rest_framework import filters, permissions, status, viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -13,6 +15,7 @@ from .serializers import (
     TipoPacienteSerializer,
 )
 from .utils.audit_client import audit_log
+from .utils.tenant_policy import get_current_tenant_policy, get_feature_rule
 
 
 def _uid(request):
@@ -31,6 +34,65 @@ def _audit_from_view(request, *, descripcion, accion, recurso, recurso_id=None, 
         ip=request.META.get("REMOTE_ADDR"),
         user_agent=request.META.get("HTTP_USER_AGENT"),
     )
+
+
+def _enforce_cap_pacientes(request):
+    policy = get_current_tenant_policy(request)
+    cap_pacientes = get_feature_rule(policy, "cap_pacientes")
+    cap_habilitado = bool(cap_pacientes.get("enabled", False))
+    limite = cap_pacientes.get("limit_int")
+
+    if not cap_habilitado or limite is None:
+        return
+
+    activos = Paciente.objects.filter(activo=True).count()
+    if activos >= int(limite):
+        raise ValidationError(
+            {
+                "detail": (
+                    f"El plan actual permite maximo {limite} paciente(s) activos. "
+                    "Actualiza el plan o desactiva uno para continuar."
+                )
+            }
+        )
+
+
+def _registro_pacientes_enabled(request) -> bool:
+    policy = get_current_tenant_policy(request)
+    regla = get_feature_rule(policy, "registro_pacientes")
+    return bool(regla.get("enabled", False))
+
+
+def _registro_pacientes_block_response():
+    return Response(
+        {
+            "detail": (
+                "Tu plan no incluye Registro de Pacientes. "
+                "No puedes crear, editar ni eliminar pacientes."
+            )
+        },
+        status=status.HTTP_403_FORBIDDEN,
+    )
+
+
+def _is_internal_call(request) -> bool:
+    token = request.headers.get("X-INTERNAL-TOKEN", "")
+    return bool(token and token == getattr(settings, "INTERNAL_SERVICE_TOKEN", ""))
+
+
+def _api_publica_enabled(request) -> bool:
+    policy = get_current_tenant_policy(request)
+    regla = get_feature_rule(policy, "api_publica")
+    return bool(regla.get("enabled", False))
+
+
+def _enforce_api_publica_for_external(request):
+    if _is_internal_call(request):
+        return
+    if not _api_publica_enabled(request):
+        raise PermissionDenied(
+            "Tu plan no incluye API Publica. Este endpoint de integracion no esta disponible."
+        )
 
 
 # 1) Tipos de Paciente
@@ -83,6 +145,11 @@ class PacienteViewSet(viewsets.ModelViewSet):
     filter_backends = [filters.SearchFilter]
     search_fields = ["numero_documento", "nombre", "apellido"]
 
+    def _check_registro_pacientes(self, request):
+        if not _registro_pacientes_enabled(request):
+            return _registro_pacientes_block_response()
+        return None
+
     def get_queryset(self):
         queryset = Paciente.objects.all()
         user_id = self.request.query_params.get("user_id")
@@ -105,7 +172,35 @@ class PacienteViewSet(viewsets.ModelViewSet):
 
         return queryset
 
+    def create(self, request, *args, **kwargs):
+        blocked = self._check_registro_pacientes(request)
+        if blocked:
+            return blocked
+        return super().create(request, *args, **kwargs)
+
+    def update(self, request, *args, **kwargs):
+        blocked = self._check_registro_pacientes(request)
+        if blocked:
+            return blocked
+        return super().update(request, *args, **kwargs)
+
+    def partial_update(self, request, *args, **kwargs):
+        blocked = self._check_registro_pacientes(request)
+        if blocked:
+            return blocked
+        return super().partial_update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        blocked = self._check_registro_pacientes(request)
+        if blocked:
+            return blocked
+        return super().destroy(request, *args, **kwargs)
+
     def perform_create(self, serializer):
+        activo_nuevo = serializer.validated_data.get("activo", True)
+        if activo_nuevo:
+            _enforce_cap_pacientes(self.request)
+
         obj = serializer.save()
         _audit_from_view(
             self.request,
@@ -122,6 +217,11 @@ class PacienteViewSet(viewsets.ModelViewSet):
         )
 
     def perform_update(self, serializer):
+        instance = serializer.instance
+        nuevo_activo = serializer.validated_data.get("activo", instance.activo)
+        if (not instance.activo) and nuevo_activo:
+            _enforce_cap_pacientes(self.request)
+
         obj = serializer.save()
         _audit_from_view(
             self.request,
@@ -232,6 +332,8 @@ class SyncPacienteUserView(APIView):
     permission_classes = [InternalTokenOrAuthenticated]
 
     def post(self, request):
+        _enforce_api_publica_for_external(request)
+
         documento = request.data.get("documento")
         user_id = request.data.get("user_id")
 
@@ -284,6 +386,8 @@ class BulkPacienteView(APIView):
     permission_classes = [InternalTokenOrAuthenticatedReadOnly]
 
     def get(self, request):
+        _enforce_api_publica_for_external(request)
+
         ids_param = request.query_params.get("ids", "")
         if not ids_param:
             return Response({})
