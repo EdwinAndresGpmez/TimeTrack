@@ -14,6 +14,7 @@ import {
 } from 'react-icons/fa';
 import PatientOnboarding from '../../components/system/PatientOnboarding';
 import { AuthContext } from '../../context/AuthContext';
+import { useUI } from '../../context/UIContext';
 import useTenantPolicy from '../../hooks/useTenantPolicy';
 import { citasService } from '../../services/citasService';
 
@@ -28,6 +29,7 @@ const formatPct = (value) => `${Number(value || 0).toFixed(1)}%`;
 
 const Dashboard = () => {
   const { user, permissions } = useContext(AuthContext);
+  const { td } = useUI();
   const { loading: policyLoading, hasFeature, planCode } = useTenantPolicy();
   const [loadingResumen, setLoadingResumen] = useState(true);
   const [resumen, setResumen] = useState(null);
@@ -61,7 +63,7 @@ const Dashboard = () => {
         const data = await citasService.getDashboardResumen();
         if (mounted) setResumen(data || null);
       } catch (error) {
-        const msg = error?.response?.data?.detail || 'No se pudo cargar el dashboard operativo.';
+        const msg = error?.response?.data?.detail || td('No se pudo cargar el dashboard operativo.');
         if (mounted) setErrorResumen(msg);
       } finally {
         if (mounted) setLoadingResumen(false);
@@ -72,15 +74,15 @@ const Dashboard = () => {
     return () => {
       mounted = false;
     };
-  }, [dashboardBasico, isOperativeUser, policyLoading]);
+  }, [dashboardBasico, isOperativeUser, policyLoading, td]);
 
   if (!isOperativeUser) {
     return (
       <div>
         <PatientOnboarding />
         <div className="bg-gradient-to-r from-blue-600 to-blue-800 rounded-2xl shadow-lg p-8 text-white mb-8">
-          <h1 className="text-3xl font-bold">Bienvenido de nuevo, {user?.name || 'Usuario'}.</h1>
-          <p className="mt-2 opacity-90">Tu panel personal esta listo para gestionar citas y seguimiento clinico.</p>
+          <h1 className="text-3xl font-bold">{td('Bienvenido de nuevo')}, {user?.name || td('Usuario')}.</h1>
+          <p className="mt-2 opacity-90">{td('Tu panel personal esta listo para gestionar citas y seguimiento clinico.')}</p>
         </div>
       </div>
     );
@@ -92,10 +94,10 @@ const Dashboard = () => {
   const maxTotalSerie = Math.max(1, ...serie7.map((d) => Number(d.total || 0)));
 
   const cards = [
-    { label: 'Citas hoy', value: kpi.citas_hoy || 0, helper: 'Agenda diaria', icon: FaCalendarCheck },
-    { label: 'Realizadas hoy', value: kpi.realizadas_hoy || 0, helper: 'Consultas cerradas', icon: FaCheckCircle },
-    { label: 'Pendientes hoy', value: kpi.pendientes_hoy || 0, helper: 'Por gestionar', icon: FaClock },
-    { label: 'No asistio 30 dias', value: kpi.no_asistio_30_dias || 0, helper: 'Riesgo operativo', icon: FaUserClock },
+    { label: td('Citas hoy'), value: kpi.citas_hoy || 0, helper: td('Agenda diaria'), icon: FaCalendarCheck },
+    { label: td('Realizadas hoy'), value: kpi.realizadas_hoy || 0, helper: td('Consultas cerradas'), icon: FaCheckCircle },
+    { label: td('Pendientes hoy'), value: kpi.pendientes_hoy || 0, helper: td('Por gestionar'), icon: FaClock },
+    { label: td('No asistio 30 dias'), value: kpi.no_asistio_30_dias || 0, helper: td('Riesgo operativo'), icon: FaUserClock },
   ];
 
   return (
@@ -109,24 +111,24 @@ const Dashboard = () => {
       >
         <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
-            <p className="text-xs tracking-[0.2em] uppercase text-cyan-200">Control center operativo</p>
-            <h1 className="text-3xl md:text-4xl font-black mt-2">Dashboard Clinico</h1>
+            <p className="text-xs tracking-[0.2em] uppercase text-cyan-200">{td('Control center operativo')}</p>
+            <h1 className="text-3xl md:text-4xl font-black mt-2">{td('Dashboard Clinico')}</h1>
             <p className="mt-2 text-slate-200">
-              Plan: <span className="font-bold">{planCode || 'N/A'}</span> | Fecha corte:{' '}
+              {td('Plan')}: <span className="font-bold">{planCode || 'N/A'}</span> | {td('Fecha corte')}:{' '}
               <span className="font-bold">{resumen?.periodo?.hoy || '-'}</span>
             </p>
           </div>
           <div className="flex items-center gap-2 rounded-2xl bg-white/10 border border-white/20 px-4 py-3">
             <FaChartLine className="text-cyan-300" />
-            <span className="text-sm font-semibold">Ocupacion hoy: {formatPct(kpi.ocupacion_hoy_pct)}</span>
+            <span className="text-sm font-semibold">{td('Ocupacion hoy')}: {formatPct(kpi.ocupacion_hoy_pct)}</span>
           </div>
         </div>
       </div>
 
       {!policyLoading && !dashboardBasico && (
         <div className="rounded-2xl border border-amber-300 bg-amber-50 text-amber-900 p-5">
-          <p className="font-extrabold">Dashboard basico no incluido en tu plan</p>
-          <p className="text-sm mt-1">Activa el modulo `dashboard_basico` para visualizar metricas operativas.</p>
+          <p className="font-extrabold">{td('Dashboard basico no incluido en tu plan')}</p>
+          <p className="text-sm mt-1">{td('Activa el modulo dashboard_basico para visualizar metricas operativas.')}</p>
         </div>
       )}
 
@@ -169,8 +171,8 @@ const Dashboard = () => {
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
               <div className="xl:col-span-2 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="flex items-center justify-between">
-                  <h2 className="font-extrabold text-slate-900">Tendencia ultimos 7 dias</h2>
-                  <span className="text-xs text-slate-500">Total de citas por dia</span>
+                  <h2 className="font-extrabold text-slate-900">{td('Tendencia ultimos 7 dias')}</h2>
+                  <span className="text-xs text-slate-500">{td('Total de citas por dia')}</span>
                 </div>
                 <div className="mt-4 space-y-3">
                   {serie7.map((item) => {
@@ -191,18 +193,18 @@ const Dashboard = () => {
               </div>
 
               <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <h2 className="font-extrabold text-slate-900">Acciones rapidas</h2>
+                <h2 className="font-extrabold text-slate-900">{td('Acciones rapidas')}</h2>
                 <div className="mt-4 space-y-2">
                   <Link to="/dashboard/admin/agenda" className="flex items-center justify-between px-3 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-sm">
-                    <span className="flex items-center gap-2"><FaHospitalUser /> Agenda</span>
+                    <span className="flex items-center gap-2"><FaHospitalUser /> {td('Agenda')}</span>
                     <FaArrowUp className="rotate-45 text-slate-400" />
                   </Link>
                   <Link to="/dashboard/admin/citas" className="flex items-center justify-between px-3 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-sm">
-                    <span className="flex items-center gap-2"><FaStethoscope /> Gestion de Citas</span>
+                    <span className="flex items-center gap-2"><FaStethoscope /> {td('Gestion de Citas')}</span>
                     <FaArrowUp className="rotate-45 text-slate-400" />
                   </Link>
                   <Link to="/dashboard/admin/pacientes" className="flex items-center justify-between px-3 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-sm">
-                    <span className="flex items-center gap-2"><FaLayerGroup /> Pacientes</span>
+                    <span className="flex items-center gap-2"><FaLayerGroup /> {td('Pacientes')}</span>
                     <FaArrowUp className="rotate-45 text-slate-400" />
                   </Link>
                 </div>
@@ -211,34 +213,34 @@ const Dashboard = () => {
 
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="flex items-center justify-between">
-                <h2 className="font-extrabold text-slate-900">Dashboard avanzado</h2>
+                <h2 className="font-extrabold text-slate-900">{td('Dashboard avanzado')}</h2>
                 <span className={`text-xs font-bold px-3 py-1 rounded-full ${dashboardAvanzado ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                  {dashboardAvanzado ? 'Activo' : 'No incluido'}
+                  {dashboardAvanzado ? td('Activo') : td('No incluido')}
                 </span>
               </div>
 
               {dashboardAvanzado ? (
                 <div className="mt-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
                   <div className="rounded-xl border border-slate-200 p-4 bg-slate-50">
-                    <p className="text-xs text-slate-500">No-show 30 dias</p>
+                    <p className="text-xs text-slate-500">{td('No-show 30 dias')}</p>
                     <p className="text-2xl font-black text-slate-900">{formatPct(av.no_show_rate_30_dias_pct)}</p>
                   </div>
                   <div className="rounded-xl border border-slate-200 p-4 bg-slate-50">
-                    <p className="text-xs text-slate-500">Completion 30 dias</p>
+                    <p className="text-xs text-slate-500">{td('Completion 30 dias')}</p>
                     <p className="text-2xl font-black text-slate-900">{formatPct(av.completion_rate_30_dias_pct)}</p>
                   </div>
                   <div className="rounded-xl border border-slate-200 p-4 bg-slate-50">
-                    <p className="text-xs text-slate-500">Top servicios</p>
+                    <p className="text-xs text-slate-500">{td('Top servicios')}</p>
                     <p className="text-2xl font-black text-slate-900">{(av.top_servicios_30_dias || []).length}</p>
                   </div>
                   <div className="rounded-xl border border-slate-200 p-4 bg-slate-50">
-                    <p className="text-xs text-slate-500">Top profesionales</p>
+                    <p className="text-xs text-slate-500">{td('Top profesionales')}</p>
                     <p className="text-2xl font-black text-slate-900">{(av.top_profesionales_30_dias || []).length}</p>
                   </div>
                 </div>
               ) : (
                 <div className="mt-4 rounded-xl border border-dashed border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
-                  Tu plan actual muestra solo metricas base. Activa `dashboard_avanzado` para KPIs avanzados y comparativos.
+                  {td('Tu plan actual muestra solo metricas base. Activa dashboard_avanzado para KPIs avanzados y comparativos.')}
                 </div>
               )}
             </div>
@@ -250,3 +252,4 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
+

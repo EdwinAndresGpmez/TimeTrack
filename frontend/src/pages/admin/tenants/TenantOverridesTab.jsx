@@ -45,7 +45,7 @@ export default function TenantOverridesTab({
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <section className="bg-white rounded-xl border p-4 lg:col-span-1">
+      <section className="bg-white dark:bg-slate-900 rounded-xl border p-4 lg:col-span-1">
         <h2 className="font-black text-slate-700 mb-3">Clinicas afiliadas</h2>
         <div className="space-y-2 max-h-[560px] overflow-auto pr-1">
           {tenants.map((t) => (
@@ -53,7 +53,9 @@ export default function TenantOverridesTab({
               key={t.id}
               onClick={() => onSelectTenant(t.id)}
               className={`w-full text-left rounded-lg border p-3 transition ${
-                t.id === selectedTenantId ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:bg-slate-50'
+                t.id === selectedTenantId
+                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
+                  : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800'
               }`}
             >
               <p className="font-bold text-slate-800">{t.legal_name}</p>
@@ -64,7 +66,7 @@ export default function TenantOverridesTab({
         </div>
       </section>
 
-      <section className="bg-white rounded-xl border p-4 lg:col-span-2">
+      <section className="bg-white dark:bg-slate-900 rounded-xl border p-4 lg:col-span-2">
         {!selectedTenant ? (
           <p className="text-slate-500">Selecciona una clinica para administrar plan y modulos.</p>
         ) : (
@@ -150,3 +152,4 @@ export default function TenantOverridesTab({
     </div>
   );
 }
+

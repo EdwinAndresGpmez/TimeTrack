@@ -11,12 +11,10 @@ import {
 import AnimatedActionButton from '../../components/system/AnimatedActionButton';
 
 const AdminParametricas = () => {
-    // Tabs: sedes | especialidades | servicios | tipos
     const [activeTab, setActiveTab] = useState('sedes'); 
     const [dataList, setDataList] = useState([]);
     const [loading, setLoading] = useState(false);
     
-    // Catálogo para el select múltiple en Servicios
     const [tiposPacienteOptions, setTiposPacienteOptions] = useState([]);
     
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -25,7 +23,6 @@ const AdminParametricas = () => {
     const [formData, setFormData] = useState({});
     const { loading: policyLoading, planCode, getFeatureRule } = useTenantPolicy();
 
-    // Carga de datos unificada
     const cargarDatos = useCallback(async () => {
         setLoading(true);
         try {
@@ -35,7 +32,6 @@ const AdminParametricas = () => {
             if (activeTab === 'servicios') data = await staffService.getServicios();
             if (activeTab === 'tipos') data = await patientService.getTiposPaciente();
             
-            // Ordenar: Activos primero
             data.sort((a, b) => Number(b.activo) - Number(a.activo));
             setDataList(data);
         } catch (error) {
@@ -187,7 +183,6 @@ const AdminParametricas = () => {
         });
     };
 
-    // Helper para textos dinámicos del botón
     const getButtonLabel = () => {
         switch(activeTab) {
             case 'sedes': return { title: 'Nueva Sede', subtitle: 'Registrar Ubicación' };
@@ -200,14 +195,12 @@ const AdminParametricas = () => {
 
     return (
         <div className="max-w-7xl mx-auto p-4 relative">
-            
-            {/* Header y Botón Principal (Diseño Premium) */}
-            <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-6 bg-gradient-to-r from-gray-50 to-white p-6 rounded-3xl border border-gray-100 shadow-sm">
+            <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-6 bg-slate-50 dark:bg-slate-900 p-6 rounded-3xl border border-gray-100 dark:border-slate-700 shadow-sm">
                 <div>
-                    <h1 className="text-3xl font-black text-gray-800 flex items-center gap-3">
+                    <h1 className="text-3xl font-black text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-3">
                         <FaCheck className="text-green-600"/> Paramétricas del Sistema
                     </h1>
-                    <p className="text-gray-500 font-medium mt-1 ml-1">Configura las bases maestras de tu aplicación.</p>
+                    <p className="text-slate-600 dark:text-slate-300 font-medium mt-1 ml-1">Configura las bases maestras de tu aplicación.</p>
                 </div>
 
                 <AnimatedActionButton
@@ -231,9 +224,7 @@ const AdminParametricas = () => {
                     }
                 />
             </div>
-
-            {/* Navegación de Tabs */}
-            <div className="flex overflow-x-auto bg-gray-50 rounded-t-xl border-t border-x border-gray-200 mb-0">
+            <div className="flex overflow-x-auto bg-gray-50 dark:bg-slate-900 rounded-t-xl border-t border-x border-gray-200 dark:border-slate-700 mb-0">
                 {[
                     { id: 'sedes', label: 'Sedes', icon: <FaHospital/> },
                     { id: 'especialidades', label: 'Especialidades', icon: <FaStethoscope/> },
@@ -246,16 +237,14 @@ const AdminParametricas = () => {
                         className={`
                             px-6 py-4 font-bold flex items-center gap-2 whitespace-nowrap transition-all text-xs uppercase tracking-widest flex-1 justify-center
                             ${activeTab === tab.id 
-                                ? 'border-b-4 border-blue-600 text-blue-600 bg-white shadow-sm' 
-                                : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}
+                                ? 'border-b-4 border-blue-600 text-blue-600 bg-white dark:bg-slate-900 shadow-sm' 
+                                : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-slate-800'}
                         `}
                     >
                         {tab.icon} {tab.label}
                     </button>
                 ))}
             </div>
-
-            {/* Tabla de Contenido */}
             <div className="bg-white shadow-2xl rounded-b-xl overflow-hidden border border-gray-200 min-h-[400px]">
                 <div className="overflow-x-auto">
                     <table className="min-w-full leading-normal">
@@ -317,8 +306,6 @@ const AdminParametricas = () => {
                     </table>
                 </div>
             </div>
-
-            {/* Modal Principal */}
             {isModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 backdrop-blur-sm p-4 animate-fade-in">
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden border border-gray-100 transform transition-all scale-100">
@@ -334,8 +321,6 @@ const AdminParametricas = () => {
                         </div>
                         
                         <form onSubmit={handleSubmit} className="p-6 space-y-5">
-                            
-                            {/* CAMPO NOMBRE (Común) */}
                             <div>
                                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Nombre</label>
                                 <input 
@@ -347,8 +332,6 @@ const AdminParametricas = () => {
                                     placeholder="Ej: Particular, Eps..."
                                 />
                             </div>
-
-                            {/* CAMPOS SERVICIOS */}
                             {activeTab === 'servicios' && (
                                 <>
                                     <div className="grid grid-cols-2 gap-4">
@@ -388,21 +371,15 @@ const AdminParametricas = () => {
                                     </div>
                                 </>
                             )}
-                            
-                            {/* CAMPOS SEDES */}
                             {activeTab === 'sedes' && (
                                 <>
                                     <div><label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Ciudad</label><input name="ciudad" value={formData.ciudad} onChange={handleChange} className="w-full border-gray-300 border rounded-xl p-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none"/></div>
                                     <div><label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Dirección</label><input name="direccion" value={formData.direccion} onChange={handleChange} className="w-full border-gray-300 border rounded-xl p-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none"/></div>
                                 </>
                             )}
-                            
-                            {/* CAMPOS ESPECIALIDADES */}
                             {activeTab === 'especialidades' && (
                                 <div><label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Descripción</label><textarea name="descripcion" value={formData.descripcion} onChange={handleChange} rows="3" className="w-full border-gray-300 border rounded-xl p-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none"></textarea></div>
                             )}
-
-                            {/* TIPOS PACIENTE (Solo informativo) */}
                             {activeTab === 'tipos' && (
                                 <div className="bg-yellow-50 text-yellow-800 p-4 rounded-xl text-xs flex gap-3 items-start border border-yellow-100">
                                     <span className="text-lg">💡</span>
@@ -425,3 +402,4 @@ const AdminParametricas = () => {
 };
 
 export default AdminParametricas;
+

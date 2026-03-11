@@ -56,7 +56,6 @@ const ValidarUsuarios = () => {
         return () => clearTimeout(timer);
     }, [cargarDatos]);
 
-    // --- ACCIÓN 0: CREAR USUARIO MANUAL (y forzar solicitud si queda huérfano) ---
     const handleCrearUsuarioManual = async () => {
         const opcionesTipoDoc = documentTypes
             .map((t) => `<option value="${t.codigo}">${t.nombre}</option>`)
@@ -126,7 +125,6 @@ const ValidarUsuarios = () => {
                     return false;
                 }
 
-                // username: por defecto derivado del documento (evita campo extra)
                 const username = `user_${documento}`;
 
                 return { nombre, apellidos, tipo_documento, documento, correo, numero, password, username };
@@ -138,7 +136,6 @@ const ValidarUsuarios = () => {
         Swal.fire({ title: 'Creando usuario...', didOpen: () => Swal.showLoading() });
 
         try {
-            // 1) Crear usuario en Auth
             const created = await authService.register({
                 nombre: formValues.nombre,
                 apellidos: formValues.apellidos,
@@ -151,15 +148,11 @@ const ValidarUsuarios = () => {
                 acepta_tratamiento_datos: true,
             });
 
-            // El backend retorna { mensaje, usuario }
             const usuario = created?.usuario || created;
             const userId = usuario?.id;
 
-            // 2) Forzar solicitud en Patients si quedó huérfano (paciente_id null)
-            //    OJO: signals.py también intenta crearla; esto garantiza que el admin la vea de inmediato.
             if (userId && !usuario?.paciente_id) {
                 try {
-                    // Evitar duplicados: si ya está en la lista, no creamos otra
                     const yaExiste = (solicitudes || []).some(s => String(s.user_id) === String(userId));
                     if (!yaExiste) {
                         await patientService.crearSolicitudValidacion({
@@ -171,14 +164,12 @@ const ValidarUsuarios = () => {
                         });
                     }
                 } catch (e) {
-                    // Si patients-ms ya la creó por señal (o hay validación), no bloqueamos el flujo
                     console.warn('No se pudo crear solicitud (puede ya existir):', e?.response?.data || e?.message || e);
                 }
             }
 
             Swal.fire('¡Listo!', 'Usuario creado. Si no tiene paciente asociado, aparecerá en Pendientes.', 'success');
             window.dispatchEvent(new CustomEvent('tt:audit-notifications-refresh'));
-            // 3) Recargar datos
             cargarDatos();
         } catch (error) {
             console.error(error);
@@ -186,7 +177,6 @@ const ValidarUsuarios = () => {
         }
     };
 
-    // --- ACCIÓN 1: VALIDAR Y CORREGIR ---
     const handleValidar = async (solicitud) => {
         const opcionesHtml = tiposPaciente
             .filter(t => t.activo)
@@ -235,12 +225,10 @@ const ValidarUsuarios = () => {
         if (formValues) {
             Swal.fire({ title: 'Procesando...', didOpen: () => Swal.showLoading() });
             try {
-                // 1. (CRÍTICO) Si el admin corrigió el documento, actualizamos el Usuario Auth primero
                 if (formValues.doc !== solicitud.user_doc) {
                     await authService.updateUserAdmin(solicitud.user_id, { documento: formValues.doc });
                 }
 
-                // 2. Crear el Paciente
                 await patientService.create({
                     user_id: solicitud.user_id,
                     nombre: solicitud.nombre,
@@ -254,7 +242,6 @@ const ValidarUsuarios = () => {
                     activo: true
                 });
 
-                // 3. Cerrar solicitud
                 await patientService.updateSolicitud(solicitud.id, { ...solicitud, procesado: true });
 
                 Swal.fire('¡Éxito!', 'Datos sincronizados y paciente creado.', 'success');
@@ -262,9 +249,7 @@ const ValidarUsuarios = () => {
                 cargarDatos(); 
 
             } catch (error) {
-                // Manejo de duplicados (Paciente ya existe)
                 if (error.response && error.response.status === 400) {
-                     // Si el paciente ya existe, intentamos VINCULARLO en vez de fallar
                      try {
                         const sync = await patientService.vincularExistente({
                             documento: formValues.doc,
@@ -289,7 +274,6 @@ const ValidarUsuarios = () => {
         }
     };
 
-    // --- ACCIÓN 2: RECHAZAR / INACTIVAR ---
     const handleRechazar = async (solicitud) => {
         const { isConfirmed } = await Swal.fire({
             title: '¿Rechazar y Eliminar?',
@@ -337,12 +321,12 @@ const ValidarUsuarios = () => {
 
     return (
         <div className="max-w-7xl mx-auto p-6">
-            <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-6">
+            <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-6 bg-slate-50 dark:bg-slate-900 p-6 rounded-3xl border border-gray-100 dark:border-slate-700 shadow-sm">
                 <div>
-                    <h1 className="text-4xl font-black text-gray-800 tracking-tight flex items-center gap-3">
+                    <h1 className="text-3xl font-black text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-3">
                         <FaCheckCircle className="text-blue-600"/> Centro de Validación
                     </h1>
-                    <p className="text-gray-500 font-medium mt-2">Gestiona ingresos y correcciones de identidad.</p>
+                    <p className="text-slate-600 dark:text-slate-300 font-medium mt-1">Gestiona ingresos y correcciones de identidad.</p>
                 </div>
                 <div className="flex flex-col gap-2 md:flex-row md:gap-4">
                     <AnimatedActionButton
@@ -352,7 +336,7 @@ const ValidarUsuarios = () => {
                         sublabel="Crear"
                         className="!bg-blue-600 hover:!bg-blue-700"
                     />
-                    <Link to="/dashboard/admin/pacientes" className="px-6 py-3 font-bold text-blue-600 bg-blue-50 rounded-xl hover:bg-blue-100 border border-blue-200">
+                    <Link to="/dashboard/admin/pacientes" className="group relative inline-flex items-center justify-center px-8 py-3 font-bold text-white transition-all duration-200 bg-indigo-600 rounded-2xl hover:bg-indigo-700 shadow-xl active:scale-95">
                         <FaUsers className="mr-2 inline"/> Ver Todos
                     </Link>
                 </div>
@@ -417,3 +401,5 @@ const ValidarUsuarios = () => {
 };
 
 export default ValidarUsuarios;
+
+

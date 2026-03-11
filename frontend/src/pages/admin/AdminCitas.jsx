@@ -4,6 +4,7 @@ import { citasService } from '../../services/citasService';
 import { configService } from '../../services/configService'; 
 import Swal from 'sweetalert2';
 import * as FaIcons from 'react-icons/fa';
+import AnimatedActionButton from '../../components/system/AnimatedActionButton';
 
 const AdminCitas = () => {
     const [workflow, setWorkflow] = useState([]);
@@ -55,12 +56,10 @@ const AdminCitas = () => {
         return <IconComponent className={className} />;
     };
 
-    // HELPER: Obtener nombre de forma segura (Frontend defensivo)
     const getPacienteNombre = (cita) => {
         if (cita.paciente_nombre && cita.paciente_nombre !== "Desconocido") {
             return cita.paciente_nombre;
         }
-        // Si el backend envió "Desconocido", intentamos ver si vienen los campos por separado
         if (cita.paciente?.nombre) {
             return `${cita.paciente.nombre} ${cita.paciente.apellido || ''}`;
         }
@@ -142,25 +141,25 @@ const AdminCitas = () => {
         };
         const hex = legacyColors[colorValue] || colorValue || '#6B7280';
         return isActive 
-            ? { borderBottom: `4px solid ${hex}`, color: hex, backgroundColor: 'white' }
+            ? { borderBottom: `4px solid ${hex}`, color: hex }
             : { color: '#9CA3AF' }; 
     };
 
     return (
         <div className="max-w-7xl mx-auto p-4 min-h-screen">
-            {/* Header */}
-            <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-6 bg-gradient-to-r from-gray-50 to-white p-6 rounded-3xl border border-gray-100 shadow-sm">
+            <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-6 bg-slate-50 dark:bg-slate-900 p-6 rounded-3xl border border-gray-100 dark:border-slate-700 shadow-sm">
                 <div>
-                    <h1 className="text-4xl font-black text-gray-800 tracking-tight">Control de Citas</h1>
-                    <p className="text-gray-500 font-medium mt-1">Gestión de flujo de pacientes e ingresos.</p>
+                    <h1 className="text-3xl font-black text-slate-900 dark:text-slate-100 tracking-tight">Control de Citas</h1>
+                    <p className="text-slate-600 dark:text-slate-300 font-medium mt-1">Gestión de flujo de pacientes e ingresos.</p>
                 </div>
-                <Link to="/dashboard/agendar-admin" className="group relative inline-flex items-center justify-center px-8 py-4 font-bold text-white transition-all duration-200 bg-indigo-600 rounded-2xl hover:bg-indigo-700 shadow-xl active:scale-95">
-                    <FaIcons.FaCalendarPlus className="mr-3 text-xl animate-bounce" />
-                    <span className="text-lg">Nueva Cita</span>
-                </Link>
+                <AnimatedActionButton
+                    as={Link}
+                    to="/dashboard/agendar-admin"
+                    icon={<FaIcons.FaCalendarPlus />}
+                    label="Nueva Cita"
+                    sublabel="Registrar"
+                />
             </div>
-
-            {/* Filtros */}
             <div className="bg-white p-4 rounded-xl shadow-sm mb-6 flex flex-wrap gap-4 items-center justify-between border border-gray-100">
                 <div className="flex gap-4 items-center">
                     <div className="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
@@ -174,22 +173,18 @@ const AdminCitas = () => {
                     <input type="text" placeholder="Buscar paciente..." className="pl-10 pr-4 py-2 border rounded-xl text-sm w-80 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all shadow-sm" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} />
                 </div>
             </div>
-
-            {/* Pestañas */}
-            <div className="flex overflow-x-auto bg-gray-50 rounded-t-xl border-t border-x border-gray-200 scrollbar-hide">
+            <div className="flex overflow-x-auto bg-gray-50 dark:bg-slate-900 rounded-t-xl border-t border-x border-gray-200 dark:border-slate-700 scrollbar-hide">
                 {workflow.map(state => (
                     <button
                         key={state.slug}
                         onClick={() => setActiveTab(state.slug)}
                         style={getColorStyle(state.color, activeTab === state.slug)}
-                        className={`px-6 py-4 font-bold flex items-center gap-2 whitespace-nowrap transition-all text-xs uppercase tracking-widest ${activeTab !== state.slug ? 'hover:text-gray-600 hover:bg-gray-100' : 'shadow-sm'}`}
+                        className={`px-6 py-4 font-bold flex items-center gap-2 whitespace-nowrap transition-all text-xs uppercase tracking-widest ${activeTab !== state.slug ? 'hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-slate-800' : 'shadow-sm bg-white dark:bg-slate-900'}`}
                     >
                         <DynamicIcon name={state.icon} /> {state.label}
                     </button>
                 ))}
             </div>
-
-            {/* Tabla */}
             <div className="bg-white shadow-2xl rounded-b-xl overflow-hidden border border-gray-200 min-h-[450px]">
                 {loading ? (
                     <div className="p-24 text-center text-gray-400 flex flex-col items-center">
@@ -221,7 +216,6 @@ const AdminCitas = () => {
                                             <div className="text-[10px] text-gray-400 font-mono mt-0.5">{cita.fecha}</div>
                                         </td>
                                         <td className="px-6 py-4">
-                                            {/* CAMBIO AQUÍ: Usamos la función de nombre seguro */}
                                             <div className="font-black text-gray-900 uppercase text-xs">
                                                 {getPacienteNombre(cita)}
                                             </div>

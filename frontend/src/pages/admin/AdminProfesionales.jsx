@@ -40,7 +40,6 @@ const AdminProfesionales = () => {
     const [query, setQuery] = useState('');
     const [page, setPage] = useState(1);
 
-    // Búsqueda de usuarios para vinculación
     const [userQuery, setUserQuery] = useState('');
     const [userResults, setUserResults] = useState([]);
 
@@ -100,20 +99,16 @@ const AdminProfesionales = () => {
             Swal.fire({ title: 'Guardando...', didOpen: () => Swal.showLoading() });
             let res;
             
-            // 1. Guardar en Microservicio de Profesionales (Staff-MS)
             if (editing) {
                 res = await staffService.updateProfesional(editing.id, form);
             } else {
                 res = await staffService.createProfesional(form);
             }
 
-            // 2. SINCRONIZACIÓN CRÍTICA CON AUTH-MS
-            // Obtenemos el ID generado o el existente
             const professionalIdToSync = editing ? editing.id : res.id;
 
             if (form.user_id) {
                 try {
-                    // Enviamos el profesional_id al microservicio de Autenticación
                     await authService.updateUserAdmin(form.user_id, {
                         nombre: form.nombre,
                         documento: form.numero_documento,
@@ -121,7 +116,6 @@ const AdminProfesionales = () => {
                     });
                 } catch (errAuth) {
                     console.warn("Sincronización parcial de usuario:", errAuth);
-                    // No bloqueamos el flujo si falla Auth, pero avisamos en consola
                 }
             }
 
@@ -200,13 +194,13 @@ const AdminProfesionales = () => {
 
     return (
         <div className="max-w-7xl mx-auto p-4">
-            <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+            <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-6 bg-slate-50 dark:bg-slate-900 p-6 rounded-3xl border border-gray-100 dark:border-slate-700 shadow-sm">
                 <div>
-                    <h1 className="text-3xl font-black text-gray-800 flex items-center gap-3">
+                    <h1 className="text-3xl font-black text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-3">
                         <FaUserMd className="text-indigo-600" /> Cuerpo Medico
                     </h1>
-                    <p className="text-gray-500 font-medium">Gestion de profesionales y servicios habilitados.</p>
-                    <p className="text-[11px] text-slate-500 mt-2">
+                    <p className="text-slate-600 dark:text-slate-300 font-medium mt-1">Gestion de profesionales y servicios habilitados.</p>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-300 mt-2">
                         Plan {planCode || 'N/A'}: {profesionalesActivos}
                         {limiteProfesionales !== null && limiteProfesionales !== undefined ? ` / ${limiteProfesionales}` : ''} profesionales activos
                     </p>
@@ -312,7 +306,7 @@ const AdminProfesionales = () => {
                     <div className="flex items-center justify-center min-h-screen px-4 py-8">
                         <div className="fixed inset-0 bg-gray-900/60 transition-opacity" onClick={() => setModalOpen(false)}></div>
                         <div className="bg-white rounded-[2.5rem] overflow-hidden shadow-2xl transform transition-all w-full max-w-4xl z-10 border border-gray-100">
-                            <div className="p-10">
+                            <div className="p-4 sm:p-10">
                                 <h3 className="text-3xl font-black text-gray-800 mb-8 flex items-center gap-4 border-b pb-6 uppercase tracking-tighter">
                                     <div className="p-3 bg-indigo-600 rounded-2xl text-white shadow-xl rotate-3"><FaUserMd /></div>
                                     {editing ? 'Perfil Profesional' : 'Nuevo Médico'}
@@ -325,7 +319,7 @@ const AdminProfesionales = () => {
                                                 <FaIdCard /> Información del Profesional
                                             </h4>
                                             <div className="space-y-4">
-                                                <div className="grid grid-cols-2 gap-4">
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                                     <div className="col-span-2">
                                                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Nombre Completo *</label>
                                                         <input name="nombre" value={form.nombre} onChange={e => setForm({ ...form, nombre: e.target.value })} className="w-full bg-gray-50 border-gray-200 border-2 rounded-xl p-3 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all uppercase" />
@@ -346,7 +340,7 @@ const AdminProfesionales = () => {
                                             <h4 className="text-[11px] font-black text-indigo-500 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
                                                 <FaEnvelope /> Contacto Directo
                                             </h4>
-                                            <div className="grid grid-cols-2 gap-4">
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                                 <div className="col-span-2">
                                                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Correo Profesional</label>
                                                     <input name="email_profesional" value={form.email_profesional} onChange={e => setForm({ ...form, email_profesional: e.target.value })} className="w-full bg-gray-50 border-gray-200 border-2 rounded-xl p-3 text-sm focus:ring-4 focus:ring-indigo-500/10 outline-none" />
@@ -389,8 +383,6 @@ const AdminProfesionales = () => {
                                         </div>
                                     </div>
                                 </div>
-
-                                {/* ÁREA DE VINCULACIÓN DE CUENTA */}
                                 <div className="mt-10 pt-8 border-t-2 border-dashed border-gray-100">
                                     <h4 className="text-[11px] font-black text-teal-600 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
                                         <FaLink /> Vinculación de Acceso al Sistema
@@ -427,7 +419,7 @@ const AdminProfesionales = () => {
                                 </div>
                             </div>
 
-                            <div className="bg-gray-50 px-10 py-6 flex flex-row-reverse gap-4 border-t border-gray-100">
+                            <div className="bg-gray-50 px-4 sm:px-10 py-6 flex flex-col-reverse sm:flex-row-reverse gap-4 border-t border-gray-100">
                                 <button onClick={handleSave} className="bg-indigo-600 text-white px-10 py-3.5 rounded-2xl font-black text-sm hover:bg-indigo-700 shadow-2xl shadow-indigo-100 transition-all active:scale-95">
                                     {editing ? 'ACTUALIZAR PERFIL' : 'REGISTRAR MÉDICO'}
                                 </button>
@@ -444,4 +436,6 @@ const AdminProfesionales = () => {
 };
 
 export default AdminProfesionales;
+
+
 

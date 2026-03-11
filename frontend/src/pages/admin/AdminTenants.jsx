@@ -203,19 +203,19 @@ export default function AdminTenants() {
 
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-5">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-black text-slate-800 flex items-center gap-3">
+      <div className="flex flex-col md:flex-row justify-between items-center mb-3 gap-6 bg-slate-50 dark:bg-slate-900 p-6 rounded-3xl border border-gray-100 dark:border-slate-700 shadow-sm">
+        <h1 className="text-3xl font-black text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-3">
           <FaBuilding className="text-blue-600" /> Administracion de Tenants SaaS
         </h1>
         <button
           onClick={loadAll}
-          className="px-4 py-2 rounded-lg bg-slate-900 text-white font-bold text-sm inline-flex items-center gap-2"
+          className="group relative inline-flex items-center justify-center px-6 py-3 font-bold text-white transition-all duration-200 bg-indigo-600 rounded-2xl hover:bg-indigo-700 shadow-xl active:scale-95"
         >
           <FaSyncAlt /> Refrescar
         </button>
       </div>
 
-      <section className="bg-white rounded-xl border p-4">
+      <section className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
         <h2 className="font-black text-slate-700 text-sm mb-2">Tablas de referencia (auditoria rapida)</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-slate-600">
           <p><b>Catalogo de modulos:</b> {TABLES_INFO.featureCatalog}</p>
@@ -225,7 +225,7 @@ export default function AdminTenants() {
         </div>
       </section>
 
-      <div className="bg-white rounded-xl border p-2 flex flex-wrap gap-2">
+      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 p-2 flex flex-wrap gap-2">
         {TABS.map((tab) => {
           const Icon = tab.icon;
           const isActive = tab.id === activeTab;
@@ -234,7 +234,9 @@ export default function AdminTenants() {
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={`px-3 py-2 rounded-lg text-xs font-bold inline-flex items-center gap-2 ${
-                isActive ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                isActive
+                  ? 'bg-slate-900 text-white'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700'
               }`}
             >
               <Icon /> {tab.label}
@@ -320,3 +322,4 @@ export default function AdminTenants() {
     </div>
   );
 }
+

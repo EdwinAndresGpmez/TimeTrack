@@ -238,7 +238,6 @@ const GestionPacientes = () => {
         setModalOpen(true);
     };
 
-    // --- CORRECCIÓN 1: Manejo de Nulos en openEdit ---
     const openEdit = (p) => {
         setEditing(p);
         setForm({ 
@@ -277,7 +276,6 @@ const GestionPacientes = () => {
         }
     };
 
-    // --- CORRECCIÓN 2: Sincronización Paciente/Usuario en handleSave ---
     const handleSave = async () => {
         const required = ['nombre', 'tipo_documento', 'numero_documento', 'fecha_nacimiento', 'genero'];
         for (const f of required) { 
@@ -287,16 +285,13 @@ const GestionPacientes = () => {
         try {
             Swal.fire({ title: 'Guardando...', didOpen: () => Swal.showLoading() });
 
-            // 1. Guardar en Pacientes (Nombre y Apellido separados)
             if (editing) {
                 await patientService.update(editing.id, form);
             } else {
                 await patientService.create(form);
             }
 
-            // 2. Sincronizar en Auth (Si tiene usuario)
             if (form.user_id) {
-                // Concatenamos para Auth (que solo tiene campo 'nombre')
                 const nombreCompleto = `${form.nombre} ${form.apellido || ''}`.trim();
                 
                 try {
@@ -389,12 +384,24 @@ const GestionPacientes = () => {
 
     return (
         <div className="max-w-7xl mx-auto p-4">
-            <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-                <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-2">
-                    <FaUserTie className="text-teal-600"/> Gestión de Pacientes
-                </h1>
-                <div className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
-                    Total: <b>{filtered.length}</b>
+            <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-6 bg-slate-50 dark:bg-slate-900 p-6 rounded-3xl border border-gray-100 dark:border-slate-700 shadow-sm">
+                <div>
+                    <h1 className="text-3xl font-black text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-2">
+                        <FaUserTie className="text-teal-600"/> Gestión de Pacientes
+                    </h1>
+                    <p className="text-slate-600 dark:text-slate-300 font-medium mt-1">Gestion clinica, vinculacion y control de estado de pacientes.</p>
+                </div>
+                <div className="flex flex-col items-end gap-2">
+                    <div className="text-sm text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full">
+                        Total: <b>{filtered.length}</b>
+                    </div>
+                    <AnimatedActionButton
+                        onClick={openCreate}
+                        icon={<FaPlusCircle />}
+                        label="Crear Paciente"
+                        sublabel="Nuevo"
+                        className="!bg-teal-600 hover:!bg-teal-700"
+                    />
                 </div>
             </div>
 
@@ -404,13 +411,6 @@ const GestionPacientes = () => {
                     <input type="text" placeholder="Buscar por nombre o documento..." className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500 outline-none transition-all"
                         value={query} onChange={e => { setQuery(e.target.value); setPage(1); }} />
                 </div>
-                <AnimatedActionButton
-                    onClick={openCreate}
-                    icon={<FaPlusCircle />}
-                    label="Crear Paciente"
-                    sublabel="Nuevo"
-                    className="!bg-teal-600 hover:!bg-teal-700"
-                />
             </div>
 
             <div className="bg-white shadow-lg rounded-xl overflow-hidden border border-gray-200">
@@ -515,7 +515,7 @@ const GestionPacientes = () => {
                     <div className="flex items-center justify-center min-h-screen px-4 py-8">
                         <div className="fixed inset-0 bg-gray-900/60" onClick={() => setModalOpen(false)}></div>
                         <div className="bg-white rounded-2xl overflow-hidden shadow-2xl transform transition-all sm:max-w-2xl w-full z-10 border border-gray-100">
-                            <div className="bg-white px-8 py-6">
+                            <div className="bg-white px-4 sm:px-8 py-6">
                                 <h3 className="text-2xl font-black text-gray-800 mb-6 flex items-center gap-3 border-b pb-5">
                                     <div className="p-2.5 bg-teal-600 rounded-xl text-white shadow-lg"><FaUserTie /></div>
                                     {editing ? 'Ficha Médica del Paciente' : 'Nuevo Registro Clínico'}
@@ -524,17 +524,17 @@ const GestionPacientes = () => {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div className="space-y-4">
                                         <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest border-l-2 border-teal-500 pl-2">Información Básica</h4>
-                                        <div className="grid grid-cols-2 gap-3">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                             <div><label className="text-[10px] font-bold text-gray-500">Nombre *</label><input name="nombre" value={form.nombre} onChange={handleChange} className="w-full border-gray-200 border rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-teal-500 outline-none" /></div>
                                             <div><label className="text-[10px] font-bold text-gray-500">Apellido</label><input name="apellido" value={form.apellido} onChange={handleChange} className="w-full border-gray-200 border rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-teal-500 outline-none" /></div>
                                         </div>
-                                        <div className="grid grid-cols-3 gap-3">
+                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                             <div className="col-span-1"><label className="text-[10px] font-bold text-gray-500">Tipo *</label><select name="tipo_documento" value={form.tipo_documento} onChange={handleChange} className="w-full border-gray-200 border rounded-lg p-2.5 text-sm outline-none">
                                                 <option value="CC">CC</option><option value="TI">TI</option><option value="CE">CE</option><option value="NIT">NIT</option>
                                             </select></div>
                                             <div className="col-span-2"><label className="text-[10px] font-bold text-gray-500">Documento *</label><input name="numero_documento" value={form.numero_documento} onChange={handleChange} className="w-full border-gray-200 border rounded-lg p-2.5 text-sm font-mono focus:ring-2 focus:ring-teal-500 outline-none" /></div>
                                         </div>
-                                        <div className="grid grid-cols-2 gap-3">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                             <div><label className="text-[10px] font-bold text-gray-500">Fecha Nac. *</label><input type="date" name="fecha_nacimiento" value={form.fecha_nacimiento} onChange={handleChange} className="w-full border-gray-200 border rounded-lg p-2.5 text-sm outline-none" /></div>
                                             <div><label className="text-[10px] font-bold text-gray-500">Género *</label><select name="genero" value={form.genero} onChange={handleChange} className="w-full border-gray-200 border rounded-lg p-2.5 text-sm outline-none">
                                                 <option value="M">Masculino</option><option value="F">Femenino</option><option value="O">Otro</option>
@@ -591,7 +591,7 @@ const GestionPacientes = () => {
                                 </div>
                             </div>
 
-                            <div className="bg-gray-50 px-8 py-5 flex flex-row-reverse gap-3 border-t border-gray-100">
+                            <div className="bg-gray-50 px-6 sm:px-8 py-5 flex flex-col-reverse sm:flex-row-reverse gap-3 border-t border-gray-100">
                                 <button onClick={handleSave} className="bg-teal-600 text-white px-7 py-2.5 rounded-xl font-black text-sm hover:bg-teal-700 shadow-xl transition-all active:scale-95">
                                     {editing ? 'Guardar Cambios' : 'Confirmar Registro'}
                                 </button>
@@ -608,3 +608,4 @@ const GestionPacientes = () => {
 };
 
 export default GestionPacientes;
+

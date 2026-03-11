@@ -11,7 +11,6 @@ import AnimatedActionButton from '../../components/system/AnimatedActionButton';
 import { Link } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
 
-// IMPORTACIÓN DEL NUEVO COMPONENTE
 import MapaFamiliar from './MapaFamiliar';
 
 const AdminUsuarios = () => {
@@ -24,43 +23,35 @@ const AdminUsuarios = () => {
         { codigo: 'PAS', nombre: 'Pasaporte' },
     ];
 
-    // --- ESTADOS DE DATOS ---
     const [users, setUsers] = useState([]);
     const [filteredUsers, setFilteredUsers] = useState([]);
     const [availableGroups, setAvailableGroups] = useState([]);
     const [tiposPaciente, setTiposPaciente] = useState([]);
     const [documentTypes, setDocumentTypes] = useState(fallbackDocumentTypes);
 
-    // Diccionario para acceso rápido: { user_id: { datos_paciente } }
     const [patientsMap, setPatientsMap] = useState({});
 
     const [loading, setLoading] = useState(true);
 
-    // --- PAGINACIÓN ---
     const [currentPage, setCurrentPage] = useState(1);
     const [usersPerPage] = useState(10);
 
-    // --- FILTROS ---
     const [searchTerm, setSearchTerm] = useState('');
     const [filterRole, setFilterRole] = useState('todos');
 
-    // --- MODAL EDITAR AUTH ---
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingUser, setEditingUser] = useState(null);
     const [formData, setFormData] = useState({
         nombre: '', apellidos: '', email: '', tipo_documento: 'CC', documento: '', numero: ''
     });
 
-    // --- NUEVO: MODAL RED FAMILIAR ---
     const [isFamilyModalOpen, setIsFamilyModalOpen] = useState(false);
     const [familyTargetUser, setFamilyTargetUser] = useState(null);
 
-    // 1. CARGA INICIAL
     useEffect(() => {
         cargarDatos();
     }, []);
 
-    // 2. FILTRADO
     useEffect(() => {
         let result = users;
 
@@ -104,7 +95,6 @@ const AdminUsuarios = () => {
         return 'CC';
     };
 
-    // 3. CARGA DE DATOS COMPLETA
     const cargarDatos = async () => {
         try {
             setLoading(true);
@@ -153,7 +143,6 @@ const AdminUsuarios = () => {
         }
     };
 
-    // --- ACCIONES AUTH ---
     const handleToggleActive = async (user) => {
         try {
             await authService.updateUserAdmin(user.id, { is_active: !user.is_active });
@@ -291,7 +280,6 @@ const AdminUsuarios = () => {
         }
     };
 
-    // --- MODAL AUTH ---
     const openEditModal = (user) => {
         setEditingUser(user);
         setFormData({
@@ -305,12 +293,10 @@ const AdminUsuarios = () => {
         setIsModalOpen(true);
     };
 
-    // ✅ CORRECCIÓN: Crear vs Editar
     const handleModalSubmit = async (e) => {
         e.preventDefault();
 
         try {
-            // --- MODO CREAR ---
             if (!editingUser) {
                 const { value: password } = await Swal.fire({
                     title: 'Contraseña inicial',
@@ -347,7 +333,6 @@ const AdminUsuarios = () => {
                 return;
             }
 
-            // --- MODO EDITAR ---
             await authService.updateUserAdmin(editingUser.id, formData);
             const updatedUsers = users.map(u => u.id === editingUser.id ? { ...u, ...formData } : u);
             setUsers(updatedUsers);
@@ -360,13 +345,11 @@ const AdminUsuarios = () => {
         }
     };
 
-    // --- GESTIÓN RED FAMILIAR ---
     const openFamilyModal = (user) => {
         setFamilyTargetUser(user);
         setIsFamilyModalOpen(true);
     };
 
-    // --- RENDER ---
     const indexOfLastUser = currentPage * usersPerPage;
     const indexOfFirstUser = indexOfLastUser - usersPerPage;
     const currentUsers = filteredUsers.slice(indexOfFirstUser, indexOfLastUser);
@@ -374,19 +357,15 @@ const AdminUsuarios = () => {
 
     return (
         <div className="max-w-7xl mx-auto p-4">
-
-            {/* Header Actualizado */}
-            <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+            <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-6 bg-slate-50 dark:bg-slate-900 p-6 rounded-3xl border border-gray-100 dark:border-slate-700 shadow-sm">
                 <div className="flex flex-col">
-                    <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-2">
+                    <h1 className="text-3xl font-black text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-2">
                         <FaUserShield className="text-blue-600" /> Gestión de Usuarios
                     </h1>
-                    <div className="text-sm text-gray-500 mt-1">
+                    <div className="text-sm text-slate-600 dark:text-slate-300 mt-1 font-medium">
                         Total Registrados: <b>{filteredUsers.length}</b>
                     </div>
                 </div>
-
-                {/* BOTÓN CON DISEÑO NUEVO */}
                 <div className="flex flex-col gap-2 md:flex-row md:gap-4">
                     <AnimatedActionButton
                         onClick={() => {
@@ -399,14 +378,12 @@ const AdminUsuarios = () => {
                         sublabel="Crear"
                         className="!bg-blue-600 hover:!bg-blue-700"
                     />
-                    <Link to="/dashboard/admin/pacientes" className="group relative inline-flex items-center justify-center px-8 py-3 font-bold text-white transition-all duration-200 bg-teal-600 rounded-2xl hover:bg-teal-700 shadow-xl active:scale-95">
+                    <Link to="/dashboard/admin/pacientes" className="group relative inline-flex items-center justify-center px-8 py-3 font-bold text-white transition-all duration-200 bg-indigo-600 rounded-2xl hover:bg-indigo-700 shadow-xl active:scale-95">
                         <FaUsers className="mr-3 text-xl group-hover:scale-110 transition-transform" />
                         <span className="text-lg">Gestión de Pacientes</span>
                     </Link>
                 </div>
             </div>
-
-            {/* Filtros */}
             <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100 mb-6 flex flex-col md:flex-row gap-4 items-center">
                 <div className="relative w-full md:w-1/2">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><FaSearch className="text-gray-400" /></div>
@@ -438,8 +415,6 @@ const AdminUsuarios = () => {
                     </select>
                 </div>
             </div>
-
-            {/* Tabla */}
             <div className="bg-white shadow-lg rounded-xl overflow-hidden border border-gray-200">
                 <div className="overflow-x-auto">
                     <table className="min-w-full leading-normal">
@@ -553,8 +528,6 @@ const AdminUsuarios = () => {
                         </tbody>
                     </table>
                 </div>
-
-                {/* PAGINACIÓN */}
                 {filteredUsers.length > 0 && (
                     <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-between items-center">
                         <span className="text-xs font-medium text-gray-500">Página {currentPage} de {totalPages}</span>
@@ -565,8 +538,6 @@ const AdminUsuarios = () => {
                     </div>
                 )}
             </div>
-
-            {/* MODAL EDITAR AUTH */}
             {isModalOpen && (
                 <div className="fixed inset-0 z-50 overflow-y-auto backdrop-blur-sm">
                     <div className="flex items-center justify-center min-h-screen px-4">
@@ -579,7 +550,7 @@ const AdminUsuarios = () => {
                                         {editingUser ? 'Editar Datos de Acceso' : 'Crear Usuario'}
                                     </h3>
                                     <div className="space-y-4">
-                                        <div className="grid grid-cols-2 gap-3">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                             <div>
                                                 <label className="text-xs font-bold text-gray-500 uppercase">Nombres</label>
                                                 <input required className="w-full border-gray-300 border rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
@@ -591,7 +562,7 @@ const AdminUsuarios = () => {
                                                     value={formData.apellidos} onChange={e => setFormData({ ...formData, apellidos: e.target.value })} />
                                             </div>
                                         </div>
-                                        <div className="grid grid-cols-3 gap-3">
+                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                             <div className="col-span-1">
                                                 <label className="text-xs font-bold text-gray-500 uppercase">Tipo</label>
                                                 <select className="w-full border-gray-300 border rounded-lg p-2.5"
@@ -607,7 +578,7 @@ const AdminUsuarios = () => {
                                                     value={formData.documento} onChange={e => setFormData({ ...formData, documento: e.target.value })} />
                                             </div>
                                         </div>
-                                        <div className="grid grid-cols-2 gap-3">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                             <div>
                                                 <label className="text-xs font-bold text-gray-500 uppercase">Email</label>
                                                 <input type="email" required className="w-full border-gray-300 border rounded-lg p-2.5"
@@ -621,7 +592,7 @@ const AdminUsuarios = () => {
                                         </div>
                                     </div>
                                 </div>
-                                <div className="bg-gray-50 px-6 py-4 flex flex-row-reverse gap-3 border-t">
+                                <div className="bg-gray-50 px-6 py-4 flex flex-col-reverse sm:flex-row-reverse gap-3 border-t">
                                     <button type="submit" className="bg-blue-600 text-white px-5 py-2 rounded-lg font-medium hover:bg-blue-700 shadow-md transition-all">
                                         {editingUser ? 'Guardar Cambios' : 'Crear Usuario'}
                                     </button>
@@ -634,8 +605,6 @@ const AdminUsuarios = () => {
                     </div>
                 </div>
             )}
-
-            {/* MODAL RED FAMILIAR (CON EL LIENZO OFICIAL) */}
             {isFamilyModalOpen && familyTargetUser && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/80 backdrop-blur-sm animate-fadeIn p-4">
                     <div className="bg-white w-full max-w-5xl h-[85vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden relative">
@@ -667,4 +636,7 @@ const AdminUsuarios = () => {
 };
 
 export default AdminUsuarios;
+
+
+
 
