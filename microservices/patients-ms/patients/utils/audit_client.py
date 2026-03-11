@@ -55,6 +55,7 @@ def audit_log(
     ip: Optional[str] = None,
     user_agent: Optional[str] = None,
     timeout: int = 2,
+    request_headers: Optional[Dict[str, Any]] = None,
 ) -> bool:
     audit_url = os.getenv("AUDIT_URL", DEFAULT_AUDIT_URL).strip()
     token = os.getenv("INTERNAL_AUDIT_TOKEN", "").strip()
@@ -90,10 +91,23 @@ def audit_log(
         payload["user_agent"] = _truncate_str(str(user_agent))
 
     try:
+        headers = {"X-INTERNAL-TOKEN": token, "Content-Type": "application/json"}
+        for key in (
+            "X-Tenant-ID",
+            "X-Tenant-Domain",
+            "X-Tenant-Signature",
+            "X-Tenant-Timestamp",
+            "X-Tenant-Schema",
+            "X-Tenant-Slug-Override",
+        ):
+            value = (request_headers or {}).get(key)
+            if value:
+                headers[key] = value
+
         resp = requests.post(
             audit_url,
             json=payload,
-            headers={"X-INTERNAL-TOKEN": token, "Content-Type": "application/json"},
+            headers=headers,
             timeout=timeout,
         )
         if resp.status_code in (200, 201):

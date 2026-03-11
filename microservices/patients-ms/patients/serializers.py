@@ -4,6 +4,18 @@ from .models import Paciente, SolicitudValidacion, TipoPaciente
 
 
 class TipoPacienteSerializer(serializers.ModelSerializer):
+    def validate_nombre(self, value):
+        nombre = (value or "").strip()
+        if not nombre:
+            raise serializers.ValidationError("El nombre es obligatorio.")
+
+        qs = TipoPaciente.objects.filter(nombre__iexact=nombre)
+        if self.instance:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError("Ya existe un tipo de paciente con ese nombre.")
+        return nombre
+
     class Meta:
         model = TipoPaciente
         fields = "__all__"
@@ -57,6 +69,10 @@ class PacienteSerializer(serializers.ModelSerializer):
         return nombre, apellido
 
     def validate(self, attrs):
+        numero_documento = attrs.get("numero_documento", getattr(self.instance, "numero_documento", ""))
+        if numero_documento is not None:
+            attrs["numero_documento"] = str(numero_documento).strip()
+
         nombre_actual = attrs.get("nombre", getattr(self.instance, "nombre", ""))
         apellido_actual = attrs.get("apellido", getattr(self.instance, "apellido", ""))
         nombre_norm, apellido_norm = self._split_nombre_apellido(nombre_actual, apellido_actual)

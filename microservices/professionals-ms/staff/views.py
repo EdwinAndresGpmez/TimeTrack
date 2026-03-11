@@ -33,6 +33,7 @@ def _audit_from_view(request, *, descripcion, accion, recurso, recurso_id=None, 
         metadata=metadata or {},
         ip=request.META.get("REMOTE_ADDR"),
         user_agent=request.META.get("HTTP_USER_AGENT"),
+        request_headers=request.headers,
     )
 
 

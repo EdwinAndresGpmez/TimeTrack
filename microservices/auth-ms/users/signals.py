@@ -1,12 +1,15 @@
 import logging
 import os
+import hmac
+import time
+from hashlib import sha256
 
 import requests
 from django.contrib.auth.models import Group
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
-from .models import CrearCuenta
+from .models import CrearCuenta, TenantMembership
 
 logger = logging.getLogger(__name__)
 
@@ -14,9 +17,73 @@ PATIENTS_SERVICE_URL = "http://patients-ms:8001/api/v1/pacientes/internal/sync-u
 SOLICITUDES_URL = "http://patients-ms:8001/api/v1/pacientes/solicitudes/"
 
 
-def _internal_headers():
+def _infer_tenant_schema(tenant_slug: str | None) -> str | None:
+    if not tenant_slug:
+        return None
+    normalized = str(tenant_slug).strip().lower().replace("-", "_")
+    if not normalized:
+        return None
+    return f"tenant_{normalized}"
+
+
+def _resolve_membership_context(user: CrearCuenta):
+    tenant_id = getattr(user, "tenant_id", None)
+    membership = None
+    if tenant_id:
+        membership = (
+            TenantMembership.objects.filter(user=user, tenant_id=tenant_id, is_active=True)
+            .order_by("-is_default", "id")
+            .first()
+        )
+    if not membership:
+        membership = (
+            TenantMembership.objects.filter(user=user, is_active=True)
+            .order_by("-is_default", "tenant_id", "id")
+            .first()
+        )
+    if not membership:
+        return None
+    return {
+        "tenant_id": membership.tenant_id,
+        "tenant_slug": membership.tenant_slug,
+        "tenant_schema": _infer_tenant_schema(membership.tenant_slug),
+    }
+
+
+def _internal_headers(user: CrearCuenta | None = None):
     token = os.getenv("INTERNAL_SERVICE_TOKEN", "").strip()
-    return {"X-INTERNAL-TOKEN": token} if token else {}
+    headers = {"X-INTERNAL-TOKEN": token} if token else {}
+
+    if not user:
+        return headers
+
+    tenant_ctx = _resolve_membership_context(user)
+    if not tenant_ctx:
+        return headers
+
+    tenant_id = tenant_ctx.get("tenant_id")
+    tenant_slug = tenant_ctx.get("tenant_slug")
+    tenant_schema = tenant_ctx.get("tenant_schema")
+    if not tenant_id:
+        return headers
+
+    domain = os.getenv("TENANT_INTERNAL_DOMAIN", "auth-ms").strip() or "auth-ms"
+    ts = int(time.time())
+    signing_key = os.getenv("TENANT_HEADER_SIGNING_KEY", "").strip()
+
+    headers["X-Tenant-ID"] = str(tenant_id)
+    headers["X-Tenant-Domain"] = domain
+    headers["X-Tenant-Timestamp"] = str(ts)
+    if tenant_slug:
+        headers["X-Tenant-Slug-Override"] = tenant_slug
+    if tenant_schema:
+        headers["X-Tenant-Schema"] = tenant_schema
+
+    if signing_key:
+        payload = f"{tenant_id}:{domain}:{ts}".encode("utf-8")
+        headers["X-Tenant-Signature"] = hmac.new(signing_key.encode("utf-8"), payload, sha256).hexdigest()
+
+    return headers
 
 
 @receiver(post_save, sender=CrearCuenta)
@@ -41,7 +108,7 @@ def sincronizar_paciente(sender, instance, created, **kwargs):
                 PATIENTS_SERVICE_URL,
                 json=payload,
                 timeout=3,
-                headers=_internal_headers(),
+                headers=_internal_headers(instance),
             )
 
             if response.status_code == 200:
@@ -64,7 +131,7 @@ def sincronizar_paciente(sender, instance, created, **kwargs):
                         SOLICITUDES_URL,
                         json=payload_solicitud,
                         timeout=3,
-                        headers=_internal_headers(),
+                        headers=_internal_headers(instance),
                     )
 
                     if resp_sol.status_code == 201:

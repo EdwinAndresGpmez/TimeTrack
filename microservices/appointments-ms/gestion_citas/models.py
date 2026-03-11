@@ -12,7 +12,8 @@ DEFAULT_WORKFLOW = [
         "icon": "FaClock",
         "acciones": [
             {"target": "ACEPTADA", "label": "Aceptar", "tipo": "success", "requiere_motivo": False},
-            {"target": "RECHAZADA", "label": "Rechazar", "tipo": "danger", "requiere_motivo": True}
+            {"target": "RECHAZADA", "label": "Rechazar", "tipo": "danger", "requiere_motivo": True},
+            {"target": "CANCELADA", "label": "Cancelar", "tipo": "warning", "requiere_motivo": False}
         ]
     },
     {

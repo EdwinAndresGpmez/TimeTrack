@@ -226,6 +226,16 @@ const PatientOnboarding = () => {
             }
 
             try {
+                const perfilPorUser = await patientService.getMyProfile(user.user_id || user.id);
+                if (perfilPorUser?.id) {
+                    await authService.updateUser(user.user_id || user.id, { paciente_id: perfilPorUser.id });
+                    if (setUser) {
+                        setUser({ ...user, paciente_id: perfilPorUser.id });
+                    }
+                    checkPendingRedirect();
+                    return;
+                }
+
                 const syncResponse = await patientService.vincularExistente({
                     documento: user.documento,
                     user_id: user.user_id || user.id

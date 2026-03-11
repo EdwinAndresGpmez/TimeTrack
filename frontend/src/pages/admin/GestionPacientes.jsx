@@ -284,23 +284,27 @@ const GestionPacientes = () => {
 
         try {
             Swal.fire({ title: 'Guardando...', didOpen: () => Swal.showLoading() });
+            let pacienteGuardado = null;
 
             if (editing) {
-                await patientService.update(editing.id, form);
+                pacienteGuardado = await patientService.update(editing.id, form);
             } else {
-                await patientService.create(form);
+                pacienteGuardado = await patientService.create(form);
             }
 
             if (form.user_id) {
                 const nombreCompleto = `${form.nombre} ${form.apellido || ''}`.trim();
                 
                 try {
-                    await authService.updateUserAdmin(form.user_id, {
+                    const payloadAuth = {
                         nombre: nombreCompleto,
                         documento: form.numero_documento,
                         tipo_documento: form.tipo_documento,
                         correo: form.email_contacto
-                    });
+                    };
+                    const pacienteId = pacienteGuardado?.id || editing?.id || null;
+                    if (pacienteId) payloadAuth.paciente_id = pacienteId;
+                    await authService.updateUserAdmin(form.user_id, payloadAuth);
                 } catch (errAuth) {
                     console.warn("Sincronización parcial de usuario:", errAuth);
                 }

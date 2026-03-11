@@ -1,15 +1,20 @@
 import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
+  FaArrowRight,
   FaArrowUp,
   FaCalendarCheck,
+  FaCalendarPlus,
   FaChartLine,
   FaCheckCircle,
+  FaClipboardList,
   FaClock,
   FaExclamationTriangle,
   FaHospitalUser,
+  FaHeartbeat,
   FaLayerGroup,
   FaStethoscope,
+  FaUserEdit,
   FaUserClock,
 } from 'react-icons/fa';
 import PatientOnboarding from '../../components/system/PatientOnboarding';
@@ -17,6 +22,7 @@ import { AuthContext } from '../../context/AuthContext';
 import { useUI } from '../../context/UIContext';
 import useTenantPolicy from '../../hooks/useTenantPolicy';
 import { citasService } from '../../services/citasService';
+import { patientService } from '../../services/patientService';
 
 const KPI_CARD_STYLES = [
   'from-cyan-500 to-cyan-600',
@@ -26,6 +32,15 @@ const KPI_CARD_STYLES = [
 ];
 
 const formatPct = (value) => `${Number(value || 0).toFixed(1)}%`;
+const PATIENT_ACTIVE_STATUSES = ['PENDIENTE', 'ACEPTADA', 'CONFIRMADA', 'EN_SALA', 'LLAMADO'];
+
+const buildDateTime = (fecha, hora) => {
+  if (!fecha || !hora) return null;
+  const isoDate = String(fecha).trim();
+  const isoTime = String(hora).trim().slice(0, 5);
+  const parsed = new Date(`${isoDate}T${isoTime}:00`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
 
 const Dashboard = () => {
   const { user, permissions } = useContext(AuthContext);
@@ -34,6 +49,10 @@ const Dashboard = () => {
   const [loadingResumen, setLoadingResumen] = useState(true);
   const [resumen, setResumen] = useState(null);
   const [errorResumen, setErrorResumen] = useState('');
+  const [loadingPacienteInicio, setLoadingPacienteInicio] = useState(true);
+  const [pacienteInicio, setPacienteInicio] = useState(null);
+  const [citasPaciente, setCitasPaciente] = useState([]);
+  const [errorPacienteInicio, setErrorPacienteInicio] = useState('');
 
   const isOperativeUser = useMemo(() => {
     if (user?.is_staff || user?.is_superuser) return true;
@@ -76,14 +95,195 @@ const Dashboard = () => {
     };
   }, [dashboardBasico, isOperativeUser, policyLoading, td]);
 
+  useEffect(() => {
+    let mounted = true;
+
+    const loadPatientDashboard = async () => {
+      if (isOperativeUser) {
+        setLoadingPacienteInicio(false);
+        return;
+      }
+
+      const userId = user?.user_id || user?.id;
+      if (!userId) {
+        setLoadingPacienteInicio(false);
+        return;
+      }
+
+      try {
+        setLoadingPacienteInicio(true);
+        setErrorPacienteInicio('');
+        const perfil = await patientService.getProfileByUserId(userId);
+        if (!mounted) return;
+        setPacienteInicio(perfil || null);
+
+        if (!perfil?.id) {
+          setCitasPaciente([]);
+          return;
+        }
+
+        const dataCitas = await citasService.getAll({ paciente_id: perfil.id });
+        if (!mounted) return;
+        const list = Array.isArray(dataCitas) ? dataCitas : (dataCitas?.results || []);
+        setCitasPaciente(list);
+      } catch (error) {
+        const msg = error?.response?.data?.detail || td('No se pudo cargar tu resumen personal.');
+        if (mounted) {
+          setErrorPacienteInicio(msg);
+        }
+      } finally {
+        if (mounted) setLoadingPacienteInicio(false);
+      }
+    };
+
+    loadPatientDashboard();
+    return () => {
+      mounted = false;
+    };
+  }, [isOperativeUser, td, user?.id, user?.user_id]);
+
   if (!isOperativeUser) {
+    const sortedAppointments = [...citasPaciente].sort((a, b) => {
+      const dateA = buildDateTime(a.fecha, a.hora_inicio);
+      const dateB = buildDateTime(b.fecha, b.hora_inicio);
+      return (dateA?.getTime() || 0) - (dateB?.getTime() || 0);
+    });
+
+    const now = new Date();
+    const activeAppointments = sortedAppointments.filter((item) => PATIENT_ACTIVE_STATUSES.includes(item.estado));
+    const upcomingAppointments = activeAppointments.filter((item) => {
+      const date = buildDateTime(item.fecha, item.hora_inicio);
+      return date && date.getTime() >= now.getTime();
+    });
+    const nextAppointment = upcomingAppointments[0] || null;
+    const completedAppointments = sortedAppointments.filter((item) => item.estado === 'REALIZADA').length;
+    const cancelledAppointments = sortedAppointments.filter((item) => ['CANCELADA', 'NO_ASISTIO'].includes(item.estado)).length;
+
     return (
-      <div>
+      <div className="space-y-6">
         <PatientOnboarding />
-        <div className="bg-gradient-to-r from-blue-600 to-blue-800 rounded-2xl shadow-lg p-8 text-white mb-8">
-          <h1 className="text-3xl font-bold">{td('Bienvenido de nuevo')}, {user?.name || td('Usuario')}.</h1>
-          <p className="mt-2 opacity-90">{td('Tu panel personal esta listo para gestionar citas y seguimiento clinico.')}</p>
+        <div className="relative overflow-hidden rounded-3xl border border-cyan-200/60 bg-gradient-to-br from-cyan-600 via-sky-700 to-blue-900 p-6 md:p-8 text-white shadow-2xl">
+          <div className="absolute -top-14 -right-10 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
+          <div className="absolute bottom-0 left-10 h-24 w-24 rounded-full bg-cyan-300/20 blur-xl" />
+          <div className="relative z-10 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-[0.25em] text-cyan-100">{td('Portal del paciente')}</p>
+              <h1 className="mt-2 text-3xl font-black md:text-4xl">
+                {td('Bienvenido')}, {user?.nombre || user?.name || td('Paciente')}
+              </h1>
+              <p className="mt-3 max-w-2xl text-sm text-cyan-50/90 md:text-base">
+                {td('Gestiona tus citas, revisa tu proximo turno y manten tu perfil listo para una atencion mas agil.')}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Link
+                to="/dashboard/citas/nueva"
+                className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-bold text-sky-800 shadow-md transition hover:-translate-y-0.5"
+              >
+                <FaCalendarPlus />
+                {td('Nueva cita')}
+              </Link>
+              <Link
+                to="/dashboard/citas"
+                className="inline-flex items-center gap-2 rounded-xl border border-white/40 bg-white/10 px-4 py-2 text-sm font-bold text-white transition hover:bg-white/20"
+              >
+                <FaClipboardList />
+                {td('Ver mis citas')}
+              </Link>
+            </div>
+          </div>
         </div>
+
+        {errorPacienteInicio && (
+          <div className="rounded-2xl border border-red-300 bg-red-50 p-4 text-sm text-red-700">{errorPacienteInicio}</div>
+        )}
+
+        {loadingPacienteInicio ? (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            {Array.from({ length: 3 }).map((_, idx) => (
+              <div key={`patient-skeleton-${idx}`} className="h-24 rounded-2xl border border-slate-200 bg-white animate-pulse" />
+            ))}
+          </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <div className="rounded-2xl border border-cyan-200 bg-cyan-50 p-5 shadow-sm">
+                <p className="text-xs font-bold uppercase tracking-wider text-cyan-700">{td('Proximas citas')}</p>
+                <p className="mt-2 text-3xl font-black text-cyan-900">{upcomingAppointments.length}</p>
+                <p className="mt-1 text-xs text-cyan-700">{td('Confirmadas y pendientes por atender')}</p>
+              </div>
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 shadow-sm">
+                <p className="text-xs font-bold uppercase tracking-wider text-emerald-700">{td('Citas realizadas')}</p>
+                <p className="mt-2 text-3xl font-black text-emerald-900">{completedAppointments}</p>
+                <p className="mt-1 text-xs text-emerald-700">{td('Historial completado')}</p>
+              </div>
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
+                <p className="text-xs font-bold uppercase tracking-wider text-amber-700">{td('Canceladas / inasistencia')}</p>
+                <p className="mt-2 text-3xl font-black text-amber-900">{cancelledAppointments}</p>
+                <p className="mt-1 text-xs text-amber-700">{td('Ultimos movimientos')}</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-5">
+              <div className="xl:col-span-3 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                <h2 className="text-xl font-black text-slate-900">{td('Tu proxima cita')}</h2>
+                {nextAppointment ? (
+                  <div className="mt-4 rounded-2xl border border-cyan-200 bg-gradient-to-r from-cyan-50 to-blue-50 p-5">
+                    <p className="text-sm font-semibold text-slate-600">{td('Fecha')}:</p>
+                    <p className="text-2xl font-black text-slate-900">
+                      {nextAppointment.fecha} · {String(nextAppointment.hora_inicio || '').slice(0, 5)}
+                    </p>
+                    <p className="mt-2 text-sm text-slate-700">
+                      {td('Estado actual')}: <span className="font-bold">{nextAppointment.estado}</span>
+                    </p>
+                    <Link to="/dashboard/citas" className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-cyan-700 hover:text-cyan-900">
+                      {td('Ver detalle completo')} <FaArrowRight />
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-600">
+                    {td('No tienes citas proximas. Agenda una nueva consulta para mantener tu seguimiento al dia.')}
+                  </div>
+                )}
+              </div>
+
+              <div className="xl:col-span-2 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                <h2 className="text-xl font-black text-slate-900">{td('Acciones recomendadas')}</h2>
+                <div className="mt-4 space-y-2">
+                  <Link to="/dashboard/citas/nueva" className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+                    <span className="flex items-center gap-2"><FaCalendarPlus className="text-cyan-600" />{td('Agendar nueva cita')}</span>
+                    <FaArrowRight className="text-slate-400" />
+                  </Link>
+                  <Link to="/dashboard/citas" className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+                    <span className="flex items-center gap-2"><FaHeartbeat className="text-indigo-600" />{td('Revisar historial de citas')}</span>
+                    <FaArrowRight className="text-slate-400" />
+                  </Link>
+                  <Link to="/dashboard/perfil" className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+                    <span className="flex items-center gap-2"><FaUserEdit className="text-emerald-600" />{td('Actualizar mi perfil')}</span>
+                    <FaArrowRight className="text-slate-400" />
+                  </Link>
+                </div>
+              </div>
+            </div>
+
+            {pacienteInicio && (
+              <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.2em] text-slate-500">{td('Ficha paciente')}</p>
+                    <h3 className="text-2xl font-black text-slate-900">
+                      {pacienteInicio.nombre} {pacienteInicio.apellido}
+                    </h3>
+                  </div>
+                  <span className="inline-flex items-center gap-2 rounded-full bg-cyan-100 px-3 py-1 text-xs font-bold text-cyan-800">
+                    <FaCheckCircle />
+                    {td('Perfil sincronizado')}
+                  </span>
+                </div>
+              </div>
+            )}
+          </>
+        )}
       </div>
     );
   }

@@ -272,14 +272,14 @@ const GrillaSemanal = ({
 
             if (ahora >= finDeEstaHora) {
                 return (
-                    <div className="h-full w-full bg-gray-50/50 border-t border-dashed border-gray-100 opacity-40 cursor-not-allowed"></div>
+                    <div className="h-full w-full bg-gray-50/50 dark:bg-slate-900/40 border-t border-dashed border-gray-100 dark:border-slate-700 opacity-40 cursor-not-allowed"></div>
                 );
             }
 
             return (
                 <div 
-                    className={`h-full w-full flex items-center justify-center transition-all z-10 group select-none border-t border-dashed border-gray-100
-                        ${isSelectedByDrag ? 'bg-blue-100 border-blue-300 shadow-inner' : 'hover:bg-gray-50 cursor-pointer'}
+                    className={`h-full w-full flex items-center justify-center transition-all z-10 group select-none border-t border-dashed border-gray-100 dark:border-slate-700
+                        ${isSelectedByDrag ? 'bg-blue-100 dark:bg-blue-900/40 border-blue-300 dark:border-blue-500 shadow-inner' : 'hover:bg-gray-50 dark:hover:bg-slate-800/70 cursor-pointer'}
                     `}
                     onTouchEnd={() => onCrearTurno(fechaColumna, hora, hora + 1)}
                     onMouseDown={() => handleMouseDown(colIndex, hora)}
@@ -287,8 +287,8 @@ const GrillaSemanal = ({
                     onMouseUp={() => handleMouseUp(fechaColumna)}
                     title="Arrastra para crear bloque o clic simple"
                 >
-                    {!isSelectedByDrag && <FaPlus size={10} className="text-gray-300 group-hover:text-blue-400 transform group-hover:scale-110 transition-all"/>}
-                    {isSelectedByDrag && <span className="text-xs font-bold text-blue-500">{hora}:00</span>}
+                    {!isSelectedByDrag && <FaPlus size={10} className="text-gray-300 dark:text-slate-500 group-hover:text-blue-400 transform group-hover:scale-110 transition-all"/>}
+                    {isSelectedByDrag && <span className="text-xs font-bold text-blue-500 dark:text-blue-300">{hora}:00</span>}
                 </div>
             );
         }
@@ -318,20 +318,20 @@ const GrillaSemanal = ({
                     }
 
                     if (slot.isBloqueado) {
-                        containerStyle = "bg-red-50 border-l-[3px] border-red-500 text-red-700 cursor-not-allowed";
+                        containerStyle = "bg-red-50 dark:bg-red-950/40 border-l-[3px] border-red-500 text-red-700 dark:text-red-300 cursor-not-allowed";
                         iconoEstado = <FaLock size={8}/>;
                         tooltipText = `Bloqueado: ${slot.motivoBloqueo}`;
                     } else if (slot.isPasado) {
-                        containerStyle = "bg-gray-100 border-l-[3px] border-gray-400 text-gray-400 opacity-60 grayscale cursor-not-allowed";
+                        containerStyle = "bg-gray-100 dark:bg-slate-800 border-l-[3px] border-gray-400 dark:border-slate-600 text-gray-400 dark:text-slate-400 opacity-60 grayscale cursor-not-allowed";
                         iconoEstado = <FaHistory size={8}/>;
                         tooltipText = "Horario finalizado";
                     } else if (slot.isAgendado) {
-                        containerStyle = `${bgColorClass} border-l-[3px] ${borderColorClass} ${textColorClass} shadow-sm`;
+                        containerStyle = `${bgColorClass} border-l-[3px] ${borderColorClass} ${textColorClass} shadow-sm dark:ring-1 dark:ring-inset dark:ring-slate-700`;
                         iconoEstado = <FaUser size={8}/>;
                         tooltipText = `Cita ocupada - ${slot.cita?.paciente_nombre || 'Paciente'} (Dr. ${slot.profNombre})`;
                     } else {
                         const textOnlyClass = textColorClass.replace('text-', 'text-opacity-70 text-'); // Un poco mas claro
-                        containerStyle = `bg-white/90 backdrop-blur border-l-[3px] ${borderColorClass} ${textOnlyClass} hover:${bgColorClass} hover:shadow-md`;
+                        containerStyle = `bg-white/90 dark:bg-slate-800/90 backdrop-blur border-l-[3px] ${borderColorClass} ${textOnlyClass} dark:text-slate-200 hover:${bgColorClass} dark:hover:bg-slate-700/80 hover:shadow-md`;
                         iconoEstado = <FaPlus size={8} className="opacity-50"/>;
                         tooltipText = `Disponible para ${slot.servicioNombre} - Dr. ${slot.profNombre}`;
                     }
@@ -379,7 +379,7 @@ const GrillaSemanal = ({
                 })}
                 {puedeAgregarOtroProfesional && (
                     <button
-                        className="mt-1 w-full rounded-sm border border-dashed border-blue-300 bg-blue-50 px-1 py-0.5 text-[10px] font-bold text-blue-700 hover:bg-blue-100"
+                        className="mt-1 w-full rounded-sm border border-dashed border-blue-300 dark:border-blue-500 bg-blue-50 dark:bg-blue-900/40 px-1 py-0.5 text-[10px] font-bold text-blue-700 dark:text-blue-200 hover:bg-blue-100 dark:hover:bg-blue-900/60"
                         onClick={(e) => {
                             e.stopPropagation();
                             onCrearTurno(fechaColumna, hora, hora + 1);
@@ -394,7 +394,7 @@ const GrillaSemanal = ({
     };
 
     if (!selectedProfs || selectedProfs.length === 0) return (
-        <div className="h-full flex flex-col items-center justify-center text-gray-400 bg-gray-50">
+        <div className="h-full flex flex-col items-center justify-center text-gray-400 dark:text-slate-400 bg-gray-50 dark:bg-slate-950">
             <FaUser size={40} className="mb-4 opacity-20"/>
             <p>Seleccione profesionales</p>
         </div>
@@ -407,34 +407,34 @@ const GrillaSemanal = ({
     if (calendarView === 'month') gridWidthClass = 'min-w-[2500px]'; 
 
     return (
-        <div className="h-full overflow-auto bg-[radial-gradient(circle_at_20%_20%,#e0f2fe,transparent_40%),radial-gradient(circle_at_90%_10%,#dbeafe,transparent_30%),#f8fafc] relative scrollbar-thin w-full" onMouseLeave={() => { isDragging.current = false; setDragSelection(null); }}>
+        <div className="h-full overflow-auto bg-[radial-gradient(circle_at_20%_20%,#e0f2fe,transparent_40%),radial-gradient(circle_at_90%_10%,#dbeafe,transparent_30%),#f8fafc] dark:bg-[radial-gradient(circle_at_20%_20%,#1e293b,transparent_45%),radial-gradient(circle_at_90%_10%,#0f172a,transparent_30%),#020617] relative scrollbar-thin w-full" onMouseLeave={() => { isDragging.current = false; setDragSelection(null); }}>
             {contextMenu.visible && contextMenu.data && (
                 <div 
-                    className="fixed z-[9999] bg-white rounded-lg shadow-xl border border-gray-200 w-56 py-1 animate-fadeIn"
+                    className="fixed z-[9999] bg-white dark:bg-slate-900 rounded-lg shadow-xl border border-gray-200 dark:border-slate-700 w-56 py-1 animate-fadeIn"
                     style={{ top: contextMenu.y, left: contextMenu.x }}
                 >
-                    <div className="px-3 py-2 border-b bg-gray-50 text-xs font-bold text-gray-600 truncate flex flex-col">
+                    <div className="px-3 py-2 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-xs font-bold text-gray-600 dark:text-slate-200 truncate flex flex-col">
                         <span>{contextMenu.data.fecha}</span>
-                        <span className="text-blue-600 font-mono text-[10px]">{contextMenu.data.slot.inicio} - Dr. {contextMenu.data.slot.profNombre}</span>
+                        <span className="text-blue-600 dark:text-blue-300 font-mono text-[10px]">{contextMenu.data.slot.inicio} - Dr. {contextMenu.data.slot.profNombre}</span>
                     </div>
                     
                     {!contextMenu.data.slot.isAgendado && !contextMenu.data.slot.isBloqueado && !contextMenu.data.slot.isPasado && (
-                        <button onClick={() => ejecutarAccionRapida('AGENDAR')} className="w-full text-left px-4 py-2 text-sm text-green-700 hover:bg-green-50 flex items-center gap-2 font-bold">
+                        <button onClick={() => ejecutarAccionRapida('AGENDAR')} className="w-full text-left px-4 py-2 text-sm text-green-700 dark:text-green-300 hover:bg-green-50 dark:hover:bg-green-900/30 flex items-center gap-2 font-bold">
                             <FaPlus size={12}/> Agendar Paciente Aqui
                         </button>
                     )}
 
                     {!contextMenu.data.slot.isBloqueado && !contextMenu.data.slot.isPasado && (
-                        <button onClick={() => ejecutarAccionRapida('BLOQUEAR')} className="w-full text-left px-4 py-2 text-sm text-orange-600 hover:bg-orange-50 flex items-center gap-2 font-bold">
+                        <button onClick={() => ejecutarAccionRapida('BLOQUEAR')} className="w-full text-left px-4 py-2 text-sm text-orange-600 dark:text-orange-300 hover:bg-orange-50 dark:hover:bg-orange-900/30 flex items-center gap-2 font-bold">
                             <FaBan size={12}/> Bloquear este espacio
                         </button>
                     )}
 
-                    <div className="border-t my-1"></div>
+                    <div className="border-t border-gray-200 dark:border-slate-700 my-1"></div>
 
                     <button
                         onClick={() => ejecutarAccionRapida('CONFIGURAR')}
-                        className={`w-full text-left px-4 py-2 text-sm flex items-center gap-2 font-bold ${agendaAvanzadaEnabled ? 'text-blue-700 hover:bg-blue-50' : 'text-slate-500 bg-slate-50'}`}
+                        className={`w-full text-left px-4 py-2 text-sm flex items-center gap-2 font-bold ${agendaAvanzadaEnabled ? 'text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/30' : 'text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800'}`}
                     >
                         <FaCogs size={12}/> Configurar Serie Completa
                         {!agendaAvanzadaEnabled && <FaLock size={11} className="ml-auto" />}
@@ -443,34 +443,34 @@ const GrillaSemanal = ({
             )}
 
             <div className={`${gridWidthClass} h-full flex flex-col`}>
-                <div className="flex border-b bg-white/80 backdrop-blur sticky top-0 z-20 shadow-sm">
-                    <div className="w-14 flex-shrink-0 p-2 text-center text-slate-500 text-[10px] border-r bg-white/80 backdrop-blur flex items-center justify-center font-bold">HORA</div>
+                <div className="flex border-b border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-900/80 backdrop-blur sticky top-0 z-20 shadow-sm">
+                    <div className="w-14 flex-shrink-0 p-2 text-center text-slate-500 dark:text-slate-300 text-[10px] border-r border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-900/80 backdrop-blur flex items-center justify-center font-bold">HORA</div>
                     {diasColumna.map((fecha, i) => {
                         const esHoy = new Date().toDateString() === fecha.toDateString();
                         const diasSemanaStr = ['DOM','LUN','MAR','MIE','JUE','VIE','SAB'];
                         const isClipboardSource = clipboardDay?.date.toDateString() === fecha.toDateString();
                         
                         return (
-                            <div key={i} className={`flex-1 py-2 text-center border-r flex flex-col justify-center relative group transition-colors ${esHoy ? 'bg-blue-50 border-b-2 border-blue-500' : 'hover:bg-gray-100'} ${isClipboardSource ? 'bg-yellow-50 ring-inset ring-2 ring-yellow-300' : ''}`}>
-                                <span className={`text-[10px] font-bold uppercase ${esHoy ? 'text-blue-700' : 'text-gray-500'}`}>{diasSemanaStr[fecha.getDay()]}</span>
-                                <span className={`text-sm md:text-lg font-light leading-none mt-0.5 ${esHoy ? 'text-blue-900' : 'text-gray-800'}`}>{fecha.getDate()}</span>
+                            <div key={i} className={`flex-1 py-2 text-center border-r border-slate-200 dark:border-slate-700 flex flex-col justify-center relative group transition-colors ${esHoy ? 'bg-blue-50 dark:bg-blue-900/30 border-b-2 border-blue-500' : 'hover:bg-gray-100 dark:hover:bg-slate-800/70'} ${isClipboardSource ? 'bg-yellow-50 dark:bg-yellow-900/30 ring-inset ring-2 ring-yellow-300 dark:ring-yellow-600' : ''}`}>
+                                <span className={`text-[10px] font-bold uppercase ${esHoy ? 'text-blue-700 dark:text-blue-300' : 'text-gray-500 dark:text-slate-300'}`}>{diasSemanaStr[fecha.getDay()]}</span>
+                                <span className={`text-sm md:text-lg font-light leading-none mt-0.5 ${esHoy ? 'text-blue-900 dark:text-blue-200' : 'text-gray-800 dark:text-slate-100'}`}>{fecha.getDate()}</span>
 
                                 <div className="absolute top-1 right-1 flex gap-1 z-30 opacity-0 group-hover:opacity-100 transition-opacity">
                                     {!agendaAvanzadaEnabled ? (
                                         <button
                                             onClick={(e) => { e.stopPropagation(); if (onAgendaUpsell) onAgendaUpsell(); }}
-                                            className="p-1.5 bg-slate-100 shadow-sm border border-slate-200 rounded text-slate-500 hover:text-slate-700 transition"
+                                            className="p-1.5 bg-slate-100 dark:bg-slate-800 shadow-sm border border-slate-200 dark:border-slate-600 rounded text-slate-500 dark:text-slate-300 hover:text-slate-700 dark:hover:text-slate-100 transition"
                                             title="Disponible con plan superior"
                                         >
                                             <FaLock size={10} />
                                         </button>
                                     ) : !clipboardDay ? (
-                                        <button onClick={(e) => { e.stopPropagation(); onCopyDay(fecha); }} className="p-1.5 bg-white shadow-sm border border-gray-200 rounded text-gray-400 hover:text-blue-600 hover:border-blue-400 transition transform hover:scale-110" title="Copiar dia completo">
+                                        <button onClick={(e) => { e.stopPropagation(); onCopyDay(fecha); }} className="p-1.5 bg-white dark:bg-slate-900 shadow-sm border border-gray-200 dark:border-slate-600 rounded text-gray-400 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-300 hover:border-blue-400 transition transform hover:scale-110" title="Copiar dia completo">
                                             <FaRegCopy size={10} />
                                         </button>
                                     ) : (
                                         !isClipboardSource && (
-                                            <button onClick={(e) => { e.stopPropagation(); onPasteDay(fecha); }} className="p-1.5 bg-green-100 shadow-md border border-green-300 rounded text-green-700 hover:bg-green-200 transition animate-pulse" title="Pegar horarios aqui">
+                                            <button onClick={(e) => { e.stopPropagation(); onPasteDay(fecha); }} className="p-1.5 bg-green-100 dark:bg-green-900/40 shadow-md border border-green-300 dark:border-green-600 rounded text-green-700 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-900/60 transition animate-pulse" title="Pegar horarios aqui">
                                                 <FaPaste size={10} />
                                             </button>
                                         )
@@ -481,15 +481,15 @@ const GrillaSemanal = ({
                     })}
                 </div>
 
-                <div className="flex-1 bg-white/70 backdrop-blur select-none rounded-t-xl border border-slate-200 shadow-[0_8px_30px_rgba(15,23,42,0.06)]"> 
+                <div className="flex-1 bg-white/70 dark:bg-slate-900/70 backdrop-blur select-none rounded-t-xl border border-slate-200 dark:border-slate-700 shadow-[0_8px_30px_rgba(15,23,42,0.06)]"> 
                     {HORAS.map(hora => (
-                        <div key={hora} className="flex border-b min-h-[60px] md:min-h-[70px]"> 
-                            <div className="w-14 flex-shrink-0 text-center text-gray-400 text-[10px] font-mono border-r bg-gray-50 flex items-center justify-center relative">
-                                <span className="-mt-14 block bg-white px-1 z-10 rounded shadow-sm border border-gray-100">{hora}:00</span>
-                                <div className="absolute w-full h-[1px] bg-gray-100 top-0 right-0"></div> 
+                        <div key={hora} className="flex border-b border-slate-200 dark:border-slate-700 min-h-[60px] md:min-h-[70px]"> 
+                            <div className="w-14 flex-shrink-0 text-center text-gray-400 dark:text-slate-400 text-[10px] font-mono border-r border-slate-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 flex items-center justify-center relative">
+                                <span className="-mt-14 block bg-white dark:bg-slate-900 text-gray-600 dark:text-slate-200 px-1 z-10 rounded shadow-sm border border-gray-100 dark:border-slate-700">{hora}:00</span>
+                                <div className="absolute w-full h-[1px] bg-gray-100 dark:bg-slate-700 top-0 right-0"></div> 
                             </div>
                             {diasColumna.map((fecha, i) => (
-                                <div key={i} className="flex-1 border-r p-[1px] relative">
+                                <div key={i} className="flex-1 border-r border-slate-200 dark:border-slate-700 p-[1px] relative">
                                     {renderCeldaTiempo(fecha, hora, i)}
                                 </div>
                             ))}

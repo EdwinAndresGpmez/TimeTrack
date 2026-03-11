@@ -663,91 +663,98 @@ const GestionAgenda = () => {
                 confirmText: 'Continuar',
             });
             if (!profId) return;
-            targetProfId = profId;
+            targetProfId = Number(profId);
         } else if (selectedProfs.length === 1) {
-            targetProfId = selectedProfs[0].id;
+            targetProfId = Number(selectedProfs[0].id);
         } else { return; }
 
-        const profesionalObj = profesionales.find(p => p.id === parseInt(targetProfId));
+        if (!Number.isInteger(targetProfId) || targetProfId <= 0) {
+            return Swal.fire('Error', 'Profesional inválido. Intenta seleccionarlo nuevamente.', 'error');
+        }
+
+        const profesionalObj = profesionales.find(p => Number(p.id) === targetProfId);
         const serviciosFiltrados = servicios.filter(s => profesionalObj?.servicios_habilitados?.includes(s.id));
 
         const serviciosCards = [
-            `<button type="button" data-servicio-id="" class="swal-servicio-card w-full text-left p-3 rounded-xl border border-slate-200 hover:border-blue-400 hover:bg-blue-50 transition">
-                <p class="text-sm font-bold text-slate-800">Sin servicio especifico</p>
-                <p class="text-xs text-slate-500">Usa duracion base de ${duracionDefecto} min</p>
+            `<button type="button" data-servicio-id="" class="swal-servicio-card w-full text-left p-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 hover:border-blue-400 dark:hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/40 transition">
+                <p class="text-sm font-bold text-slate-800 dark:text-slate-100">Sin servicio especifico</p>
+                <p class="text-xs text-slate-500 dark:text-slate-300">Usa duracion base de ${duracionDefecto} min</p>
             </button>`,
             ...serviciosFiltrados.map(s => `
-                <button type="button" data-servicio-id="${s.id}" class="swal-servicio-card w-full text-left p-3 rounded-xl border border-slate-200 hover:border-blue-400 hover:bg-blue-50 transition">
-                    <p class="text-sm font-bold text-slate-800">${s.nombre}</p>
-                    <p class="text-xs text-slate-500">${s.duracion_minutos} min</p>
+                <button type="button" data-servicio-id="${s.id}" class="swal-servicio-card w-full text-left p-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 hover:border-blue-400 dark:hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/40 transition">
+                    <p class="text-sm font-bold text-slate-800 dark:text-slate-100">${s.nombre}</p>
+                    <p class="text-xs text-slate-500 dark:text-slate-300">${s.duracion_minutos} min</p>
                 </button>
             `)
         ].join('');
 
         const recurrenciasCards = agendaAvanzadaEnabled
             ? `
-                <button type="button" data-rec="HOY" class="swal-rec-card w-full text-left p-3 rounded-xl border border-blue-400 bg-blue-50 transition">
-                    <p class="text-sm font-bold text-slate-800">Solo por hoy</p>
-                    <p class="text-xs text-slate-500">${fechaStr}</p>
+                <button type="button" data-rec="HOY" class="swal-rec-card w-full text-left p-3 rounded-xl border border-blue-400 bg-blue-50 dark:bg-blue-900/40 transition">
+                    <p class="text-sm font-bold text-slate-800 dark:text-slate-100">Solo por hoy</p>
+                    <p class="text-xs text-slate-500 dark:text-slate-300">${fechaStr}</p>
                 </button>
-                <button type="button" data-rec="INDEFINIDO" class="swal-rec-card w-full text-left p-3 rounded-xl border border-slate-200 hover:border-blue-400 hover:bg-blue-50 transition">
-                    <p class="text-sm font-bold text-slate-800">Indefinido</p>
-                    <p class="text-xs text-slate-500">Todos los ${diaNombre}s</p>
+                <button type="button" data-rec="INDEFINIDO" class="swal-rec-card w-full text-left p-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 hover:border-blue-400 dark:hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/40 transition">
+                    <p class="text-sm font-bold text-slate-800 dark:text-slate-100">Indefinido</p>
+                    <p class="text-xs text-slate-500 dark:text-slate-300">Todos los ${diaNombre}s</p>
                 </button>
-                <button type="button" data-rec="1_SEMANA" class="swal-rec-card w-full text-left p-3 rounded-xl border border-slate-200 hover:border-blue-400 hover:bg-blue-50 transition">
-                    <p class="text-sm font-bold text-slate-800">1 semana</p>
-                    <p class="text-xs text-slate-500">2 repeticiones</p>
+                <button type="button" data-rec="1_SEMANA" class="swal-rec-card w-full text-left p-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 hover:border-blue-400 dark:hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/40 transition">
+                    <p class="text-sm font-bold text-slate-800 dark:text-slate-100">1 semana</p>
+                    <p class="text-xs text-slate-500 dark:text-slate-300">2 repeticiones</p>
                 </button>
-                <button type="button" data-rec="15_DIAS" class="swal-rec-card w-full text-left p-3 rounded-xl border border-slate-200 hover:border-blue-400 hover:bg-blue-50 transition">
-                    <p class="text-sm font-bold text-slate-800">15 dias</p>
-                    <p class="text-xs text-slate-500">3 repeticiones</p>
+                <button type="button" data-rec="15_DIAS" class="swal-rec-card w-full text-left p-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 hover:border-blue-400 dark:hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/40 transition">
+                    <p class="text-sm font-bold text-slate-800 dark:text-slate-100">15 dias</p>
+                    <p class="text-xs text-slate-500 dark:text-slate-300">3 repeticiones</p>
                 </button>
-                <button type="button" data-rec="1_MES" class="swal-rec-card w-full text-left p-3 rounded-xl border border-slate-200 hover:border-blue-400 hover:bg-blue-50 transition">
-                    <p class="text-sm font-bold text-slate-800">1 mes</p>
-                    <p class="text-xs text-slate-500">4-5 repeticiones</p>
+                <button type="button" data-rec="1_MES" class="swal-rec-card w-full text-left p-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 hover:border-blue-400 dark:hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/40 transition">
+                    <p class="text-sm font-bold text-slate-800 dark:text-slate-100">1 mes</p>
+                    <p class="text-xs text-slate-500 dark:text-slate-300">4-5 repeticiones</p>
                 </button>
             `
             : `
-                <button type="button" data-rec="HOY" class="swal-rec-card w-full text-left p-3 rounded-xl border border-blue-400 bg-blue-50 transition">
-                    <p class="text-sm font-bold text-slate-800">Solo por hoy</p>
-                    <p class="text-xs text-slate-500">${fechaStr}</p>
+                <button type="button" data-rec="HOY" class="swal-rec-card w-full text-left p-3 rounded-xl border border-blue-400 bg-blue-50 dark:bg-blue-900/40 transition">
+                    <p class="text-sm font-bold text-slate-800 dark:text-slate-100">Solo por hoy</p>
+                    <p class="text-xs text-slate-500 dark:text-slate-300">${fechaStr}</p>
                 </button>
-                <div class="w-full p-3 rounded-xl border border-slate-200 bg-slate-100 opacity-70">
-                    <p class="text-sm font-bold text-slate-600">Repeticiones avanzadas</p>
-                    <p class="text-xs text-slate-500">Disponible desde plan STARTER.</p>
+                <div class="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 opacity-70">
+                    <p class="text-sm font-bold text-slate-600 dark:text-slate-200">Repeticiones avanzadas</p>
+                    <p class="text-xs text-slate-500 dark:text-slate-300">Disponible desde plan STARTER.</p>
                 </div>
             `;
 
         const horaInicio = `${hora.toString().padStart(2, '0')}:00`;
         const horaFin = `${(horaFinSugerida || (hora + 1)).toString().padStart(2, '0')}:00`;
 
+        const isDarkMode = document.documentElement.classList.contains('dark');
+        const selectedCardClasses = ['ring-2', 'ring-blue-500', 'bg-blue-50', 'border-blue-500', 'dark:bg-blue-900/40', 'dark:border-blue-400'];
+
         const { value: formValues } = await Swal.fire({
-            title: `<span class="text-xl font-bold text-slate-900">Nuevo bloque de agenda</span>`,
+            title: `<span class="text-xl font-bold text-slate-900 dark:text-slate-100">Nuevo bloque de agenda</span>`,
             html: `
-                <div class="text-left px-2">
-                    <div class="bg-gradient-to-r from-blue-50 to-cyan-50 p-3 rounded-xl border border-blue-100 mb-4 flex items-center gap-3 shadow-sm">
-                        <div class="w-10 h-10 bg-blue-200 rounded-full flex items-center justify-center text-blue-700 font-bold shadow-inner">
+                <div class="text-left px-2 text-slate-700 dark:text-slate-200">
+                    <div class="bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-slate-800 dark:to-slate-700 p-3 rounded-xl border border-blue-100 dark:border-slate-600 mb-4 flex items-center gap-3 shadow-sm">
+                        <div class="w-10 h-10 bg-blue-200 dark:bg-blue-900 rounded-full flex items-center justify-center text-blue-700 dark:text-blue-200 font-bold shadow-inner">
                             ${profesionalObj?.nombre.charAt(0)}
                         </div>
                         <div>
-                            <p class="text-sm font-bold text-blue-900">${profesionalObj?.nombre}</p>
-                            <p class="text-xs text-blue-700">${diaNombreCap}, ${fechaStr}</p>
+                            <p class="text-sm font-bold text-blue-900 dark:text-blue-200">${profesionalObj?.nombre}</p>
+                            <p class="text-xs text-blue-700 dark:text-blue-300">${diaNombreCap}, ${fechaStr}</p>
                         </div>
                     </div>
                     
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                         <div>
-                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Hora inicio del bloque</label>
-                            <input id="swal-inicio" type="time" class="w-full p-2.5 border rounded-lg bg-slate-50 focus:ring-2 focus:ring-blue-500 outline-none" value="${horaInicio}">
+                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-300 uppercase mb-1">Hora inicio del bloque</label>
+                            <input id="swal-inicio" type="time" class="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 outline-none" value="${horaInicio}">
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Hora fin del bloque</label>
-                            <input id="swal-fin" type="time" class="w-full p-2.5 border rounded-lg bg-slate-50 focus:ring-2 focus:ring-blue-500 outline-none" value="${horaFin}">
+                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-300 uppercase mb-1">Hora fin del bloque</label>
+                            <input id="swal-fin" type="time" class="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 outline-none" value="${horaFin}">
                         </div>
                     </div>
 
                     <div class="mb-4">
-                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Tipo de agenda para este bloque</label>
+                        <label class="block text-xs font-bold text-slate-500 dark:text-slate-300 uppercase mb-1">Tipo de agenda para este bloque</label>
                         <input id="swal-servicio" type="hidden" value="" />
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                             ${serviciosCards}
@@ -755,12 +762,12 @@ const GestionAgenda = () => {
                     </div>
 
                     <div class="mb-2">
-                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Repetición</label>
+                        <label class="block text-xs font-bold text-slate-500 dark:text-slate-300 uppercase mb-1">Repetición</label>
                         <input id="swal-recurrencia" type="hidden" value="HOY" />
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                             ${recurrenciasCards}
                         </div>
-                        <p class="text-[10px] text-slate-500 mt-1 text-center">Define por cuanto tiempo estara disponible este bloque.</p>
+                        <p class="text-[10px] text-slate-500 dark:text-slate-400 mt-1 text-center">Define por cuanto tiempo estara disponible este bloque.</p>
                     </div>
                 </div>`,
             showCancelButton: true,
@@ -768,15 +775,20 @@ const GestionAgenda = () => {
             confirmButtonColor: '#2563EB',
             cancelButtonText: 'Cancelar',
             width: 'min(92vw, 560px)',
+            background: isDarkMode ? '#0f172a' : '#ffffff',
+            color: isDarkMode ? '#e2e8f0' : '#0f172a',
+            customClass: {
+                popup: isDarkMode ? 'border border-slate-700 shadow-2xl' : 'border border-slate-100 shadow-xl',
+            },
             focusConfirm: false,
             didOpen: () => {
                 const servicioInput = document.getElementById('swal-servicio');
                 const servicioCards = document.querySelectorAll('.swal-servicio-card');
                 servicioCards.forEach((card, idx) => {
-                    if (idx === 0) card.classList.add('ring-2', 'ring-blue-500', 'bg-blue-50', 'border-blue-500');
+                    if (idx === 0) card.classList.add(...selectedCardClasses);
                     card.addEventListener('click', () => {
-                        servicioCards.forEach((c) => c.classList.remove('ring-2', 'ring-blue-500', 'bg-blue-50', 'border-blue-500'));
-                        card.classList.add('ring-2', 'ring-blue-500', 'bg-blue-50', 'border-blue-500');
+                        servicioCards.forEach((c) => c.classList.remove(...selectedCardClasses));
+                        card.classList.add(...selectedCardClasses);
                         servicioInput.value = card.getAttribute('data-servicio-id') || '';
                     });
                 });
@@ -785,8 +797,8 @@ const GestionAgenda = () => {
                 const recCards = document.querySelectorAll('.swal-rec-card');
                 recCards.forEach((card) => {
                     card.addEventListener('click', () => {
-                        recCards.forEach((c) => c.classList.remove('ring-2', 'ring-blue-500', 'bg-blue-50', 'border-blue-500'));
-                        card.classList.add('ring-2', 'ring-blue-500', 'bg-blue-50', 'border-blue-500');
+                        recCards.forEach((c) => c.classList.remove(...selectedCardClasses));
+                        card.classList.add(...selectedCardClasses);
                         recInput.value = card.getAttribute('data-rec') || 'HOY';
                     });
                 });
@@ -838,11 +850,11 @@ const GestionAgenda = () => {
 
                 const payload = {
                     profesional_id: targetProfId, 
-                    lugar_id: lugarIdValido, 
+                    lugar_id: Number(lugarIdValido), 
                     dia_semana: diaIndexBD,
                     hora_inicio: formValues.inicio, 
                     hora_fin: formValues.fin, 
-                    servicio_id: formValues.servicio || null,
+                    servicio_id: formValues.servicio ? Number(formValues.servicio) : null,
                     fecha_inicio_vigencia: formatLocalISO(fechaBase),
                     fecha_fin_vigencia: fechaFinVigencia ? formatLocalISO(fechaFinVigencia) : null
                 };
@@ -1068,38 +1080,38 @@ const GestionAgenda = () => {
                 )}
             </div>
             {isGridOpen && viewMode === 'config' && (
-                <div className="fixed inset-0 z-50 bg-white flex flex-col animate-fadeIn">
-                    <div className="min-h-16 px-4 py-2 border-b flex items-center justify-between bg-white shadow-sm shrink-0 z-50">
+                <div className="fixed inset-0 z-50 bg-white dark:bg-slate-950 flex flex-col animate-fadeIn">
+                    <div className="min-h-16 px-4 py-2 border-b border-gray-200 dark:border-slate-700 flex items-center justify-between bg-white dark:bg-slate-900 shadow-sm shrink-0 z-50">
                         <div className="flex items-center gap-4">
-                            <button onClick={() => setIsGridOpen(false)} className="p-2 hover:bg-red-50 text-gray-500 hover:text-red-600 rounded-full transition"><FaTimes size={20}/></button>
-                            <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2"><FaCalendarAlt className="text-blue-600"/> Agenda Visual</h2>
+                            <button onClick={() => setIsGridOpen(false)} className="p-2 hover:bg-red-50 dark:hover:bg-red-950/40 text-gray-500 dark:text-slate-300 hover:text-red-600 rounded-full transition"><FaTimes size={20}/></button>
+                            <h2 className="text-lg font-bold text-gray-800 dark:text-slate-100 flex items-center gap-2"><FaCalendarAlt className="text-blue-600 dark:text-blue-400"/> Agenda Visual</h2>
                         </div>
                         <div className="flex items-center gap-2 md:gap-3 flex-wrap justify-end">
-                            <div className="flex items-center gap-2 bg-gray-50 p-1 px-3 rounded-lg border border-gray-200">
-                                <FaClock className="text-gray-400"/>
-                                <span className="text-xs font-bold text-gray-500">Rango visible:</span>
-                                <input type="number" min="0" max="23" value={horaInicioGrid} onChange={(e) => setHoraInicioGrid(parseInt(e.target.value) || 0)} className="w-12 text-center text-sm font-bold bg-white border rounded outline-none"/>
-                                <span className="text-xs font-bold text-gray-500">a</span>
-                                <input type="number" min="1" max="24" value={horaFinGrid} onChange={(e) => setHoraFinGrid(parseInt(e.target.value) || 24)} className="w-12 text-center text-sm font-bold bg-white border rounded outline-none"/>
+                            <div className="flex items-center gap-2 bg-gray-50 dark:bg-slate-800 p-1 px-3 rounded-lg border border-gray-200 dark:border-slate-600">
+                                <FaClock className="text-gray-400 dark:text-slate-400"/>
+                                <span className="text-xs font-bold text-gray-500 dark:text-slate-300">Rango visible:</span>
+                                <input type="number" min="0" max="23" value={horaInicioGrid} onChange={(e) => setHoraInicioGrid(parseInt(e.target.value) || 0)} className="w-12 text-center text-sm font-bold bg-white dark:bg-slate-900 text-gray-800 dark:text-slate-100 border border-gray-300 dark:border-slate-600 rounded outline-none"/>
+                                <span className="text-xs font-bold text-gray-500 dark:text-slate-300">a</span>
+                                <input type="number" min="1" max="24" value={horaFinGrid} onChange={(e) => setHoraFinGrid(parseInt(e.target.value) || 24)} className="w-12 text-center text-sm font-bold bg-white dark:bg-slate-900 text-gray-800 dark:text-slate-100 border border-gray-300 dark:border-slate-600 rounded outline-none"/>
                             </div>
 
-                            <div className="flex items-center gap-2 bg-gray-50 p-1 px-3 rounded-lg border border-gray-200">
-                                <FaCogs className="text-gray-400"/>
-                                <span className="text-xs font-bold text-gray-500">Duracion base:</span>
-                                <input type="number" value={duracionDefecto} onChange={(e) => setDuracionDefecto(parseInt(e.target.value) || 20)} className="w-12 text-center text-sm font-bold bg-white border rounded outline-none"/><span className="text-xs text-gray-500">min</span>
+                            <div className="flex items-center gap-2 bg-gray-50 dark:bg-slate-800 p-1 px-3 rounded-lg border border-gray-200 dark:border-slate-600">
+                                <FaCogs className="text-gray-400 dark:text-slate-400"/>
+                                <span className="text-xs font-bold text-gray-500 dark:text-slate-300">Duracion base:</span>
+                                <input type="number" value={duracionDefecto} onChange={(e) => setDuracionDefecto(parseInt(e.target.value) || 20)} className="w-12 text-center text-sm font-bold bg-white dark:bg-slate-900 text-gray-800 dark:text-slate-100 border border-gray-300 dark:border-slate-600 rounded outline-none"/><span className="text-xs text-gray-500 dark:text-slate-300">min</span>
                             </div>
 
-                            <div className="flex items-center bg-gray-100 rounded-lg p-1"><button onClick={() => navegarCalendario(-1)} className="p-1.5 hover:bg-white rounded text-gray-600"><FaChevronLeft/></button><button onClick={irAHoy} className="mx-1 px-3 py-1 text-sm font-bold text-gray-600 hover:bg-white rounded">Hoy</button><button onClick={() => navegarCalendario(1)} className="p-1.5 hover:bg-white rounded text-gray-600"><FaChevronRight/></button></div>
-                            <span className="font-bold text-gray-700 capitalize w-32 text-center hidden md:block">{fechaReferencia.toLocaleString('es-ES', { month: 'long', year: 'numeric' })}</span>
+                            <div className="flex items-center bg-gray-100 dark:bg-slate-800 rounded-lg p-1"><button onClick={() => navegarCalendario(-1)} className="p-1.5 hover:bg-white dark:hover:bg-slate-700 rounded text-gray-600 dark:text-slate-200"><FaChevronLeft/></button><button onClick={irAHoy} className="mx-1 px-3 py-1 text-sm font-bold text-gray-600 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-700 rounded">Hoy</button><button onClick={() => navegarCalendario(1)} className="p-1.5 hover:bg-white dark:hover:bg-slate-700 rounded text-gray-600 dark:text-slate-200"><FaChevronRight/></button></div>
+                            <span className="font-bold text-gray-700 dark:text-slate-200 capitalize w-32 text-center hidden md:block">{fechaReferencia.toLocaleString('es-ES', { month: 'long', year: 'numeric' })}</span>
                             
-                            <button onClick={handleExportGrid} className="flex items-center gap-2 bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-lg text-xs font-bold text-slate-700 hover:bg-slate-200 transition">
+                            <button onClick={handleExportGrid} className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 px-3 py-1.5 rounded-lg text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition">
                                 <FaFileExport />
                                 Exportar
                             </button>
-                            <div className="flex bg-gray-100 p-1 rounded-lg">{['day','week','month'].map(v => <button key={v} onClick={() => setCalendarView(v)} className={`px-3 py-1 rounded text-xs font-bold ${calendarView === v ? 'bg-white shadow text-blue-600' : 'text-gray-500'}`}>{v === 'day' ? 'Dia' : v === 'week' ? 'Semana' : 'Mes'}</button>)}</div>
+                            <div className="flex bg-gray-100 dark:bg-slate-800 p-1 rounded-lg">{['day','week','month'].map(v => <button key={v} onClick={() => setCalendarView(v)} className={`px-3 py-1 rounded text-xs font-bold ${calendarView === v ? 'bg-white dark:bg-slate-700 shadow text-blue-600 dark:text-blue-300' : 'text-gray-500 dark:text-slate-300'}`}>{v === 'day' ? 'Dia' : v === 'week' ? 'Semana' : 'Mes'}</button>)}</div>
                         </div>
                     </div>
-                    <div className="flex-1 overflow-hidden relative bg-gray-50">
+                    <div className="flex-1 overflow-hidden relative bg-gray-50 dark:bg-slate-950">
                         {loadingAgenda ? (
                             <div className="h-full flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div>
                         ) : (
@@ -1129,9 +1141,9 @@ const GestionAgenda = () => {
                         )}
                     </div>
                     
-                    <div className="h-14 border-t bg-white flex items-center shrink-0 z-50">
+                    <div className="h-14 border-t border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 flex items-center shrink-0 z-50">
                         <div className="flex-1 flex gap-3 overflow-x-auto p-2 scrollbar-thin items-center">{selectedProfs.map(p => <div key={p.id} className={`px-2 py-1 rounded border flex items-center gap-2 shrink-0 ${p.colorInfo.clase} shadow-sm`}><div className="w-2 h-2 rounded-full bg-current opacity-50"></div><span className="font-bold truncate max-w-[150px] text-xs">{p.nombre}</span><button onClick={() => toggleProfesional(p)} className="hover:bg-white/50 rounded-full p-0.5"><FaTimes size={10}/></button></div>)}</div>
-                        <div className="w-64 border-l pl-3 pr-3 py-2 bg-gray-50 relative h-full flex items-center group"><FaSearch className="text-gray-400 mr-2 text-xs"/><input ref={footerInputRef} type="text" placeholder="Agregar otro profesional..." className="w-full bg-transparent text-sm outline-none placeholder-gray-400 text-gray-700" value={footerSearch} onChange={(e) => { setFooterSearch(e.target.value); setShowFooterResults(true); }} onFocus={() => setShowFooterResults(true)}/>{showFooterResults && footerSearch.length > 0 && <div className="absolute bottom-full right-0 left-0 mb-1 bg-white border border-gray-200 rounded-t-lg shadow-xl max-h-60 overflow-y-auto z-50">{resultadosFooter.map(p => <div key={p.id} className="p-2 hover:bg-blue-50 cursor-pointer border-b flex items-center justify-between group/item" onClick={() => toggleProfesional(p)}><div className="flex flex-col"><span className="text-sm font-bold text-gray-700">{p.nombre}</span><span className="text-[10px] text-gray-400">{p.especialidades_nombres?.[0]}</span></div><FaPlusCircle className="text-gray-300 group-hover/item:text-blue-500"/></div>)}</div>}{showFooterResults && <div className="fixed inset-0 z-40 bg-transparent" onClick={() => setShowFooterResults(false)}></div>}</div>
+                        <div className="w-64 border-l border-gray-200 dark:border-slate-700 pl-3 pr-3 py-2 bg-gray-50 dark:bg-slate-800 relative h-full flex items-center group"><FaSearch className="text-gray-400 dark:text-slate-400 mr-2 text-xs"/><input ref={footerInputRef} type="text" placeholder="Agregar otro profesional..." className="w-full bg-transparent text-sm outline-none placeholder-gray-400 dark:placeholder-slate-500 text-gray-700 dark:text-slate-100" value={footerSearch} onChange={(e) => { setFooterSearch(e.target.value); setShowFooterResults(true); }} onFocus={() => setShowFooterResults(true)}/>{showFooterResults && footerSearch.length > 0 && <div className="absolute bottom-full right-0 left-0 mb-1 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-t-lg shadow-xl max-h-60 overflow-y-auto z-50">{resultadosFooter.map(p => <div key={p.id} className="p-2 hover:bg-blue-50 dark:hover:bg-slate-800 cursor-pointer border-b border-gray-100 dark:border-slate-700 flex items-center justify-between group/item" onClick={() => toggleProfesional(p)}><div className="flex flex-col"><span className="text-sm font-bold text-gray-700 dark:text-slate-100">{p.nombre}</span><span className="text-[10px] text-gray-400 dark:text-slate-400">{p.especialidades_nombres?.[0]}</span></div><FaPlusCircle className="text-gray-300 dark:text-slate-500 group-hover/item:text-blue-500"/></div>)}</div>}{showFooterResults && <div className="fixed inset-0 z-40 bg-transparent" onClick={() => setShowFooterResults(false)}></div>}</div>
                     </div>
                 </div>
             )}

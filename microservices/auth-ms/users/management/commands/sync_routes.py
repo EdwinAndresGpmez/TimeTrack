@@ -10,6 +10,7 @@ from users.models import MenuItem, PermisoVista
 
 class Command(BaseCommand):
     help = "Sincroniza rutas protegidas de React a la BD y garantiza la asignacion de roles"
+    CORE_MENU_ROUTES = ("/dashboard", "/dashboard/perfil")
 
     ROUTE_MENU_CONFIG = {
         "/dashboard": {"label": "Inicio", "category": "General", "icon": "FaHome", "order": 10},
@@ -159,6 +160,7 @@ class Command(BaseCommand):
             rutas_protegidas = []
             rutas_protegidas.extend(regex_children.findall(content))
             rutas_protegidas.extend(regex_element.findall(content))
+            rutas_protegidas.extend((url, "") for url in self.CORE_MENU_ROUTES)
 
             # Quitar duplicados conservando orden
             dedup = []
@@ -243,6 +245,11 @@ class Command(BaseCommand):
 
                         if "doctor" in url:
                             menu.roles.add(grupo_profesional)
+                        if url in self.CORE_MENU_ROUTES:
+                            menu.roles.add(grupo_profesional)
+                            menu.roles.add(grupo_paciente)
+                        if "/dashboard/citas" in url and "admin" not in url:
+                            menu.roles.add(grupo_paciente)
 
             self.stdout.write(self.style.SUCCESS("Rutas, menus, categorias, orden e iconos sincronizados correctamente."))
         except Exception as e:

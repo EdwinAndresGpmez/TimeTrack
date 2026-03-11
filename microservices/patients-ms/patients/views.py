@@ -33,6 +33,7 @@ def _audit_from_view(request, *, descripcion, accion, recurso, recurso_id=None, 
         metadata=metadata or {},
         ip=request.META.get("REMOTE_ADDR"),
         user_agent=request.META.get("HTTP_USER_AGENT"),
+        request_headers=request.headers,
     )
 
 
@@ -340,8 +341,14 @@ class SyncPacienteUserView(APIView):
         if not documento or not user_id:
             return Response({"error": "Faltan datos críticos (doc/user_id)"}, status=status.HTTP_400_BAD_REQUEST)
 
+        documento_norm = str(documento).strip()
+
         try:
-            paciente = Paciente.objects.get(numero_documento=documento)
+            paciente = Paciente.objects.filter(numero_documento=documento_norm).first()
+            if not paciente:
+                paciente = Paciente.objects.filter(numero_documento__iexact=documento_norm).first()
+            if not paciente:
+                raise Paciente.DoesNotExist
             cambios = []
 
             if str(paciente.user_id) != str(user_id):

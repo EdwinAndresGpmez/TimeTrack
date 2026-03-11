@@ -88,6 +88,7 @@ def audit_log(
     user_agent: Optional[str] = None,
     timeout: int = 2,
     request_id: Optional[str] = None,
+    request_headers: Optional[Dict[str, Any]] = None,
 ) -> bool:
     """
     Emite evento a auth-ms. Si falla, NO rompe flujo.
@@ -140,6 +141,17 @@ def audit_log(
         "X-INTERNAL-TOKEN": token,              # ✅ coincide con Auth
         "Content-Type": "application/json",     # ✅ ayuda con proxies/validaciones
     }
+    for key in (
+        "X-Tenant-ID",
+        "X-Tenant-Domain",
+        "X-Tenant-Signature",
+        "X-Tenant-Timestamp",
+        "X-Tenant-Schema",
+        "X-Tenant-Slug-Override",
+    ):
+        value = (request_headers or {}).get(key)
+        if value:
+            headers[key] = value
     if request_id:
         headers["X-Request-ID"] = request_id
 

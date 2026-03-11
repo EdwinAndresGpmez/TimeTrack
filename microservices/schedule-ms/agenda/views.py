@@ -25,9 +25,27 @@ APPOINTMENTS_API_URL = "http://appointments-ms:8004/api/v1/citas/"
 STAFF_INTERNAL_BULK_URL = "http://professionals-ms:8002/api/v1/staff/internal/bulk-info/"
 
 
-def _internal_headers():
+def _internal_headers(request=None):
+    headers = {}
     token = os.getenv("INTERNAL_SERVICE_TOKEN", "").strip()
-    return {"X-INTERNAL-TOKEN": token} if token else {}
+    if token:
+        headers["X-INTERNAL-TOKEN"] = token
+
+    if request is not None:
+        # Propaga contexto de tenant hacia llamadas internas entre microservicios.
+        for name in (
+            "X-Tenant-ID",
+            "X-Tenant-Domain",
+            "X-Tenant-Signature",
+            "X-Tenant-Timestamp",
+            "X-Tenant-Schema",
+            "X-Tenant-Slug-Override",
+        ):
+            value = request.headers.get(name)
+            if value:
+                headers[name] = value
+
+    return headers
 
 
 def _uid(request):
@@ -48,6 +66,7 @@ def _audit_from_view(request, *, descripcion, accion, recurso, recurso_id=None, 
         metadata=metadata or {},
         ip=request.META.get("REMOTE_ADDR"),
         user_agent=request.META.get("HTTP_USER_AGENT"),
+        request_headers=request.headers,
     )
 
 
@@ -108,7 +127,7 @@ class DisponibilidadViewSet(viewsets.ModelViewSet):
             if f_fin_str and f_fin_str == f_ini_str:
                 params["fecha"] = f_ini_str
 
-            response = requests.get(APPOINTMENTS_API_URL, params=params, timeout=5, headers=_internal_headers())
+            response = requests.get(APPOINTMENTS_API_URL, params=params, timeout=5, headers=_internal_headers(self.request))
             if response.status_code != 200:
                 return []
 
@@ -142,12 +161,36 @@ class DisponibilidadViewSet(viewsets.ModelViewSet):
                 STAFF_INTERNAL_BULK_URL,
                 params={"ids": profesional_id},
                 timeout=5,
-                headers=_internal_headers(),
+                headers=_internal_headers(self.request),
             )
             if response.status_code != 200:
                 return None
             payload = response.json() or {}
-            return payload.get(str(profesional_id))
+
+            def _match_item(items):
+                for item in (items or []):
+                    try:
+                        if int(item.get("id")) == int(profesional_id):
+                            return item
+                    except Exception:
+                        continue
+                return None
+
+            if isinstance(payload, dict):
+                direct = payload.get(str(profesional_id))
+                if isinstance(direct, dict):
+                    return direct
+                for key in ("results", "data", "items"):
+                    maybe = payload.get(key)
+                    if isinstance(maybe, list):
+                        found = _match_item(maybe)
+                        if found:
+                            return found
+                return None
+
+            if isinstance(payload, list):
+                return _match_item(payload)
+            return None
         except Exception as e:
             logger.error(f"Error consultando Professionals MS: {e}")
             return None
@@ -816,7 +859,7 @@ class SlotGeneratorView(APIView):
         url_citas = f"{APPOINTMENTS_API_URL}?profesional_id={profesional_id}&fecha={fecha_str}"
         citas_ocupadas = []
         try:
-            resp = requests.get(url_citas, timeout=3, headers=_internal_headers())
+            resp = requests.get(url_citas, timeout=3, headers=_internal_headers(request))
             if resp.status_code == 200:
                 for c in resp.json():
                     if c.get("estado") not in ["CANCELADA", "RECHAZADA"]:

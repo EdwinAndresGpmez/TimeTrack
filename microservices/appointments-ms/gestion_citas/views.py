@@ -32,13 +32,26 @@ LUGARES_MS_URL = "http://professionals-ms:8002/api/v1/staff/lugares/internal/bul
 logger = logging.getLogger(__name__)
 
 
-def _internal_headers():
+def _internal_headers(request=None):
     """
     Token interno para llamados entre microservicios.
     Debe coincidir con lo que validas en staff-ms/patients-ms en endpoints internos.
     """
     token = os.getenv("INTERNAL_SERVICE_TOKEN", "").strip()
-    return {"X-INTERNAL-TOKEN": token} if token else {}
+    headers = {"X-INTERNAL-TOKEN": token} if token else {}
+    if request is not None:
+        for key in [
+            "X-Tenant-ID",
+            "X-Tenant-Domain",
+            "X-Tenant-Signature",
+            "X-Tenant-Timestamp",
+            "X-Tenant-Schema",
+            "X-Tenant-Slug-Override",
+        ]:
+            value = request.headers.get(key)
+            if value:
+                headers[key] = value
+    return headers
 
 
 def _uid(request):
@@ -72,30 +85,31 @@ def _is_in_exception_groups(request, configured_groups_csv):
     return any(g in user_groups for g in grupos)
 
 
-def _fetch_patient_profile(paciente_id):
+def _fetch_patient_profile(paciente_id, request=None):
     if not paciente_id:
         return None
     try:
         resp = requests.get(
             f"http://patients-ms:8001/api/v1/pacientes/listado/{paciente_id}/",
             timeout=2,
-            headers=_internal_headers(),
+            headers=_internal_headers(request),
         )
         if resp.status_code == 200:
             return resp.json()
+        logger.warning("No se pudo consultar paciente %s en patients-ms. status=%s body=%s", paciente_id, resp.status_code, resp.text)
     except Exception:
         return None
     return None
 
 
-def _fetch_service_profile(servicio_id):
+def _fetch_service_profile(servicio_id, request=None):
     if not servicio_id:
         return None
     try:
         resp = requests.get(
             f"{SERVICES_MS_URL}?ids={servicio_id}",
             timeout=2,
-            headers=_internal_headers(),
+            headers=_internal_headers(request),
         )
         if resp.status_code == 200:
             data = resp.json() or {}
@@ -116,6 +130,7 @@ def _audit_from_view(request, *, descripcion, accion, recurso, recurso_id=None, 
         metadata=metadata or {},
         ip=request.META.get("REMOTE_ADDR"),
         user_agent=request.META.get("HTTP_USER_AGENT"),
+        request_headers=request.headers,
     )
 
 
@@ -422,7 +437,7 @@ class CitaViewSet(viewsets.ModelViewSet):
 
         try:
             with transaction.atomic():
-                paciente_profile = _fetch_patient_profile(paciente_id)
+                paciente_profile = _fetch_patient_profile(paciente_id, request=request)
                 if not paciente_profile:
                     return Response(
                         {"detalle": "No se pudo validar la información del paciente seleccionado."},
@@ -453,7 +468,7 @@ class CitaViewSet(viewsets.ModelViewSet):
                     tiene_privilegio_terceros = False
 
                 # 0.5) Restricción por tipo de paciente vs servicio
-                service_profile = _fetch_service_profile(servicio_id) if servicio_id else None
+                service_profile = _fetch_service_profile(servicio_id, request=request) if servicio_id else None
                 tipo_paciente_id = paciente_profile.get("tipo_usuario")
                 puede_omitir_restriccion_tipo = agenda_para_tercero and tiene_privilegio_terceros
                 if service_profile and tipo_paciente_id is not None and not puede_omitir_restriccion_tipo:
@@ -671,7 +686,7 @@ class CitaViewSet(viewsets.ModelViewSet):
                 r = requests.get(
                     f"{url}?ids={','.join(clean_ids)}",
                     timeout=2,
-                    headers=_internal_headers(),
+                    headers=_internal_headers(self.request),
                 )
                 return r.json() if r.status_code == 200 else {}
             except Exception:
