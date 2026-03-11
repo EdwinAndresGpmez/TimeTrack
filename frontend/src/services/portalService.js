@@ -6,7 +6,6 @@ export const portalService = {
         return response.data;
     },
 
-    // 1. Obtener Banners (Público)
     getBanners: async () => {
         try {
             const response = await api.get('/portal/banners/');
@@ -17,7 +16,6 @@ export const portalService = {
         }
     },
 
-    // 2. Obtener Videos (Público)
     getVideos: async () => {
         try {
             const response = await api.get('/portal/videos/');
@@ -28,13 +26,11 @@ export const portalService = {
         }
     },
 
-    // 3. Enviar PQRS (POST)
     createPQRS: async (formData) => {
         const response = await api.post('/portal/pqrs/', formData);
         return response.data;
     },
 
-    // 4. Enviar Hoja de Vida (POST - Multipart por el archivo)
     createHV: async (formData) => {
         const response = await api.post('/portal/trabaje-con-nosotros/', formData, {
             headers: {
@@ -44,7 +40,6 @@ export const portalService = {
         return response.data;
     },
 
-    // 5. Admin PQRS
     getAdminPQRS: async () => {
         const response = await api.get('/portal/admin/pqrs/');
         return response.data;
@@ -54,7 +49,6 @@ export const portalService = {
         return response.data;
     },
 
-    // 6. Admin Convocatorias (Trabaje con Nosotros)
     getAdminConvocatorias: async () => {
         const response = await api.get('/portal/admin/convocatorias/');
         return response.data;
@@ -64,4 +58,5 @@ export const portalService = {
         return response.data;
     }
 };
+
 

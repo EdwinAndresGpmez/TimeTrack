@@ -4,11 +4,8 @@ import { createPortal } from 'react-dom';
 const TermsModal = ({ isOpen, onAccept }) => {
     const [isChecked, setIsChecked] = useState(false);
     
-    // --- CORRECCIÓN: Eliminamos 'mounted' para evitar errores de renderizado síncrono ---
-    // El modal ahora depende exclusivamente de 'isOpen'.
 
     useEffect(() => {
-        // Bloquear el scroll del cuerpo cuando el modal está abierto
         if (isOpen) {
             document.body.style.overflow = 'hidden';
         }
@@ -19,32 +16,21 @@ const TermsModal = ({ isOpen, onAccept }) => {
 
     if (!isOpen) return null;
 
-    // El contenido del modal
     const modalContent = (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6">
-            {/* Fondo Oscuro (Overlay) */}
             <div className="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity" />
-
-            {/* Contenedor del Modal */}
             <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-6xl h-[85vh] flex flex-col overflow-hidden border border-gray-200 animate-scale-in">
-                
-                {/* Encabezado Azul */}
                 <div className="bg-blue-900 text-white px-6 py-4 md:px-10 md:py-6 shrink-0 flex justify-between items-center shadow-md z-10">
                     <div>
                         <h2 className="text-xl md:text-3xl font-bold">Términos y Condiciones</h2>
                         <p className="text-blue-200 text-sm mt-1">Política de Tratamiento de Datos Personales</p>
                     </div>
-                    {/* Logo pequeño opcional o icono */}
                     <div className="bg-white/10 p-2 rounded-full">
                         <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                     </div>
                 </div>
-
-                {/* Cuerpo del Texto */}
                 <div className="flex-1 overflow-y-auto bg-gray-50 p-6 md:p-10">
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 text-gray-700 text-sm md:text-base leading-relaxed">
-                        
-                        {/* Columna Izquierda */}
                         <div className="space-y-6">
                             <section>
                                 <h3 className="text-blue-900 font-bold text-lg mb-2 flex items-center gap-2">
@@ -69,8 +55,6 @@ const TermsModal = ({ isOpen, onAccept }) => {
                                 </ul>
                             </section>
                         </div>
-
-                        {/* Columna Derecha */}
                         <div className="space-y-6">
                             <section>
                                 <h3 className="text-blue-900 font-bold text-lg mb-2 flex items-center gap-2">
@@ -105,8 +89,6 @@ const TermsModal = ({ isOpen, onAccept }) => {
                         </div>
                     </div>
                 </div>
-
-                {/* Pie de página (Barra de Acción) */}
                 <div className="bg-white border-t border-gray-200 p-4 md:p-6 shrink-0 flex flex-col md:flex-row justify-between items-center gap-4 z-20 shadow-[0_-5px_15px_rgba(0,0,0,0.05)]">
                     
                     <label className="flex items-start md:items-center gap-3 cursor-pointer group p-2 rounded-lg hover:bg-gray-50 transition w-full md:w-auto">
@@ -140,7 +122,6 @@ const TermsModal = ({ isOpen, onAccept }) => {
         </div>
     );
 
-    // USAMOS EL PORTAL PARA SACARLO DEL FLUJO DEL PADRE
     return createPortal(modalContent, document.body);
 };
 

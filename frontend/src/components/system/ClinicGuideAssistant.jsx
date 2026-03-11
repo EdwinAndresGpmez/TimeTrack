@@ -1,4 +1,4 @@
-﻿import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
     FaCheckCircle,
@@ -141,7 +141,7 @@ const buildQuickAnswer = (question, modules) => {
         return `${match.label}: ${match.purpose}`;
     }
 
-    return 'No encontre coincidencia exacta. Abre la pestaña "Aprender modulos" y selecciona el modulo para ver su explicacion y uso recomendado.';
+    return 'No encontre coincidencia exacta. Abre la pesta�a "Aprender modulos" y selecciona el modulo para ver su explicacion y uso recomendado.';
 };
 
 const ClinicGuideAssistant = () => {
@@ -195,7 +195,6 @@ const ClinicGuideAssistant = () => {
                 });
                 setGuideContentMap(map);
             } catch (_err) {
-                // fallback a contenido por defecto
             }
         };
         loadGuideContent();
@@ -301,7 +300,6 @@ const ClinicGuideAssistant = () => {
                 setChecklist(JSON.parse(saved));
                 return;
             } catch (_err) {
-                // ignore malformed local content
             }
         }
         const seed = {};
@@ -472,7 +470,7 @@ const ClinicGuideAssistant = () => {
                     }
                     setIsMinimized((v) => !v);
                 }}
-                className="fixed top-24 right-6 z-[79] rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-2xl px-4 py-3 font-black text-xs flex items-center gap-2 hover:scale-105 transition-transform"
+                className="fixed top-20 right-3 sm:top-24 sm:right-6 z-[79] rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-2xl px-3 sm:px-4 py-2.5 sm:py-3 font-black text-[11px] sm:text-xs flex items-center gap-2 hover:scale-105 transition-transform"
                 title="Guia y ayuda de la aplicacion"
             >
                 <FaCloud />
@@ -480,19 +478,19 @@ const ClinicGuideAssistant = () => {
             </button>
 
             {isOpen && isMinimized && showTeaser && (
-                <div className="fixed top-36 right-6 z-[79] rounded-2xl bg-white/90 border border-cyan-100 px-4 py-2 shadow-xl backdrop-blur-sm">
+                <div className="fixed top-32 right-3 sm:top-36 sm:right-6 z-[79] rounded-2xl bg-white/90 dark:bg-slate-900/90 border border-cyan-100 dark:border-slate-700 px-4 py-2 shadow-xl backdrop-blur-sm max-w-[88vw]">
                     <p className="text-xs font-bold text-cyan-700">Estoy aqui para ayudarte</p>
-                    <p className="text-[11px] text-gray-600">Puedes abrir la guia cuando quieras.</p>
+                    <p className="text-[11px] text-gray-600 dark:text-gray-300">Puedes abrir la guia cuando quieras.</p>
                 </div>
             )}
 
             {isOpen && !isMinimized && (
-                <aside ref={panelRef} className="fixed top-28 bottom-6 right-6 z-[79] w-[390px] overflow-hidden rounded-3xl border border-blue-100 bg-white shadow-2xl flex flex-col">
-                    <div className="px-5 py-4 bg-gradient-to-r from-cyan-50 to-blue-50 border-b border-blue-100 flex justify-between items-start">
+                <aside ref={panelRef} className="fixed top-24 bottom-3 sm:top-28 sm:bottom-6 right-2 sm:right-6 z-[79] w-[calc(100vw-1rem)] sm:w-[390px] max-w-[390px] overflow-hidden rounded-3xl border border-blue-100 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-2xl flex flex-col">
+                    <div className="px-5 py-4 bg-gradient-to-r from-cyan-50 to-blue-50 dark:from-slate-800 dark:to-slate-900 border-b border-blue-100 dark:border-slate-700 flex justify-between items-start">
                         <div>
                             <p className="text-[11px] uppercase tracking-widest font-black text-blue-500">Asistente</p>
-                            <h3 className="text-lg font-black text-gray-800">Configuracion y aprendizaje</h3>
-                            <p className="text-xs text-gray-600 mt-1">{completedCount}/{stepsWithGuide.length} pasos completados</p>
+                            <h3 className="text-lg font-black text-gray-800 dark:text-gray-100">Configuracion y aprendizaje</h3>
+                            <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">{completedCount}/{stepsWithGuide.length} pasos completados</p>
                             {currentRouteStep && !checklist[currentRouteStep.id] && (
                                 <button
                                     type="button"
@@ -503,12 +501,12 @@ const ClinicGuideAssistant = () => {
                                 </button>
                             )}
                         </div>
-                        <button type="button" onClick={() => setIsMinimized(true)} className="text-gray-400 hover:text-gray-700">
+                        <button type="button" onClick={() => setIsMinimized(true)} className="text-gray-400 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white">
                             <FaTimes />
                         </button>
                     </div>
 
-                    <div className="px-4 pt-3 pb-2 border-b border-gray-100 flex flex-wrap gap-2">
+                    <div className="px-4 pt-3 pb-2 border-b border-gray-100 dark:border-slate-700 flex flex-wrap gap-2">
                         <button type="button" onClick={() => setActiveView('onboarding')} className={`px-3 py-1.5 rounded-xl text-xs font-bold ${activeView === 'onboarding' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}><FaCloud className="inline mr-1" />Onboarding</button>
                         <button type="button" onClick={() => setActiveView('aprendizaje')} className={`px-3 py-1.5 rounded-xl text-xs font-bold ${activeView === 'aprendizaje' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}><FaGraduationCap className="inline mr-1" />Aprender modulos</button>
                         <button type="button" onClick={() => setActiveView('mapa')} className={`px-3 py-1.5 rounded-xl text-xs font-bold ${activeView === 'mapa' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}><FaProjectDiagram className="inline mr-1" />Mapa de proceso</button>
@@ -588,7 +586,7 @@ const ClinicGuideAssistant = () => {
                         )}
                     </div>
 
-                    <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-between gap-2">
+                    <div className="px-4 py-3 border-t border-gray-100 dark:border-slate-700 flex items-center justify-between gap-2 flex-wrap">
                         <button type="button" onClick={snoozeOneDay} className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-100 text-gray-700 text-xs font-bold hover:bg-gray-200">
                             <FaClock size={11} />
                             Recordar manana
@@ -610,3 +608,5 @@ const ClinicGuideAssistant = () => {
 
 export default ClinicGuideAssistant;
 export { GUIDE_OPEN_EVENT };
+
+

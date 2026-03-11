@@ -115,7 +115,6 @@ const GestionAgenda = () => {
     const [agendasCombinadas, setAgendasCombinadas] = useState({});
     const [loadingAgenda, setLoadingAgenda] = useState(false);
     
-    // Configuraciones de Vista de la Grilla
     const [duracionDefecto, setDuracionDefecto] = useState(20);
     const [horaInicioGrid, setHoraInicioGrid] = useState(6); // Nueva: Hora de inicio (default 6:00)
     const [horaFinGrid, setHoraFinGrid] = useState(20);      // Nueva: Hora fin (default 20:00)
@@ -221,9 +220,6 @@ const GestionAgenda = () => {
             fFin.setDate(fFin.getDate() + 35); // Cubrir el mes completo + margen
             
             const promesas = selectedProfs.map(async (prof) => {
-                // CORRECCION HU-Multisede:
-                // Quitamos el filtro "lugar_id" para que traiga la disponibilidad del profesional 
-                // en TODAS sus sedes, permitiendo ver agendas mezcladas correctamente.
                 const [h, b, c] = await Promise.all([
                     agendaService.getDisponibilidades({ profesional_id: prof.id }),
                     agendaService.getBloqueos({ profesional_id: prof.id }),
@@ -502,7 +498,6 @@ const GestionAgenda = () => {
         Toast.fire({ icon: 'info', title: 'Dia copiado. Haz clic en "Pegar" en el dia destino.' });
     };
 
-    // CORRECCION: PEGADO INTELIGENTE (Cruzado entre profesionales)
     const handlePasteSchedule = async (fechaDestino) => {
         if (!agendaAvanzadaEnabled) {
             showAgendaUpsell();
@@ -545,7 +540,6 @@ const GestionAgenda = () => {
 
             setLoadingAgenda(true);
 
-            // 1. Extraer turnos origen desde el estado local (agendasCombinadas)
             const originDayIndex = clipboardDay.date.getDay() === 0 ? 6 : clipboardDay.date.getDay() - 1;
             const turnosOrigen = agendasCombinadas[clipboardDay.profId]?.horarios.filter(h => {
                 if (h.dia_semana !== originDayIndex) return false;
@@ -565,7 +559,6 @@ const GestionAgenda = () => {
                 return Swal.fire('Aviso', 'El dia de origen seleccionado no tiene turnos configurados.', 'info');
             }
 
-            // 2. Crear los turnos uno por uno en el profesional destino
             const destDayIndex = fechaDestino.getDay() === 0 ? 6 : fechaDestino.getDay() - 1;
             
             for (const turno of turnosOrigen) {
@@ -865,7 +858,6 @@ const GestionAgenda = () => {
     };
 
     const handleGestionarTurno = async (turno, fechaPreseleccionada) => {
-        // Logica del modal de detalle para gestionar slots y eliminacion de base
         let duracion = duracionDefecto;
         let nombreServicio = "General / Mixto";
         if (turno.servicio_id) {
@@ -1083,8 +1075,6 @@ const GestionAgenda = () => {
                             <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2"><FaCalendarAlt className="text-blue-600"/> Agenda Visual</h2>
                         </div>
                         <div className="flex items-center gap-2 md:gap-3 flex-wrap justify-end">
-                            
-                            {/* --- CONTROLES DE HORA VISIBLE --- */}
                             <div className="flex items-center gap-2 bg-gray-50 p-1 px-3 rounded-lg border border-gray-200">
                                 <FaClock className="text-gray-400"/>
                                 <span className="text-xs font-bold text-gray-500">Rango visible:</span>
@@ -1106,8 +1096,6 @@ const GestionAgenda = () => {
                                 <FaFileExport />
                                 Exportar
                             </button>
-
-                            {/* Ajustamos las vistas a Dia, Semana y Mes */}
                             <div className="flex bg-gray-100 p-1 rounded-lg">{['day','week','month'].map(v => <button key={v} onClick={() => setCalendarView(v)} className={`px-3 py-1 rounded text-xs font-bold ${calendarView === v ? 'bg-white shadow text-blue-600' : 'text-gray-500'}`}>{v === 'day' ? 'Dia' : v === 'week' ? 'Semana' : 'Mes'}</button>)}</div>
                         </div>
                     </div>
@@ -1121,7 +1109,6 @@ const GestionAgenda = () => {
                                 servicios={servicios} 
                                 duracionDefecto={duracionDefecto} 
                                 
-                                // Pasamos los parametros de hora
                                 horaInicioGrid={horaInicioGrid}
                                 horaFinGrid={horaFinGrid}
 
@@ -1153,5 +1140,6 @@ const GestionAgenda = () => {
 };
 
 export default GestionAgenda;
+
 
 

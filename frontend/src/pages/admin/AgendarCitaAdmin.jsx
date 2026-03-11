@@ -10,12 +10,10 @@ const AgendarCitaAdmin = () => {
     const [resultados, setResultados] = useState([]);
     const [loading, setLoading] = useState(false);
 
-    // --- HOOKS PARA MODO EXPRESS (HU01) ---
     const location = useLocation();
     const navigate = useNavigate();
     const slotPreseleccionado = location.state?.slotPreseleccionado;
 
-    // --- LÓGICA DE BÚSQUEDA DINÁMICA (DEBOUNCE) ---
     useEffect(() => {
         const delayDebounceFn = setTimeout(() => {
             if (search.trim().length >= 3) {
@@ -46,11 +44,9 @@ const AgendarCitaAdmin = () => {
     };
 
     const cancelarModoExpress = () => {
-        // Limpiamos el state del router para salir del modo express
         navigate(location.pathname, { replace: true, state: {} });
     };
 
-    // VISTA 2: Wizard de Agendamiento
     if (pacienteSeleccionado) {
         return (
             <div className="animate-fadeIn p-4 max-w-5xl mx-auto">
@@ -64,8 +60,6 @@ const AgendarCitaAdmin = () => {
                 >
                     <FaArrowLeft className="group-hover:-translate-x-1 transition-transform"/> Volver al buscador
                 </button>
-
-                {/* Banner de Modo Express en el Wizard */}
                 {slotPreseleccionado && (
                     <div className="bg-gradient-to-r from-green-500 to-emerald-600 p-4 rounded-2xl shadow-lg mb-6 flex items-center justify-between text-white animate-pulse">
                         <div className="flex items-center gap-3">
@@ -101,8 +95,6 @@ const AgendarCitaAdmin = () => {
                         </div>
                     </div>
                 </div>
-                
-                {/* Pasamos el preselectedSlot a NuevaCita */}
                 <NuevaCita 
                     adminSelectedPatientId={pacienteSeleccionado.id} 
                     isAdminMode={true} 
@@ -112,15 +104,12 @@ const AgendarCitaAdmin = () => {
         );
     }
 
-    // VISTA 1: Buscador Dinámico
     return (
         <div className="max-w-4xl mx-auto p-6 min-h-[600px]">
             <div className="text-center mb-8">
                 <h1 className="text-4xl font-black text-gray-800 mb-3 tracking-tight">Agendamiento Administrativo</h1>
                 <p className="text-gray-500 text-lg font-medium">Encuentra pacientes al instante y gestiona sus citas.</p>
             </div>
-
-            {/* Banner de Modo Express en el Buscador */}
             {slotPreseleccionado && (
                 <div className="bg-green-50 border-2 border-green-400 rounded-3xl p-4 mb-8 flex items-center justify-between shadow-sm animate-fadeIn">
                     <div className="flex items-center gap-3">
@@ -143,8 +132,6 @@ const AgendarCitaAdmin = () => {
                     </button>
                 </div>
             )}
-
-            {/* Barra de búsqueda Innovadora */}
             <div className="relative mb-12">
                 <div className={`absolute inset-0 bg-indigo-500 blur-2xl opacity-10 transition-opacity ${loading ? 'opacity-30' : ''}`}></div>
                 <div className="relative flex items-center bg-white rounded-3xl shadow-2xl border-2 border-gray-100 p-2 focus-within:border-indigo-500 transition-all">
@@ -164,11 +151,8 @@ const AgendarCitaAdmin = () => {
                     <p className="absolute -bottom-7 left-6 text-indigo-400 text-xs font-bold animate-pulse">Escribe al menos 3 caracteres...</p>
                 )}
             </div>
-
-            {/* Grid de Resultados Dinámicos */}
             <div className="grid gap-6">
                 {loading && resultados.length === 0 ? (
-                    // Skeleton Loaders
                     [1,2,3].map(i => (
                         <div key={i} className="bg-gray-50 h-24 rounded-3xl animate-pulse border border-gray-100"></div>
                     ))

@@ -12,3 +12,4 @@ export function withTenantPath(tenantSlug, path) {
   const cleanPath = path?.startsWith("/") ? path : `/${path || ""}`;
   return `${getTenantPrefix(tenantSlug)}${cleanPath}`;
 }
+

@@ -3,7 +3,6 @@ import React, { useMemo } from "react";
 const ComoTrabajamos = ({ data }) => {
   const title = data?.title || "Cómo trabajamos";
 
-  // Imagen desde CMS: data.image_asset_id -> backend expande data.image_asset.file_url
   const imageUrl = data?.image_asset?.file_url || "";
 
   const leftText =
@@ -30,7 +29,6 @@ const ComoTrabajamos = ({ data }) => {
     <section className="portal-section">
       <div className="mx-auto max-w-6xl px-4 py-16">
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:items-stretch">
-          {/* Imagen grande */}
           <div className="portal-card portal-card-hover overflow-hidden rounded-2xl" style={{ backgroundColor: "var(--portal-surface)" }}>
             {imageUrl ? (
               <img
@@ -44,8 +42,6 @@ const ComoTrabajamos = ({ data }) => {
               </div>
             )}
           </div>
-
-          {/* Bloque derecho estilo “tarjeta” */}
           <div
             className="portal-gradient-band rounded-2xl p-8 text-white shadow-sm"
             style={{
@@ -77,8 +73,6 @@ const ComoTrabajamos = ({ data }) => {
                 {buttonText}
               </a>
             </div>
-
-            {/* Tip opcional */}
             {data?.image_asset_id && !data?.image_asset?.file_url && (
               <p className="mt-4 text-[11px] text-white/80">
                 Asset {data.image_asset_id} no encontrado o sin URL.
@@ -92,3 +86,4 @@ const ComoTrabajamos = ({ data }) => {
 };
 
 export default ComoTrabajamos;
+

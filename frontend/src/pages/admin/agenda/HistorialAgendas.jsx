@@ -7,18 +7,15 @@ import {
 import Swal from 'sweetalert2';
 
 const HistorialPanel = ({ profesionalSeleccionado }) => {
-    // ESTADOS
     const [citas, setCitas] = useState([]);
     const [loading, setLoading] = useState(false);
 
-    // Filtros Iniciales (Mes Actual)
     const [filtros, setFiltros] = useState({
         fechaInicio: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
         fechaFin: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().split('T')[0],
         estado: ''
     });
 
-    // --- LÓGICA DE BÚSQUEDA ---
     const handleBuscar = async (e) => {
         if (e) e.preventDefault();
         
@@ -35,7 +32,6 @@ const HistorialPanel = ({ profesionalSeleccionado }) => {
                 estado: filtros.estado
             });
             
-            // Filtro de seguridad en cliente para asegurar consistencia
             const dataFiltrada = data.filter(c => 
                 c.profesional_id === parseInt(profId) &&
                 (!filtros.estado || c.estado === filtros.estado)
@@ -55,7 +51,6 @@ const HistorialPanel = ({ profesionalSeleccionado }) => {
         }
     };
 
-    // Cargar datos cuando cambia el profesional
     useEffect(() => {
         if (profesionalSeleccionado) {
             handleBuscar();
@@ -69,7 +64,6 @@ const HistorialPanel = ({ profesionalSeleccionado }) => {
         setFiltros({ ...filtros, [e.target.name]: e.target.value });
     };
 
-    // --- EXPORTAR A CSV (Excel) ---
     const handleDescargar = () => {
         if (citas.length === 0) return Swal.fire('Info', 'No hay datos para exportar', 'info');
 
@@ -98,9 +92,7 @@ const HistorialPanel = ({ profesionalSeleccionado }) => {
         document.body.removeChild(link);
     };
 
-    // --- HELPER DE COLORES (Compatible con estados dinámicos) ---
     const getStatusBadge = (estado) => {
-        // Mapeo base para estados conocidos
         const estilos = {
             'PENDIENTE': 'bg-yellow-100 text-yellow-800 border-yellow-200',
             'ACEPTADA': 'bg-green-100 text-green-800 border-green-200',
@@ -110,7 +102,6 @@ const HistorialPanel = ({ profesionalSeleccionado }) => {
             'NO_ASISTIO': 'bg-gray-100 text-gray-800 border-gray-200',
             'EN_SALA': 'bg-indigo-100 text-indigo-800 border-indigo-200'
         };
-        // Fallback para estados personalizados nuevos: gris azulado
         const clase = estilos[estado] || 'bg-slate-100 text-slate-700 border-slate-200';
         
         return (
@@ -120,7 +111,6 @@ const HistorialPanel = ({ profesionalSeleccionado }) => {
         );
     };
 
-    // --- RENDER SI NO HAY SELECCIÓN ---
     if (!profesionalSeleccionado) return (
         <div className="flex-1 flex flex-col items-center justify-center text-gray-400 bg-gray-50 h-full p-8 text-center animate-fade-in">
             <div className="bg-white p-6 rounded-full shadow-sm mb-4 border border-gray-100">
@@ -133,7 +123,6 @@ const HistorialPanel = ({ profesionalSeleccionado }) => {
 
     return (
         <div className="flex flex-col h-full bg-gray-50 animate-fade-in">
-            {/* Header y Filtros */}
             <div className="bg-white border-b px-6 py-5 shadow-sm shrink-0 z-10">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
                     <div>
@@ -214,8 +203,6 @@ const HistorialPanel = ({ profesionalSeleccionado }) => {
                     </div>
                 </form>
             </div>
-
-            {/* Tabla de Resultados */}
             <div className="flex-1 overflow-auto p-4 md:p-6 bg-gray-50">
                 {loading ? (
                     <div className="h-full flex flex-col items-center justify-center text-gray-400">

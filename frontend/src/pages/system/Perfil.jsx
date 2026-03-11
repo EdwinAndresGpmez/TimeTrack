@@ -9,7 +9,6 @@ const Perfil = () => {
     const [loading, setLoading] = useState(true);
     const [existePerfil, setExistePerfil] = useState(false);
     
-    // Nombre del tipo para mostrar (ej: "EPS SURA")
     const [nombreAfiliacion, setNombreAfiliacion] = useState('');
 
     const [formData, setFormData] = useState({
@@ -26,7 +25,6 @@ const Perfil = () => {
         tipo_usuario: null 
     });
 
-    // 1. DEFINIR CARGAR DATOS PRIMERO
     const cargarDatos = useCallback(async () => {
         try {
             setLoading(true);
@@ -37,7 +35,6 @@ const Perfil = () => {
 
             if (perfil) {
                 setExistePerfil(true);
-                // Asegurar que nulls no rompan los inputs al setear el estado
                 setFormData({
                     ...perfil,
                     nombre: perfil.nombre || '',
@@ -49,18 +46,14 @@ const Perfil = () => {
                     genero: perfil.genero || 'M'
                 });
 
-                // --- LÓGICA ROBUSTA PARA OBTENER EL NOMBRE ---
                 let nombreReal = 'Sin Validar';
 
-                // Caso 1: El backend ya manda el nombre
                 if (perfil.tipo_usuario_nombre) {
                     nombreReal = perfil.tipo_usuario_nombre;
                 } 
-                // Caso 2: El campo tipo_usuario es un objeto
                 else if (perfil.tipo_usuario && typeof perfil.tipo_usuario === 'object') {
                     nombreReal = perfil.tipo_usuario.nombre;
                 }
-                // Caso 3: El campo es ID, buscamos en el catálogo local 'tipos'
                 else if (perfil.tipo_usuario) {
                     const tipoEncontrado = tipos.find(t => t.id === parseInt(perfil.tipo_usuario));
                     if (tipoEncontrado) nombreReal = tipoEncontrado.nombre;
@@ -83,7 +76,6 @@ const Perfil = () => {
         }
     }, [user]);
 
-    // 2. EFFECT
     useEffect(() => {
         if (user) cargarDatos();
     }, [user, cargarDatos]);
@@ -139,8 +131,6 @@ const Perfil = () => {
             <p className="text-gray-500 mb-6">Mantén tus datos actualizados para una mejor atención.</p>
 
             <form onSubmit={handleSubmit} className="bg-white shadow-lg rounded-xl p-8 border border-gray-100">
-                
-                {/* SECCIÓN INFORMATIVA DE AFILIACIÓN */}
                 <div className="mb-8 bg-blue-50 p-4 rounded-lg border border-blue-100 flex items-center justify-between">
                     <div>
                         <h3 className="text-sm font-bold text-blue-800 uppercase tracking-wide">Estado de Afiliación</h3>
@@ -157,13 +147,11 @@ const Perfil = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                          <label className="block text-gray-700 font-bold mb-2">Nombres</label>
-                         {/* Se añadió || '' por seguridad */}
                          <input type="text" name="nombre" value={formData.nombre || ''} onChange={handleChange} className="w-full border rounded-lg p-3 bg-gray-50 focus:outline-none" readOnly />
                          <p className="text-xs text-gray-400 mt-1">Para corregir nombres, contacta soporte.</p>
                     </div>
                     <div>
                          <label className="block text-gray-700 font-bold mb-2">Apellidos</label>
-                         {/* Se añadió || '' por seguridad */}
                          <input type="text" name="apellido" value={formData.apellido || ''} onChange={handleChange} className="w-full border rounded-lg p-3 outline-none focus:ring-2 focus:ring-blue-500" />
                     </div>
 
@@ -171,7 +159,6 @@ const Perfil = () => {
                         <label className="block text-gray-700 font-bold mb-2">Teléfono</label>
                         <div className="flex items-center border rounded-lg p-2 bg-white focus-within:ring-2 focus-within:ring-blue-500">
                             <FaPhone className="text-gray-400 mr-2" />
-                            {/* Se añadió || '' por seguridad */}
                             <input type="text" name="telefono" value={formData.telefono || ''} onChange={handleChange} className="w-full bg-transparent outline-none" />
                         </div>
                     </div>
@@ -179,19 +166,16 @@ const Perfil = () => {
                         <label className="block text-gray-700 font-bold mb-2">Dirección</label>
                         <div className="flex items-center border rounded-lg p-2 bg-white focus-within:ring-2 focus-within:ring-blue-500">
                             <FaMapMarkerAlt className="text-gray-400 mr-2" />
-                            {/* Se añadió || '' por seguridad */}
                             <input type="text" name="direccion" value={formData.direccion || ''} onChange={handleChange} className="w-full bg-transparent outline-none" />
                         </div>
                     </div>
                     
                     <div>
                         <label className="block text-gray-700 font-bold mb-2">Fecha Nacimiento</label>
-                        {/* Se añadió || '' por seguridad */}
                         <input type="date" name="fecha_nacimiento" value={formData.fecha_nacimiento || ''} onChange={handleChange} required className="w-full border rounded-lg p-3 outline-none focus:ring-2 focus:ring-blue-500" />
                     </div>
                     <div>
                         <label className="block text-gray-700 font-bold mb-2">Género</label>
-                         {/* Se añadió || 'M' por seguridad */}
                          <select name="genero" value={formData.genero || 'M'} onChange={handleChange} className="w-full border rounded-lg p-3 outline-none focus:ring-2 focus:ring-blue-500">
                             <option value="M">Masculino</option>
                             <option value="F">Femenino</option>
@@ -211,3 +195,4 @@ const Perfil = () => {
 };
 
 export default Perfil;
+

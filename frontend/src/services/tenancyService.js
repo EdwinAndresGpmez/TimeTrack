@@ -85,3 +85,4 @@ export const tenancyService = {
     return response.data;
   },
 };
+

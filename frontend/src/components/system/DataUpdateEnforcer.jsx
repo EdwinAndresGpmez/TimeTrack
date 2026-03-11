@@ -84,7 +84,6 @@ const DataUpdateEnforcer = ({ onValidated }) => {
     }, [onValidated]);
 
     const verificarAntiguedadDatos = useCallback(async () => {
-        // Removed setChecked(true) from here to avoid direct sync update issues inside the function logic called by useEffect
         try {
             const [config, perfil] = await Promise.all([
                 configService.getConfig(),
@@ -116,7 +115,6 @@ const DataUpdateEnforcer = ({ onValidated }) => {
 
     useEffect(() => {
         if (user && user.paciente_id && !checked) {
-            // Using setTimeout to defer the state update and avoid "setState in effect" warning
             const timer = setTimeout(() => {
                 setChecked(true);
                 verificarAntiguedadDatos();

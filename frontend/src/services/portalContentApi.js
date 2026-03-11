@@ -1,4 +1,3 @@
-// src/services/portalContentApi.js
 
 const DEFAULT_BASE = "http://localhost:8007";
 export const BASE_URL =
@@ -7,25 +6,16 @@ export const BASE_URL =
     import.meta.env.VITE_PORTAL_MS_URL) ||
   DEFAULT_BASE;
 
-/**
- * Une BASE_URL con rutas relativas tipo "/media/.."
- * Si ya viene http(s), lo deja igual.
- */
 export function absolutizeUrl(url) {
   if (!url) return "";
   if (typeof url !== "string") return "";
   if (url.startsWith("http://") || url.startsWith("https://")) return url;
 
-  // asegura que BASE_URL no termine en "/"
   const base = BASE_URL.replace(/\/+$/, "");
-  // asegura que url sí empiece en "/"
   const path = url.startsWith("/") ? url : `/${url}`;
   return `${base}${path}`;
 }
 
-/**
- * Wrapper simple de fetch con manejo de errores
- */
 async function request(path, options = {}) {
   const base = BASE_URL.replace(/\/+$/, "");
   const p = path.startsWith("/") ? path : `/${path}`;
@@ -38,7 +28,6 @@ async function request(path, options = {}) {
     },
   });
 
-  // Intenta parsear JSON, si no, texto
   const contentType = res.headers.get("content-type") || "";
   const isJson = contentType.includes("application/json");
 
@@ -58,14 +47,8 @@ async function request(path, options = {}) {
   return data;
 }
 
-/* =========================
-   Endpoints públicos (GET)
-   ========================= */
-
 export async function getBanners() {
-  // GET /api/v1/portal/banners/
   const data = await request("/api/v1/portal/banners/");
-  // normalizar URLs por si vienen relativas
   return Array.isArray(data)
     ? data.map((b) => ({
         ...b,
@@ -76,7 +59,6 @@ export async function getBanners() {
 }
 
 export async function getVideos() {
-  // GET /api/v1/portal/videos/
   const data = await request("/api/v1/portal/videos/");
   return Array.isArray(data)
     ? data.map((v) => ({
@@ -87,21 +69,6 @@ export async function getVideos() {
     : [];
 }
 
-/* ==================================================
-   Helpers de subida (los usaremos para endpoints admin)
-   ================================================== */
-
-/**
- * Construye FormData para Banner (multipart)
- * Campos esperados en backend:
- * - titulo (string)
- * - descripcion (string)
- * - link_accion (string)
- * - orden (number)
- * - activo (boolean)
- * - imagen_desktop (file)
- * - imagen_movil (file)
- */
 export function buildBannerFormData(payload = {}) {
   const fd = new FormData();
 
@@ -111,7 +78,6 @@ export function buildBannerFormData(payload = {}) {
   if (payload.orden != null) fd.append("orden", String(payload.orden));
   if (payload.activo != null) fd.append("activo", String(payload.activo));
 
-  // archivos
   if (payload.imagen_desktop instanceof File)
     fd.append("imagen_desktop", payload.imagen_desktop);
 
@@ -121,14 +87,6 @@ export function buildBannerFormData(payload = {}) {
   return fd;
 }
 
-/**
- * Construye FormData para VideoGaleria (multipart)
- * Campos típicos:
- * - url_externa (string) [opcional]
- * - activo (boolean)
- * - portada (file) [opcional]
- * - archivo_video (file) [opcional]
- */
 export function buildVideoFormData(payload = {}) {
   const fd = new FormData();
 
@@ -142,19 +100,4 @@ export function buildVideoFormData(payload = {}) {
   return fd;
 }
 
-/* ==================================================
-   Placeholders para Admin endpoints (los activamos luego)
-   ==================================================
 
-   Cuando creemos endpoints admin (con auth), aquí añadimos:
-
-   - createBanner(fd)
-   - updateBanner(id, fd)
-   - deleteBanner(id)
-
-   - createVideo(fd)
-   - updateVideo(id, fd)
-   - deleteVideo(id)
-
-   Y agregamos headers Authorization si usan JWT/Token.
-*/

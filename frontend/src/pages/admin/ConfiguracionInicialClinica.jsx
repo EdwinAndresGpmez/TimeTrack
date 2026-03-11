@@ -64,7 +64,6 @@ const ConfiguracionInicialClinica = () => {
                 setChecklist(JSON.parse(saved));
                 return;
             } catch (_err) {
-                // ignore malformed local data
             }
         }
 
@@ -210,3 +209,4 @@ const ConfiguracionInicialClinica = () => {
 };
 
 export default ConfiguracionInicialClinica;
+

@@ -6,16 +6,16 @@ import { tenancyService } from '../../services/tenancyService';
 import * as FaIcons from 'react-icons/fa';
 import { FaSignOutAlt, FaChevronDown, FaBell } from 'react-icons/fa';
 import { getActiveTenantId, setActiveTenantContext } from '../../utils/tenantContext';
+import { useUI } from '../../context/UIContext';
 
-const Sidebar = ({ isOpen, toggleSidebar, logout }) => {
+const Sidebar = ({ isOpen, isMobile = false, onClose, logout }) => {
+    const { t, td } = useUI();
     const location = useLocation();
     const { user, permissions } = useContext(AuthContext);
     const [menuItems, setMenuItems] = useState([]);
     const [loading, setLoading] = useState(true);
     const [tenantOptions, setTenantOptions] = useState([]);
     const [activeTenantId, setActiveTenantId] = useState(() => getActiveTenantId());
-    
-    // Rastrea qué categorías están abiertas/cerradas
     const [openCategories, setOpenCategories] = useState({});
 
     const [branding, setBranding] = useState({
@@ -31,8 +31,6 @@ const Sidebar = ({ isOpen, toggleSidebar, logout }) => {
     const tenantCacheKey = activeTenantId || user?.tenant_id || 'default';
     const brandingStorageKey = `branding_${tenantCacheKey}`;
     const menuStorageKey = `menuItems_${tenantCacheKey}`;
-
-    // Cargar branding y menú lo más rápido posible desde localStorage (optimista)
     useEffect(() => {
         const loadBrandingAndMenu = () => {
             const localBranding = localStorage.getItem(brandingStorageKey);
@@ -42,7 +40,6 @@ const Sidebar = ({ isOpen, toggleSidebar, logout }) => {
             setLoading(false);
         };
         loadBrandingAndMenu();
-        // Escuchar cambios de branding en tiempo real
         const handler = () => {
             loadBrandingAndMenu();
         };
@@ -65,11 +62,9 @@ const Sidebar = ({ isOpen, toggleSidebar, logout }) => {
                 if (dataMenu) {
                     setMenuItems(dataMenu);
                     localStorage.setItem(menuStorageKey, JSON.stringify(dataMenu));
-                    // Por defecto, todas las categorías inician comprimidas (cerradas)
                     const initialCats = {};
                     dataMenu.forEach(item => {
                         const cat = item.category_name || "General";
-                        // Solo abrir si el usuario ya lo abrió en la sesión
                         initialCats[cat] = false;
                     });
                     setOpenCategories(initialCats);
@@ -89,13 +84,10 @@ const Sidebar = ({ isOpen, toggleSidebar, logout }) => {
                 ...prev,
                 [catName]: !prev[catName]
             };
-            // Guardar el estado de categorías abiertas en sessionStorage para persistir durante la sesión
             sessionStorage.setItem('sidebarOpenCategories', JSON.stringify(updated));
             return updated;
         });
     };
-
-    // Al montar, restaurar el estado de categorías abiertas de sessionStorage
     useEffect(() => {
         const saved = sessionStorage.getItem('sidebarOpenCategories');
         if (saved) {
@@ -132,7 +124,6 @@ const Sidebar = ({ isOpen, toggleSidebar, logout }) => {
                             }));
                         }
                     } catch (_err) {
-                        // no-op: si no tiene permiso, mantenemos memberships
                     }
                 }
 
@@ -202,8 +193,6 @@ const Sidebar = ({ isOpen, toggleSidebar, logout }) => {
         return acc;
     }, {});
 
-    // TOPBAR VARIANTE
-    // Solo compacto, eliminar minimalista
     let isCompact = branding.variant === 'compact';
 
     if (branding.variant === 'topbar') {
@@ -229,17 +218,16 @@ const Sidebar = ({ isOpen, toggleSidebar, logout }) => {
                     {branding.logo_url ? <img src={branding.logo_url} alt="Logo" className="w-full h-full object-cover" /> : <span className="font-black text-xl" style={{ color: branding.accent_color }}>{branding.empresa_nombre.substring(0, 2).toUpperCase()}</span>}
                 </div>
                 <h1 className="font-black tracking-tighter text-lg leading-tight truncate uppercase mr-8">{branding.empresa_nombre}</h1>
-                {/* Menú horizontal */}
                 <nav className="flex-1 flex gap-4 items-center">
                     {Object.keys(groups).map(cat => (
                         <div key={cat} className="relative group">
                             <button className="text-xs font-bold uppercase tracking-widest px-3 py-2 rounded-lg hover:bg-white/10 transition-colors">
-                                {cat}
+                                {td(cat)}
                             </button>
                             <div className="absolute left-0 mt-2 bg-white/90 rounded-xl shadow-xl p-2 min-w-[160px] hidden group-hover:block z-50">
                                 {groups[cat].map(item => (
                                     <Link key={item.id} to={item.url} className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 rounded-lg">
-                                        {renderIcon(item.icon)} <span className="ml-2">{item.label}</span>
+                                        {renderIcon(item.icon)} <span className="ml-2">{td(item.label)}</span>
                                     </Link>
                                 ))}
                             </div>
@@ -248,52 +236,59 @@ const Sidebar = ({ isOpen, toggleSidebar, logout }) => {
                 </nav>
                 <button onClick={logout} className="ml-8 flex items-center gap-2 px-4 py-2 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-all">
                     <FaSignOutAlt className="text-xl" />
-                    <span className="font-bold text-sm">Cerrar Sesión</span>
+                    <span className="font-bold text-sm">{t('logout', 'Cerrar sesión')}</span>
                 </button>
             </header>
         );
     }
 
-    // SIDEBAR VARIANTES
     let sidebarPosition = 'left-0';
     let sidebarExtraClass = '';
     if (branding.variant === 'sidebar-right') sidebarPosition = 'right-0';
-    if (branding.variant === 'compact') sidebarExtraClass = 'w-20'; // Aumentar ancho compacto
+    if (branding.variant === 'compact') sidebarExtraClass = 'w-20';
     if (branding.variant === 'glassmorphism') sidebarExtraClass = 'backdrop-blur-lg bg-white/30 border border-white/20';
 
-    // Mejorar contraste en glassmorphism
     let menuTextColor = textColor;
     if (branding.variant === 'glassmorphism') menuTextColor = '#222';
 
     return (
-        <aside
-            style={{
-                backgroundColor: branding.variant === 'glassmorphism' ? 'rgba(255,255,255,0.15)' : branding.bg_color,
-                color: menuTextColor,
-                borderRadius:
-                    branding.variant === 'floating' ? '2rem'
-                    : branding.variant === 'compact' ? '1.5rem'
-                    : branding.variant === 'sidebar-right' ? '2rem 0 0 2rem'
-                    : branding.variant === 'glassmorphism' ? '2rem' : '0px',
-                boxShadow: branding.variant === 'glassmorphism' ? '0 8px 32px 0 rgba(31, 38, 135, 0.37)' : undefined,
-                backdropFilter: branding.variant === 'glassmorphism' ? 'blur(8px)' : undefined,
-                opacity: branding.variant === 'glassmorphism' ? 0.95 : 1
-            }}
-            className={`fixed z-50 transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] flex flex-col shadow-2xl
-                ${branding.variant === 'floating' ? 'top-4 bottom-4 left-4 border border-white/10' : `top-0 bottom-0 ${sidebarPosition}`}
-                ${branding.variant === 'compact' ? sidebarExtraClass : isOpen ? 'w-72' : 'w-24'}
-                ${branding.variant === 'sidebar-right' ? 'items-end' : ''}
-                ${branding.variant === 'glassmorphism' ? sidebarExtraClass : ''}
-            `}
-        >
-            {/* Cabecera */}
+        <>
+            {isMobile && isOpen && (
+                <div
+                    className="fixed inset-0 z-40 bg-slate-950/50 backdrop-blur-[1px]"
+                    onClick={onClose}
+                    role="presentation"
+                />
+            )}
+            <aside
+                style={{
+                    backgroundColor: branding.variant === 'glassmorphism' ? 'rgba(255,255,255,0.15)' : branding.bg_color,
+                    color: menuTextColor,
+                    borderRadius:
+                        isMobile ? '0'
+                        : branding.variant === 'floating' ? '2rem'
+                        : branding.variant === 'compact' ? '1.5rem'
+                        : branding.variant === 'sidebar-right' ? '2rem 0 0 2rem'
+                        : branding.variant === 'glassmorphism' ? '2rem' : '0px',
+                    boxShadow: branding.variant === 'glassmorphism' ? '0 8px 32px 0 rgba(31, 38, 135, 0.37)' : undefined,
+                    backdropFilter: branding.variant === 'glassmorphism' ? 'blur(8px)' : undefined,
+                    opacity: branding.variant === 'glassmorphism' ? 0.95 : 1
+                }}
+                className={`fixed z-50 transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] flex flex-col shadow-2xl
+                    ${isMobile ? 'top-0 bottom-0 left-0 w-72 max-w-[86vw]' : (branding.variant === 'floating' ? 'top-4 bottom-4 left-4 border border-white/10' : `top-0 bottom-0 ${sidebarPosition}`)}
+                    ${!isMobile && (branding.variant === 'compact' ? sidebarExtraClass : isOpen ? 'w-72' : 'w-24')}
+                    ${branding.variant === 'sidebar-right' ? 'items-end' : ''}
+                    ${branding.variant === 'glassmorphism' ? sidebarExtraClass : ''}
+                    ${isMobile ? (isOpen ? 'translate-x-0' : '-translate-x-full') : 'translate-x-0'}
+                `}
+            >
             <div className="p-6 flex items-center gap-4">
                 <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center shrink-0 border border-white/5 overflow-hidden shadow-lg">
                     {branding.logo_url ? <img src={branding.logo_url} alt="Logo" className="w-full h-full object-contain p-1.5" /> : <span className="font-black text-xl" style={{ color: branding.accent_color }}>{branding.empresa_nombre.substring(0, 2).toUpperCase()}</span>}
                 </div>
                 <div className={`transition-all duration-500 ${!isOpen || branding.variant === 'compact' ? 'opacity-0 scale-0 w-0' : 'opacity-100'}`}>
                     <h1 className="font-black tracking-tighter text-lg leading-tight truncate uppercase">{branding.empresa_nombre}</h1>
-                    <p className="text-[10px] font-bold opacity-50 uppercase tracking-widest">Enterprise</p>
+                    <p className="text-[10px] font-bold opacity-50 uppercase tracking-widest">{t('enterpriseLabel', 'Enterprise')}</p>
                     {isSaaSSuperAdmin && tenantOptions.length > 0 && (
                         <select
                             className="mt-2 w-full rounded-lg bg-white/10 border border-white/20 text-xs px-2 py-1 outline-none"
@@ -309,8 +304,6 @@ const Sidebar = ({ isOpen, toggleSidebar, logout }) => {
                     )}
                 </div>
             </div>
-
-            {/* Navegación con Categorías Colapsables */}
             <nav className="flex-1 px-4 py-4 space-y-4 overflow-y-auto no-scrollbar">
                 {isCompact
                     ? Object.values(groups).flat().map(item => {
@@ -335,9 +328,8 @@ const Sidebar = ({ isOpen, toggleSidebar, logout }) => {
                                             style={{ backgroundColor: branding.accent_color }} />
                                     )}
                                 </Link>
-                                {/* Tooltip para nombre en modo compacto */}
                                 <span className="absolute left-full top-1/2 -translate-y-1/2 ml-2 px-3 py-1 rounded-lg bg-slate-900 text-white text-xs font-bold opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 shadow-xl transition-all">
-                                    {item.label}
+                                    {td(item.label)}
                                 </span>
                             </div>
                         );
@@ -346,7 +338,6 @@ const Sidebar = ({ isOpen, toggleSidebar, logout }) => {
                         const isExpanded = openCategories[cat];
                         return (
                             <div key={cat} className="space-y-1">
-                                {/* BOTÓN DE CATEGORÍA (ACCORDEON) */}
                                 <button
                                     onClick={() => isOpen && toggleCategory(cat)}
                                     data-guide-category={normalizeCategory(cat)}
@@ -355,7 +346,7 @@ const Sidebar = ({ isOpen, toggleSidebar, logout }) => {
                                 >
                                     <p className={`text-[10px] font-black uppercase tracking-[0.2em] transition-opacity duration-300
                                     ${!isOpen ? 'opacity-0' : 'opacity-40 group-hover:opacity-80'}`}>
-                                        {cat}
+                                        {td(cat)}
                                     </p>
                                     {isOpen && (
                                         <div className="text-[10px] opacity-30 group-hover:opacity-100 transition-transform duration-300"
@@ -364,8 +355,6 @@ const Sidebar = ({ isOpen, toggleSidebar, logout }) => {
                                         </div>
                                     )}
                                 </button>
-
-                                {/* CONTENEDOR DE ÍTEMS CON ANIMACIÓN */}
                                 <div className={`space-y-1 transition-all duration-500 overflow-hidden 
                                     ${isExpanded || !isOpen ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'}`}>
                                     {groups[cat].map(item => {
@@ -388,7 +377,7 @@ const Sidebar = ({ isOpen, toggleSidebar, logout }) => {
                                                     <span className={`text-sm font-bold transition-all duration-300 whitespace-nowrap
                                                         ${active ? 'opacity-100' : 'opacity-60 group-hover:opacity-100'}
                                                         ${!isOpen ? 'opacity-0 w-0 pointer-events-none' : 'w-auto'}`}>
-                                                        {item.label}
+                                                        {td(item.label)}
                                                     </span>
                                                     {active && (
                                                         <div className="absolute right-2 w-1.5 h-6 rounded-full shadow-[0_0_10px_rgba(255,255,255,0.3)]"
@@ -404,25 +393,27 @@ const Sidebar = ({ isOpen, toggleSidebar, logout }) => {
                     })}
             </nav>
 
-            {/* Footer */}
             <div className={`p-4 border-t border-white/5 ${!isOpen || branding.variant === 'compact' ? 'flex flex-col items-center' : ''}`}>
                 {isSaaSSuperAdmin && canOpenSaasTenants && (
                     <Link
                         to="/dashboard/admin/tenants?tab=notifications"
                         className={`w-full mb-2 flex items-center gap-4 p-3 rounded-2xl transition-all hover:bg-blue-500/10 hover:text-blue-300 ${!isOpen || branding.variant === 'compact' ? 'justify-center' : ''}`}
-                        title="Centro de Notificaciones SaaS"
+                        title={t('saasNotifications', 'Notificaciones SaaS')}
                     >
                         <FaBell className="text-lg opacity-70" />
-                        <span className={`font-bold text-xs transition-all ${!isOpen || branding.variant === 'compact' ? 'hidden' : 'block'}`}>Notificaciones SaaS</span>
+                        <span className={`font-bold text-xs transition-all ${!isOpen || branding.variant === 'compact' ? 'hidden' : 'block'}`}>{t('saasNotifications', 'Notificaciones SaaS')}</span>
                     </Link>
                 )}
                 <button onClick={logout} className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all group hover:bg-red-500/10 hover:text-red-400 ${!isOpen || branding.variant === 'compact' ? 'justify-center' : ''}`}>
                     <FaSignOutAlt className="text-xl group-hover:translate-x-1 transition-transform opacity-60 group-hover:opacity-100" />
-                    <span className={`font-bold text-sm transition-all ${!isOpen || branding.variant === 'compact' ? 'hidden' : 'block'}`}>Cerrar Sesión</span>
+                    <span className={`font-bold text-sm transition-all ${!isOpen || branding.variant === 'compact' ? 'hidden' : 'block'}`}>{t('logout', 'Cerrar sesión')}</span>
                 </button>
             </div>
-        </aside>
+            </aside>
+        </>
     );
 };
 
 export default Sidebar;
+
+

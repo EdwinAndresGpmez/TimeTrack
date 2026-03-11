@@ -30,14 +30,12 @@ const PatientOnboarding = () => {
         return `${user?.nombre || ''} ${user?.apellidos || ''}`.trim();
     }, [user]);
 
-    // --- CORRECCIÓN AQUÍ ---
     const crearSolicitudValidacion = useCallback(async () => {
         try {
             await patientService.crearSolicitudValidacion({
                 user_id: user.user_id || user.id,
                 nombre: getNombreCompletoUsuario(),
                 email: user.email || user.correo,
-                // AGREGAMOS ESTA LÍNEA QUE FALTABA:
                 user_doc: user.documento, 
                 fecha: new Date().toISOString(),
                 tipo_solicitud: 'REGISTRO_EPS', // Opcional: para diferenciar
@@ -114,7 +112,6 @@ const PatientOnboarding = () => {
                     throw new Error('No existe un tipo de paciente "Particular" en el catálogo.');
                 }
 
-                // 1. Crear Paciente
                 const nuevoPaciente = await patientService.create({
                     user_id: user.user_id || user.id,
                     nombre: user.nombre,
@@ -130,12 +127,10 @@ const PatientOnboarding = () => {
                     activo: true
                 });
 
-                // 2. Vincular Auth User
                 await authService.updateUser(user.user_id || user.id, { 
                     paciente_id: nuevoPaciente.id 
                 });
 
-                // 3. Crear Notificación (Particular)
                 try {
                     await patientService.crearSolicitudValidacion({
                         user_id: user.user_id || user.id,
@@ -261,3 +256,4 @@ const PatientOnboarding = () => {
 };
 
 export default PatientOnboarding;
+

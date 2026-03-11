@@ -82,3 +82,4 @@ export default function PlanFeatureMatrixTab({ plans, features, planFeatures }) 
     </section>
   );
 }
+

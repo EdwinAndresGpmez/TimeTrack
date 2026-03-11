@@ -8,15 +8,12 @@ const apiBaseUrl = normalizedBaseUrl.endsWith('/v1')
   ? normalizedBaseUrl
   : `${normalizedBaseUrl}/v1`;
 
-// 1. Crear instancia base
 const api = axios.create({
   baseURL: apiBaseUrl,
 });
 
-// 2. Interceptor de Solicitud
 api.interceptors.request.use(
   (config) => {
-    // ✅ preferir access, fallback token (compatibilidad)
     const token = localStorage.getItem('access') || localStorage.getItem('token');
 
     if (token) {
@@ -33,7 +30,6 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// 3. Interceptor de Respuesta (AJUSTADO)
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -41,12 +37,10 @@ api.interceptors.response.use(
     const data = error?.response?.data;
     const hadAuthHeader = !!error?.config?.headers?.Authorization;
 
-    // SimpleJWT típico: { "code": "token_not_valid", ... }
     const tokenNotValid =
       data?.code === 'token_not_valid' ||
       (typeof data?.detail === 'string' && data.detail.toLowerCase().includes('token'));
 
-    // ✅ Solo limpiar sesión si realmente es token inválido/expirado y la request iba autenticada
     if (status === 401 && hadAuthHeader && tokenNotValid) {
       console.warn('Token inválido/expirado. Cerrando sesión...');
       localStorage.removeItem('token');
@@ -60,3 +54,4 @@ api.interceptors.response.use(
 );
 
 export default api;
+

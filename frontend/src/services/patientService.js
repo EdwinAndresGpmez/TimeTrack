@@ -13,7 +13,6 @@ async function withRetry(fn, retries = 1) {
 }
 
 export const patientService = {
-    // 1. Obtener TODOS los pacientes (Para AdminUsuarios)
     getAll: async (params = {}) => {
         const response = await api.get('/pacientes/listado/', { params });
         return response.data;
@@ -24,13 +23,11 @@ export const patientService = {
         return response.data;
     },
 
-    // 2. Crear Perfil de Paciente
     create: async (patientData) => {
         const response = await api.post('/pacientes/listado/', patientData);
         return response.data;
     },
 
-    // 3. Obtener Mi Perfil
     getMyProfile: async (userId) => {
         try {
             const response = await api.get(`/pacientes/listado/?user_id=${userId}`);
@@ -44,19 +41,16 @@ export const patientService = {
         }
     },
 
-    // 4. Actualizar Perfil
     update: async (id, data) => {
         const response = await api.patch(`/pacientes/listado/${id}/`, data);
         return response.data;
     },
 
-    // 5. Obtener Tipos de Paciente
     getTiposPaciente: async () => {
         const response = await api.get('/pacientes/tipos/');
         return response.data;
     },
 
-    // --- NUEVOS MÉTODOS PARA GESTIÓN DE TIPOS (ADMIN PARAMÉTRICAS) ---
     createTipoPaciente: async (data) => {
         const response = await api.post('/pacientes/tipos/', data);
         return response.data;
@@ -66,9 +60,7 @@ export const patientService = {
         const response = await api.patch(`/pacientes/tipos/${id}/`, data);
         return response.data;
     },
-    // ------------------------------------------------------------------
 
-    // 6. Buscar perfil por ID de Usuario
     getProfileByUserId: async (userId) => {
         try {
             const response = await api.get(`/pacientes/listado/?user_id=${userId}`);
@@ -82,19 +74,16 @@ export const patientService = {
         }
     },
 
-    // 7. Vincular Usuario Existente
     vincularExistente: async (data) => {
         const response = await api.post('/pacientes/internal/sync-user/', data);
         return response.data;
     },
 
-    // --- FUNCIONES ADMINISTRATIVAS ---
     crearSolicitudValidacion: async (data) => {
         const response = await api.post('/pacientes/solicitudes/', data);
         return response.data;
     },
 
-    // ✅ Ajuste: timeout + retry para evitar ERR_CONNECTION_RESET intermitente
     getSolicitudesPendientes: async () => {
         return withRetry(async () => {
             const response = await api.get('/pacientes/solicitudes/', {
@@ -115,7 +104,6 @@ export const patientService = {
         return response.data;
     },
 
-    // 8. Resetear Inasistencias
     resetInasistencias: async (id) => {
         const response = await api.post(`/pacientes/listado/${id}/reset-inasistencias/`);
         return response.data;

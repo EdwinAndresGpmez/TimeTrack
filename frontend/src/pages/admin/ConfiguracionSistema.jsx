@@ -15,7 +15,6 @@ import {
     FaShieldAlt, FaChevronDown, FaInfoCircle, FaPalette, FaLock
 } from 'react-icons/fa';
 
-// --- 1. PALETA DE COLORES ---
 const COLOR_PRESETS = [
     { name: 'yellow', hex: '#EAB308', label: 'Amarillo' },
     { name: 'green', hex: '#16A34A', label: 'Verde' },
@@ -29,10 +28,8 @@ const COLOR_PRESETS = [
     { name: 'teal', hex: '#14B8A6', label: 'Turquesa' },
 ];
 
-// SLUGS PROTEGIDOS: Requeridos para que el backend procese reglas de negocio
 const PROTECTED_SLUGS = ['PENDIENTE', 'ACEPTADA', 'EN_SALA', 'REALIZADA', 'CANCELADA', 'RECHAZADA', 'NO_ASISTIO'];
 
-// --- 2. ICONOS DISPONIBLES ---
 const ICON_OPTIONS = [
     'FaClock', 'FaCheckCircle', 'FaHourglassHalf', 'FaCalendarCheck',
     'FaBan', 'FaTimesCircle', 'FaUserClock', 'FaStethoscope', 'FaHospital',
@@ -41,7 +38,6 @@ const ICON_OPTIONS = [
     'FaFileInvoiceDollar', 'FaPrint', 'FaWhatsapp', 'FaEnvelope'
 ];
 
-// --- 3. ESTILOS DE BOTONES ---
 const BUTTON_STYLES = [
     { id: 'blue', label: 'Azul (Estándar)', class: 'bg-blue-100 text-blue-700 border-blue-200' },
     { id: 'success', label: 'Verde (Éxito)', class: 'bg-green-100 text-green-700 border-green-200' },
@@ -62,7 +58,6 @@ const getColorHex = (colorValue) => {
     return preset ? preset.hex : '#6B7280';
 };
 
-// --- COMPONENTES UI ---
 
 const InfoTooltip = ({ text }) => (
     <div className="group relative inline-block ml-2 align-middle z-50">
@@ -310,15 +305,12 @@ const ConfiguracionSistema = () => {
         e.preventDefault();
         setLoading(true);
         try {
-            // Guardar configuración general y branding
             await configService.updateConfig(config);
             await authService.updateBranding(brandingConfig);
-            // Actualizar localStorage y disparar evento brandingChanged SOLO al guardar
             const tenantCacheKey = getActiveTenantId() || user?.tenant_id || 'default';
             localStorage.setItem(`branding_${tenantCacheKey}`, JSON.stringify(brandingConfig));
             window.dispatchEvent(new Event('brandingChanged'));
             Swal.fire('¡Guardado!', 'La configuración fue actualizada.', 'success');
-            // Recargar datos
             cargarTodo();
         } catch (error) {
             console.error("Error guardando configuración:", error);
@@ -330,7 +322,6 @@ const ConfiguracionSistema = () => {
 
     return (
         <div className="max-w-7xl mx-auto p-6 min-h-screen bg-gray-50/50">
-            {/* ENCABEZADO */}
             <div className="flex items-center gap-4 mb-8 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
                 <div className="p-4 bg-gradient-to-br from-blue-500 to-blue-700 text-white rounded-xl shadow-lg transform -rotate-3">
                     <FaCogs size={32} />
@@ -352,8 +343,6 @@ const ConfiguracionSistema = () => {
             </div>
 
             <form onSubmit={handleSubmit}>
-
-                {/* BARRA DE PESTAÑAS */}
                 <div className="flex flex-wrap gap-2 mb-6 bg-white p-2 rounded-xl border border-gray-200 shadow-sm sticky top-4 z-20">
                     {[
                         { id: 'reglas', label: 'Reglas Generales', icon: <FaCalendarCheck /> },
@@ -383,8 +372,6 @@ const ConfiguracionSistema = () => {
                 </div>
 
                 <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8 min-h-[500px]">
-
-                    {/* --- PESTAÑA 1: REGLAS GENERALES --- */}
                     {activeTab === 'reglas' && (
                         <div className="animate-fade-in space-y-8">
                             <div className="border-b pb-4 mb-4">
@@ -495,8 +482,6 @@ const ConfiguracionSistema = () => {
                             </div>
                         </div>
                     )}
-
-                    {/* --- PESTAÑA 2: INASISTENCIAS --- */}
                     {activeTab === 'inasistencias' && (
                         <div className="animate-fade-in">
                             <div className="border-b pb-4 mb-6">
@@ -524,8 +509,6 @@ const ConfiguracionSistema = () => {
                             </div>
                         </div>
                     )}
-
-                    {/* --- PESTAÑA 3: TIEMPOS --- */}
                     {activeTab === 'tiempos' && (
                         <div className="animate-fade-in">
                             <div className="border-b pb-4 mb-6">
@@ -557,8 +540,6 @@ const ConfiguracionSistema = () => {
                             </div>
                         </div>
                     )}
-
-                    {/* --- PESTAÑA 4: MOTOR DE FLUJO (WORKFLOW) --- */}
                     {activeTab === 'workflow' && (
                         <div className="animate-fade-in">
                             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 bg-indigo-50 p-4 rounded-xl border border-indigo-100">
@@ -677,8 +658,6 @@ const ConfiguracionSistema = () => {
                     )}
 
                 </div>
-
-                {/* BOTÓN FLOTANTE DE GUARDADO */}
                 <div className="sticky bottom-6 flex justify-end mt-6 z-30">
                     <button type="submit" disabled={loading} className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-bold py-4 px-10 rounded-full shadow-2xl flex items-center gap-3 transition-all transform hover:-translate-y-1 hover:shadow-green-500/30">
                         <FaSave size={20} /> {loading ? 'GUARDANDO...' : 'GUARDAR CAMBIOS'}
@@ -695,3 +674,4 @@ const ConfiguracionSistema = () => {
 };
 
 export default ConfiguracionSistema;
+

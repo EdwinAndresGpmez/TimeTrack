@@ -49,7 +49,6 @@ const Navbar = ({ theme, tenantSlug, portalWebCompletoEnabled = true }) => {
 
   return (
     <header className="sticky top-0 z-50 portal-fade-up">
-      {/* Top strip */}
       <div
         className="text-white"
         style={{ backgroundColor: "var(--portal-primary, #2f7ecb)" }}
@@ -76,8 +75,6 @@ const Navbar = ({ theme, tenantSlug, portalWebCompletoEnabled = true }) => {
           </div>
         </div>
       </div>
-
-      {/* Main nav */}
       <nav
         className="border-b shadow-sm"
         style={{
@@ -87,7 +84,6 @@ const Navbar = ({ theme, tenantSlug, portalWebCompletoEnabled = true }) => {
       >
         <div className="mx-auto max-w-6xl px-4 py-4">
           <div className="flex items-center justify-between">
-            {/* Brand */}
             <Link to={withTenantPath(tenantSlug, "/")} className="flex items-center gap-3">
               {logoUrl ? (
                 <img
@@ -96,7 +92,6 @@ const Navbar = ({ theme, tenantSlug, portalWebCompletoEnabled = true }) => {
                   className="max-h-12 w-auto max-w-[220px] object-contain"
                   style={{ backgroundColor: "transparent" }}
                   onError={(e) => {
-                    // fallback si el logo no carga por ruta/mime
                     e.currentTarget.style.display = "none";
                   }}
                 />
@@ -117,8 +112,6 @@ const Navbar = ({ theme, tenantSlug, portalWebCompletoEnabled = true }) => {
                 <p className="text-xs" style={{ color: "color-mix(in srgb, var(--portal-bg, #ffffff) 78%, transparent)" }}>Centro médico de salud</p>
               </div>
             </Link>
-
-            {/* Desktop menu */}
             <div className="hidden items-center gap-6 lg:flex">
               {menuItems.map((item) => (
                 <Link
@@ -146,8 +139,6 @@ const Navbar = ({ theme, tenantSlug, portalWebCompletoEnabled = true }) => {
                 Agendar cita
               </button>
             </div>
-
-            {/* Mobile button */}
             <button
               onClick={() => setIsOpen((v) => !v)}
               className="inline-flex items-center justify-center rounded-md border p-2 text-white lg:hidden"
@@ -157,8 +148,6 @@ const Navbar = ({ theme, tenantSlug, portalWebCompletoEnabled = true }) => {
               {isOpen ? <FaTimes /> : <FaBars />}
             </button>
           </div>
-
-          {/* Mobile menu */}
           {isOpen && (
             <div
               className="mt-4 rounded-lg border p-4 lg:hidden"
@@ -207,3 +196,4 @@ const Navbar = ({ theme, tenantSlug, portalWebCompletoEnabled = true }) => {
 };
 
 export default Navbar;
+

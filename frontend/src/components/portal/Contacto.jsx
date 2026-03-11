@@ -13,7 +13,6 @@ const Contacto = ({ data, onAgendarCita, onIrPQRS }) => {
   const ctaPrimary = data?.cta_primary || { text: "Agendar cita", action: "AGENDAR_CITA" };
   const ctaSecondary = data?.cta_secondary || { text: "PQRS", action: "PQRS" };
 
-  // Form “de contacto” simple (solo visual por ahora)
   const [form, setForm] = useState({ nombre: "", correo: "", mensaje: "" });
   const [sent, setSent] = useState(false);
 
@@ -30,8 +29,6 @@ const Contacto = ({ data, onAgendarCita, onIrPQRS }) => {
       return;
     }
 
-    // Si el CMS manda otra acción, permitir link directo:
-    // ejemplo: { text:"WhatsApp", action:"LINK", link:"https://wa.me/..." }
     if (a === "LINK" && data?.link) {
       window.location.href = data.link;
     }
@@ -49,7 +46,6 @@ const Contacto = ({ data, onAgendarCita, onIrPQRS }) => {
 
   const submitFake = (e) => {
     e.preventDefault();
-    // Por ahora no hace POST. Luego si quieres lo conectamos a un endpoint real.
     setSent(true);
     setTimeout(() => setSent(false), 2500);
     setForm({ nombre: "", correo: "", mensaje: "" });
@@ -69,7 +65,6 @@ const Contacto = ({ data, onAgendarCita, onIrPQRS }) => {
         </div>
 
         <div className="mt-12 grid grid-cols-1 gap-8 lg:grid-cols-2">
-          {/* Info + CTAs */}
           <div
             className="portal-card portal-card-hover rounded-2xl p-8"
             style={{ borderRadius: "var(--portal-radius)", backgroundColor: "var(--portal-surface)" }}
@@ -116,8 +111,6 @@ const Contacto = ({ data, onAgendarCita, onIrPQRS }) => {
               </p>
             )}
           </div>
-
-          {/* Formulario (visual por ahora) */}
           <div
             className="portal-card portal-card-hover rounded-2xl p-8"
             style={{ borderRadius: "var(--portal-radius)" }}
@@ -185,3 +178,4 @@ const Contacto = ({ data, onAgendarCita, onIrPQRS }) => {
 };
 
 export default Contacto;
+

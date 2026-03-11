@@ -229,3 +229,4 @@ const AdminPQRSGestion = () => {
 };
 
 export default AdminPQRSGestion;
+

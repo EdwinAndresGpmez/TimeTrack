@@ -57,7 +57,6 @@ export const AuthProvider = ({ children }) => {
                 });
             }
         } catch (_error) {
-            // no-op
         }
     }, []);
 
@@ -130,3 +129,4 @@ export const AuthProvider = ({ children }) => {
         </AuthContext.Provider>
     );
 };
+

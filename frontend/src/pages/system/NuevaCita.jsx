@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useContext, useCallback } from 'react';
+import React, { useState, useEffect, useContext, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { staffService } from '../../services/staffService';
 import { citasService } from '../../services/citasService';
@@ -18,16 +18,13 @@ const NuevaCita = ({ adminSelectedPatientId = null, isAdminMode = false, presele
     const navigate = useNavigate();
     const { user, permissions } = useContext(AuthContext);
 
-    // --- ESTADOS DE DATOS ---
     const [servicios, setServicios] = useState([]);
     const [profesionales, setProfesionales] = useState([]); 
     const [sedes, setSedes] = useState([]); 
     
-    // --- ESTADOS WIZARD ---
     const [step, setStep] = useState(0); 
     const [selection, setSelection] = useState({ servicio: null, profesional: null, sede: null, fecha: '', hora: '' });
     
-    // --- ESTADOS AUXILIARES ---
     const [slots, setSlots] = useState([]);
     const [loading, setLoading] = useState(true);
     const [loadingSlots, setLoadingSlots] = useState(false);
@@ -35,7 +32,6 @@ const NuevaCita = ({ adminSelectedPatientId = null, isAdminMode = false, presele
     const [pacienteId, setPacienteId] = useState(null);
     const [perfilPaciente, setPerfilPaciente] = useState(null); 
     
-    // Datos de la red familiar
     const [dependientes, setDependientes] = useState([]);
     const [titularPerfil, setTitularPerfil] = useState(null);
     const [notaInicial, setNotaInicial] = useState('');
@@ -134,7 +130,6 @@ const NuevaCita = ({ adminSelectedPatientId = null, isAdminMode = false, presele
                 const puedeAgendarTerceros = isAdminMode || esAdminPlataforma || tieneRolTerceros;
                 setCanScheduleForOthers(puedeAgendarTerceros);
 
-                // 1. Obtener datos del paciente titular
                 if (adminSelectedPatientId) {
                     perfilPrincipal = await patientService.getPatientById(adminSelectedPatientId);
                 } else {
@@ -142,11 +137,9 @@ const NuevaCita = ({ adminSelectedPatientId = null, isAdminMode = false, presele
                 }
                 setTitularPerfil(perfilPrincipal);
 
-                // 2. Consultar red familiar en tiempo real para el paso 0
                 let dependientesLocales = [];
                 if (!isAdminMode && !adminSelectedPatientId) {
                     try {
-                        // Usamos la ruta publica /me/red/
                         const dataRed = await authService.getMiRedFamiliar(); 
                         dependientesLocales = dataRed || [];
                         setDependientes(dependientesLocales);
@@ -154,23 +147,18 @@ const NuevaCita = ({ adminSelectedPatientId = null, isAdminMode = false, presele
                         console.error("Error consultando red familiar:", errRed);
                     }
                 }
-                // 3. Decidir en que paso iniciar
                 if (preselectedSlot) {
-                    // Si viene de la agenda, saltamos directo al final
                     setPacienteId(perfilPrincipal.id);
                     setPerfilPaciente(perfilPrincipal);
                     setStep(preselectedSlot.servicioId ? 5 : 2);
                 } else if (dependientesLocales.length > 0 && !adminSelectedPatientId) {
-                    // SI TIENE FAMILIARES -> PASO 0
                     setStep(0);
                 } else {
-                    // CASO NORMAL -> PASO 1
                     setPacienteId(perfilPrincipal.id);
                     setPerfilPaciente(perfilPrincipal);
                     setStep(1);
                 }
 
-                // 4. Cargar catalogos iniciales
                 const [allServicios, allSedes, allProfesionales] = await Promise.all([
                     staffService.getServicios({ activo: true }),
                     staffService.getLugares({ activo: true }),
@@ -215,7 +203,6 @@ const NuevaCita = ({ adminSelectedPatientId = null, isAdminMode = false, presele
             if (esTitular) {
                 perfilSeleccionado = titularPerfil;
             } else {
-                // Buscamos la ficha medica (Paciente) del dependiente usando su user_id
                 const userIdDependiente = depData?.id || depData?.user_id;
                 perfilSeleccionado = await patientService.getProfileByUserId(userIdDependiente);
                 if (!perfilSeleccionado) {
@@ -790,5 +777,6 @@ const NuevaCita = ({ adminSelectedPatientId = null, isAdminMode = false, presele
 };
 
 export default NuevaCita;
+
 
 

@@ -3,7 +3,6 @@ import api from '../api/axiosConfig'; // <--- Usamos esta instancia configurada
 const BASE_URL = '/citas'; 
 
 export const citasService = {
-    // Obtener citas con filtros (fecha, estado, paciente_id, etc.)
     getAll: async (params = {}) => {
         const response = await api.get(`${BASE_URL}/`, { params });
         return response.data;
@@ -54,12 +53,8 @@ export const citasService = {
         }
     },
 
-    // --- CORRECCIÓN MEJORADA ---
     updateEstado: async (id, data) => {
         try {
-            // Lógica Inteligente:
-            // 1. Si 'data' es un STRING (ej: "EN_SALA"), lo envolvemos en un objeto JSON.
-            // 2. Si 'data' ya es un OBJETO (ej: { estado: "REALIZADA", nota_interna: "..." }), lo enviamos tal cual.
             
             const payload = typeof data === 'string' ? { estado: data } : data;
             
@@ -77,3 +72,4 @@ export const citasService = {
             }
     }
 };
+

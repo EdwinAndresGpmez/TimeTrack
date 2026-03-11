@@ -8,7 +8,6 @@ const SalaEsperaPantalla = () => {
     const [reloj, setReloj] = useState(new Date());
     const [audioActivado, setAudioActivado] = useState(false);
 
-    // --- PRIVACIDAD ---
     const soloNombres = (nombreCompleto = '') => {
         const parts = nombreCompleto.trim().split(/\s+/).filter(Boolean);
         return parts.slice(0, 2).join(' '); // 1 o 2 nombres
@@ -25,26 +24,20 @@ const SalaEsperaPantalla = () => {
         return `${nom} • ***${doc3}`;
     };
 
-    // --- VOZ ---
     const pickSpanishVoice = () => {
         const voices = window.speechSynthesis?.getVoices?.() || [];
-        // Prioridad LATAM
         const latam = voices.find(v => /es-(MX|CO|AR|CL|PE|EC|VE|UY|BO|PY|CR|PA|DO|GT|HN|NI|SV|PR)/i.test(v.lang));
         if (latam) return latam;
-        // Luego España
         const spain = voices.find(v => /es-ES/i.test(v.lang));
         if (spain) return spain;
-        // fallback: cualquiera en español
         return voices.find(v => (v.lang || '').startsWith('es')) || null;
     };
 
-    // 1. Reloj de cabecera
     useEffect(() => {
         const t = setInterval(() => setReloj(new Date()), 1000);
         return () => clearInterval(t);
     }, []);
 
-    // Precalentar voces para reducir delay
     useEffect(() => {
         if (!window.speechSynthesis) return;
         const handler = () => window.speechSynthesis.getVoices();
@@ -58,11 +51,9 @@ const SalaEsperaPantalla = () => {
         window.speechSynthesis.getVoices(); // warm-up
     }, [audioActivado]);
 
-    // 2. Carga de Datos y Polling
     useEffect(() => {
         const cargarLlamados = async () => {
             try {
-                // CORRECCIÓN 1: Obtener fecha local exacta (Evita desfase UTC)
                 const hoyLocal = new Date();
                 const offset = hoyLocal.getTimezoneOffset();
                 const fechaQuery = new Date(hoyLocal.getTime() - (offset * 60 * 1000)).toISOString().split('T')[0];
@@ -84,8 +75,6 @@ const SalaEsperaPantalla = () => {
                 setCitas(enEspera);
 
                 if (actual) {
-                    // ✅ CLAVE PARA RE-LLAMADO:
-                    // comparar por id + updated_at para detectar un "nuevo evento"
                     const actualKey = `${actual.id}-${actual.updated_at || ''}`;
                     const ultimoKey = ultimoLlamado ? `${ultimoLlamado.id}-${ultimoLlamado.updated_at || ''}` : null;
 
@@ -108,7 +97,6 @@ const SalaEsperaPantalla = () => {
         return () => clearInterval(interval);
     }, [ultimoLlamado, audioActivado]);
 
-    // 3. Síntesis de Voz
     const hablar = (cita) => {
         if (!window.speechSynthesis || !audioActivado) return;
 
@@ -134,8 +122,6 @@ const SalaEsperaPantalla = () => {
 
     return (
         <div className="h-screen w-full bg-[#0f172a] text-white overflow-hidden flex flex-col p-10 font-sans relative">
-
-            {/* AVISO DE INTERACCIÓN (Para habilitar sonido) */}
             {!audioActivado && (
                 <div
                     onClick={() => setAudioActivado(true)}
@@ -146,8 +132,6 @@ const SalaEsperaPantalla = () => {
                     <p className="text-xl mt-4 opacity-80">El sistema requiere interacción para activar el audio de los llamados.</p>
                 </div>
             )}
-
-            {/* HEADER SUPERIOR */}
             <div className="flex justify-between items-center mb-16">
                 <div className="flex items-center gap-6">
                     <div className="bg-blue-600 p-6 rounded-[2.5rem] shadow-2xl shadow-blue-500/20">
@@ -168,11 +152,7 @@ const SalaEsperaPantalla = () => {
                     </div>
                 </div>
             </div>
-
-            {/* CUERPO PRINCIPAL */}
             <div className="grid grid-cols-12 gap-10 flex-1">
-
-                {/* ÁREA DE LLAMADO ACTUAL */}
                 <div className="col-span-8 flex flex-col justify-center items-center bg-gradient-to-br from-blue-700 to-indigo-900 rounded-[5rem] shadow-[0_0_100px_rgba(37,99,235,0.2)] border-4 border-blue-500/30 p-16 relative overflow-hidden">
                     <div className="absolute top-0 right-0 p-10 opacity-10"><FaVolumeUp size={200} /></div>
 
@@ -191,8 +171,6 @@ const SalaEsperaPantalla = () => {
                         </div>
                     )}
                 </div>
-
-                {/* LISTA LATERAL DE SIGUIENTES */}
                 <div className="col-span-4 bg-slate-800/30 rounded-[4rem] p-10 border border-slate-700/50 flex flex-col shadow-inner">
                     <div className="flex items-center gap-3 mb-10 border-b border-slate-700 pb-6">
                         <FaUserClock className="text-slate-400" size={30} />

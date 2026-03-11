@@ -14,12 +14,10 @@ const Footer = ({ theme, contactData, servicesData, tenantSlug, portalWebComplet
   const brandName = theme?.company_name || "Tu Clínica";
   const logoUrl = theme?.logo_url || "";
 
-  // Contacto desde CMS (sección contact.data)
   const address = contactData?.address || "Calle 00 #00-00, Bogotá";
   const phone = contactData?.phone || "+57 300 000 0000";
   const email = contactData?.email || "contacto@tuweb.com";
 
-  // Servicios desde CMS (sección services.data.items)
   const servicesItems =
     Array.isArray(servicesData?.items) && servicesData.items.length
       ? servicesData.items.slice(0, 4).map((x) => x?.title).filter(Boolean)
@@ -29,10 +27,8 @@ const Footer = ({ theme, contactData, servicesData, tenantSlug, portalWebComplet
     <footer className="portal-gradient-band text-white">
       <div className="mx-auto max-w-6xl px-4 py-12">
         <div className="grid grid-cols-1 gap-10 md:grid-cols-4">
-          {/* Col 1: Brand */}
           <div className="md:col-span-1">
             <div className="flex items-center gap-3">
-              {/* Logo */}
               {logoUrl ? (
                 <img
                   src={logoUrl}
@@ -87,8 +83,6 @@ const Footer = ({ theme, contactData, servicesData, tenantSlug, portalWebComplet
               </a>
             </div>
           </div>
-
-          {/* Col 2: Enlaces */}
           <div>
             <h4 className="text-sm font-extrabold tracking-wider">ENLACES</h4>
             <ul className="mt-4 space-y-3 text-sm text-white/85">
@@ -118,8 +112,6 @@ const Footer = ({ theme, contactData, servicesData, tenantSlug, portalWebComplet
               )}
             </ul>
           </div>
-
-          {/* Col 3: Servicios */}
           <div>
             <h4 className="text-sm font-extrabold tracking-wider">SERVICIOS</h4>
             <ul className="mt-4 space-y-3 text-sm text-white/85">
@@ -130,8 +122,6 @@ const Footer = ({ theme, contactData, servicesData, tenantSlug, portalWebComplet
               ))}
             </ul>
           </div>
-
-          {/* Col 4: Contacto */}
           <div>
             <h4 className="text-sm font-extrabold tracking-wider">CONTACTO</h4>
 
@@ -159,8 +149,6 @@ const Footer = ({ theme, contactData, servicesData, tenantSlug, portalWebComplet
             </a>
           </div>
         </div>
-
-        {/* Bottom */}
         <div className="mt-10 border-t border-white/20 pt-6 text-center text-xs text-white/80">
           © {new Date().getFullYear()} {brandName}. Todos los derechos reservados.
         </div>
@@ -170,3 +158,4 @@ const Footer = ({ theme, contactData, servicesData, tenantSlug, portalWebComplet
 };
 
 export default Footer;
+

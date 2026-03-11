@@ -2,16 +2,6 @@ import React, { useMemo } from "react";
 import RevealOnView from "./RevealOnView";
 
 const TresColumnasInfo = ({ data }) => {
-  // Estructura esperada del CMS:
-  // data = {
-  //   title: "Título sección",
-  //   subtitle: "Texto...",
-  //   columns: [
-  //     { title:"UN", subtitle:"...", text:"...", image_asset:{file_url:"..."} },
-  //     { title:"B",  subtitle:"...", text:"...", image_asset:{file_url:"..."} },
-  //     { title:"C",  subtitle:"...", text:"...", image_asset:{file_url:"..."} }
-  //   ]
-  // }
 
   const title = data?.title || "";
   const subtitle = data?.subtitle || "";
@@ -20,7 +10,6 @@ const TresColumnasInfo = ({ data }) => {
     const arr = data?.columns;
     if (Array.isArray(arr) && arr.length) return arr.slice(0, 3);
 
-    // fallback (si aún no está en CMS)
     return [
       {
         title: "UN",
@@ -46,7 +35,6 @@ const TresColumnasInfo = ({ data }) => {
     ];
   }, [data]);
 
-  // Si no hay nada en absoluto, no renderiza
   const hasAny = Boolean(title || subtitle || (columns && columns.length));
   if (!hasAny) return null;
 
@@ -126,3 +114,4 @@ const TresColumnasInfo = ({ data }) => {
 };
 
 export default TresColumnasInfo;
+

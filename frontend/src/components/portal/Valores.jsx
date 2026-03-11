@@ -11,7 +11,6 @@ const Valores = ({ data }) => {
     const arr = data?.items;
     if (Array.isArray(arr) && arr.length) return arr;
 
-    // fallback (si aún no está configurado en CMS)
     return [
       {
         title: "Valor 1",
@@ -35,7 +34,6 @@ const Valores = ({ data }) => {
   return (
     <section className="portal-section">
       <div className="mx-auto max-w-6xl px-4 py-16">
-        {/* Título + intro */}
         <div className="portal-fade-up text-center">
           <h2
             className="text-4xl lg:text-5xl font-extrabold"
@@ -45,8 +43,6 @@ const Valores = ({ data }) => {
           </h2>
           <p className="portal-muted mt-4 text-sm">{subtitle}</p>
         </div>
-
-        {/* Grid */}
         <div className="portal-stagger mt-12 grid grid-cols-1 gap-8 md:grid-cols-2">
           {items.map((v, idx) => {
             const variant = idx % 4 === 0 ? "left" : idx % 4 === 1 ? "top" : idx % 4 === 2 ? "right" : "bottom";
@@ -70,8 +66,6 @@ const Valores = ({ data }) => {
             );
           })}
         </div>
-
-        {/* Línea opcional */}
         {data?.footnote && (
           <p className="portal-soft mt-6 text-center text-xs">
             {data.footnote}
@@ -83,3 +77,4 @@ const Valores = ({ data }) => {
 };
 
 export default Valores;
+

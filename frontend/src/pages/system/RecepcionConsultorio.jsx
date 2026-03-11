@@ -10,7 +10,6 @@ import {
 } from 'react-icons/fa';
 
 const RecepcionConsultorio = () => {
-    // --- ESTADOS ---
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
     const [citas, setCitas] = useState([]);
     const [workflow, setWorkflow] = useState([]); // Nuevo: Motor de flujos
@@ -18,17 +17,14 @@ const RecepcionConsultorio = () => {
     const [filterText, setFilterText] = useState('');
     const [statusFilter, setStatusFilter] = useState('TODOS');
 
-    // Referencia para el input de fecha nativo
     const dateInputRef = useRef(null);
 
-    // Estado del Modal
     const [modalOpen, setModalOpen] = useState(false);
     const [citaSeleccionada, setCitaSeleccionada] = useState(null);
     const [historialPaciente, setHistorialPaciente] = useState([]);
     const [notaRecepcion, setNotaRecepcion] = useState("");
     const [loadingHistorial, setLoadingHistorial] = useState(false);
 
-    // --- CARGA INICIAL Y CONFIGURACIÓN ---
     useEffect(() => {
         const fetchConfig = async () => {
             try {
@@ -61,7 +57,6 @@ const RecepcionConsultorio = () => {
         }
     };
 
-    // --- LÓGICA DE FILTRADO Y ESTADÍSTICAS ---
     const citasFiltradas = useMemo(() => {
         return citas.filter(c => {
             const matchText = (c.paciente_nombre || '').toLowerCase().includes(filterText.toLowerCase()) ||
@@ -83,7 +78,6 @@ const RecepcionConsultorio = () => {
         finalizadas: citas.filter(c => ['REALIZADA', 'FACTURACION'].includes(c.estado)).length
     }), [citas]);
 
-    // --- MANEJO DE FECHAS ---
     const cambiarFecha = (dias) => {
         const d = new Date(selectedDate + "T12:00:00");
         d.setDate(d.getDate() + dias);
@@ -101,7 +95,6 @@ const RecepcionConsultorio = () => {
         if (dateInputRef.current?.showPicker) dateInputRef.current.showPicker();
     };
 
-    // --- RENDERIZADO DINÁMICO ---
     const DynamicIcon = ({ name, className }) => {
         const IconComponent = FaIcons[name] || FaIcons.FaCircle;
         return <IconComponent className={className} />;
@@ -130,7 +123,6 @@ const RecepcionConsultorio = () => {
         return `${edad} años`;
     };
 
-    // --- ACCIONES ---
     const handleAtender = async (cita) => {
         setCitaSeleccionada(cita);
         setNotaRecepcion(cita.nota_interna || "");
@@ -147,7 +139,6 @@ const RecepcionConsultorio = () => {
     };
 
     const ejecutarAccionRapida = async (cita, accion) => {
-        // Si la acción requiere notas médicas o motivos, usamos el modal detallado
         if (accion.requiere_nota_medica || accion.requiere_motivo) {
             handleAtender(cita);
             return;
@@ -191,8 +182,6 @@ const RecepcionConsultorio = () => {
 
     return (
         <div className="flex flex-col h-full bg-gray-50/50">
-
-            {/* 1. HEADER & KPI CARDS */}
             <div className="bg-white px-6 py-4 border-b border-gray-200 shadow-sm shrink-0">
                 <div className="flex flex-col md:flex-row justify-between items-center mb-6">
                     <div>
@@ -217,8 +206,6 @@ const RecepcionConsultorio = () => {
                         </div>
                     </div>
                 </div>
-
-                {/* BARRA DE CONTROL */}
                 <div className="flex flex-col lg:flex-row gap-4 items-center justify-between bg-gray-50 p-2 rounded-xl border border-gray-200">
                     <div className="flex items-center gap-2 bg-white p-1 rounded-lg border border-gray-200 shadow-sm">
                         <button onClick={() => cambiarFecha(-1)} className="p-2 hover:bg-gray-100 rounded-md text-gray-500 transition active:scale-95"><FaChevronLeft /></button>
@@ -257,8 +244,6 @@ const RecepcionConsultorio = () => {
                     </div>
                 </div>
             </div>
-
-            {/* 3. TABLA DE PACIENTES */}
             <div className="flex-1 p-6 overflow-hidden">
                 <div className="bg-white rounded-xl shadow-lg border border-gray-200 h-full flex flex-col overflow-hidden">
                     <div className="overflow-auto flex-1 scrollbar-thin">
@@ -279,7 +264,6 @@ const RecepcionConsultorio = () => {
                                     <tr><td colSpan="5" className="p-20 text-center text-gray-400 italic bg-gray-50/30">No hay citas registradas.</td></tr>
                                 ) : (
                                     citasFiltradas.map(cita => {
-                                        // Obtener acciones dinámicas del Workflow
                                         const configEstado = workflow.find(w => w.slug === cita.estado);
                                         const accionesDisponibles = configEstado?.acciones || [];
 
@@ -306,7 +290,6 @@ const RecepcionConsultorio = () => {
                                                 <td className="p-4 text-center">{getEstadoBadge(cita.estado)}</td>
                                                 <td className="p-4">
                                                     <div className="flex items-center justify-center gap-2">
-                                                        {/* BOTÓN PRINCIPAL DE INGRESO/NOTA */}
                                                         <button
                                                             onClick={() => handleAtender(cita)}
                                                             className={`p-2 rounded-lg transition-all border shadow-sm ${cita.estado === 'PENDIENTE' || cita.estado === 'ACEPTADA' ? 'bg-indigo-600 text-white border-indigo-700' : 'bg-white text-indigo-600 border-indigo-200 hover:bg-indigo-50'}`}
@@ -314,8 +297,6 @@ const RecepcionConsultorio = () => {
                                                         >
                                                             <FaNotesMedical size={16} />
                                                         </button>
-
-                                                        {/* BOTONES DINÁMICOS DEL WORKFLOW */}
                                                         <div className="flex gap-1 bg-gray-100 p-1 rounded-lg border border-gray-200">
                                                             {accionesDisponibles.map((acc, i) => {
                                                                 const btnStyles = {
@@ -354,8 +335,6 @@ const RecepcionConsultorio = () => {
                     </div>
                 </div>
             </div>
-
-            {/* --- MODAL DE INGRESO --- */}
             {modalOpen && citaSeleccionada && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 backdrop-blur-sm p-4 animate-fadeIn">
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden">
@@ -369,7 +348,6 @@ const RecepcionConsultorio = () => {
 
                         <div className="p-6 overflow-y-auto flex-1 bg-gray-50/50">
                             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full">
-                                {/* COLUMNA IZQUIERDA: DATOS PACIENTE Y NOTA */}
                                 <div className="lg:col-span-5 space-y-4 flex flex-col">
                                     <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm relative">
                                         <div className="absolute top-0 right-0 p-2 opacity-5 pointer-events-none">
@@ -412,8 +390,6 @@ const RecepcionConsultorio = () => {
                                         ></textarea>
                                     </div>
                                 </div>
-
-                                {/* COLUMNA DERECHA: HISTORIAL */}
                                 <div className="lg:col-span-7 flex flex-col h-full bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
                                     <div className="bg-gray-50 p-3 border-b font-black text-[10px] text-gray-500 uppercase tracking-widest flex items-center gap-2">
                                         <FaHistory /> Historial Clínico Reciente
@@ -436,8 +412,6 @@ const RecepcionConsultorio = () => {
                                                             </span>
                                                         </div>
                                                         <div className="text-sm font-bold text-indigo-900">{hist.profesional_nombre}</div>
-
-                                                        {/* ✅ CAMBIO MÍNIMO (alternativa 2): usar el string nuevo del serializer */}
                                                         <div className="text-xs text-gray-500 italic bg-yellow-50 p-2 rounded border border-yellow-100 mt-2">
                                                             "{hist.nota_medica_contenido || "Sin notas registradas."}"
                                                         </div>

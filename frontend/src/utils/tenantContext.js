@@ -25,3 +25,4 @@ export function clearActiveTenantContext() {
   localStorage.removeItem(ACTIVE_TENANT_ID_KEY);
   localStorage.removeItem(ACTIVE_TENANT_SLUG_KEY);
 }
+

@@ -13,7 +13,6 @@ const AdminSidebarBranding = ({ brandingConfig, setBrandingConfig }) => {
     const handleFileUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
-        // Validar tamaño máximo (ej: 1MB antes de comprimir)
         if (file.size > 1024 * 1024) {
             return Swal.fire('Imagen muy pesada', 'Por favor sube un logo menor a 1MB', 'warning');
         }
@@ -23,7 +22,6 @@ const AdminSidebarBranding = ({ brandingConfig, setBrandingConfig }) => {
             const img = new Image();
             img.src = reader.result;
             img.onload = () => {
-                // Crear un canvas para redimensionar el logo
                 const canvas = document.createElement('canvas');
                 const MAX_WIDTH = 200; // El sidebar no necesita más de 200px
                 const scaleSize = MAX_WIDTH / img.width;
@@ -33,7 +31,6 @@ const AdminSidebarBranding = ({ brandingConfig, setBrandingConfig }) => {
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-                // Convertir a Base64 optimizado (WebP o JPEG)
                 const optimizedBase64 = canvas.toDataURL('image/webp', 0.8);
                 setBrandingConfig(prev => ({ ...prev, logo_url: optimizedBase64 }));
             };
@@ -41,7 +38,6 @@ const AdminSidebarBranding = ({ brandingConfig, setBrandingConfig }) => {
         reader.readAsDataURL(file);
     }
 };
-    // CALCULO DE CONTRASTE (Luminosidad)
     const getContrastColor = (hexcolor) => {
         if (!hexcolor || hexcolor.length < 6) return '#ffffff';
         const r = parseInt(hexcolor.substr(1, 2), 16);
@@ -68,7 +64,6 @@ const AdminSidebarBranding = ({ brandingConfig, setBrandingConfig }) => {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <div className="space-y-6">
                     <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm space-y-6">
-                        {/* LOGO Y NOMBRE DE EMPRESA */}
                         <div className="space-y-4">
                             <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
                                 <FaImage className="text-blue-500" /> Logo y Nombre de Empresa
@@ -103,8 +98,6 @@ const AdminSidebarBranding = ({ brandingConfig, setBrandingConfig }) => {
                                 </div>
                             </div>
                         </div>
-
-                        {/* COLORES */}
                         <div className="grid grid-cols-2 gap-4 pt-4 border-t">
                             <div className="space-y-2">
                                 <label className="text-[10px] font-black text-gray-400 uppercase">Fondo Sidebar</label>
@@ -121,8 +114,6 @@ const AdminSidebarBranding = ({ brandingConfig, setBrandingConfig }) => {
                                 </div>
                             </div>
                         </div>
-
-                        {/* VARIANTES - AQUÍ DEFINIMOS LA DIFERENCIA REAL */}
                         <div className="space-y-4 pt-4 border-t">
                             <div className="grid grid-cols-1 gap-2">
                                 {[
@@ -147,10 +138,7 @@ const AdminSidebarBranding = ({ brandingConfig, setBrandingConfig }) => {
                         </div>
                     </div>
                 </div>
-
-                {/* PREVIEW DINÁMICO */}
                 <div className="bg-slate-200 rounded-[3rem] p-12 border-8 border-white shadow-inner flex items-center justify-center">
-                    {/* Preview dinámico según variante */}
                     {brandingConfig.variant === 'topbar' ? (
                         <div style={{
                             backgroundColor: brandingConfig.bg_color,

@@ -310,8 +310,6 @@ const GrillaSemanal = ({
                     let textColorClass = "";
                     let borderColorClass = "";
 
-                    // CORRECCION: ASIGNACION DINAMICA DE COLORES
-                    // Extraemos las clases base del color del profesional (ej: "bg-blue-100 text-blue-800 border-blue-300")
                     if (slot.profColor) {
                         const parts = slot.profColor.clase.split(' ');
                         bgColorClass = parts[0] || 'bg-gray-50';
@@ -320,22 +318,18 @@ const GrillaSemanal = ({
                     }
 
                     if (slot.isBloqueado) {
-                        // Bloqueo: Mantenemos el rojo universal de advertencia
                         containerStyle = "bg-red-50 border-l-[3px] border-red-500 text-red-700 cursor-not-allowed";
                         iconoEstado = <FaLock size={8}/>;
                         tooltipText = `Bloqueado: ${slot.motivoBloqueo}`;
                     } else if (slot.isPasado) {
-                        // Pasado: Gris desvanecido
                         containerStyle = "bg-gray-100 border-l-[3px] border-gray-400 text-gray-400 opacity-60 grayscale cursor-not-allowed";
                         iconoEstado = <FaHistory size={8}/>;
                         tooltipText = "Horario finalizado";
                     } else if (slot.isAgendado) {
-                        // Agendado (Ocupado): Color FUERTE del profesional
                         containerStyle = `${bgColorClass} border-l-[3px] ${borderColorClass} ${textColorClass} shadow-sm`;
                         iconoEstado = <FaUser size={8}/>;
                         tooltipText = `Cita ocupada - ${slot.cita?.paciente_nombre || 'Paciente'} (Dr. ${slot.profNombre})`;
                     } else {
-                        // Libre: Fondo blanco, pero borde y texto con el color del profesional para distinguirlo suavemente
                         const textOnlyClass = textColorClass.replace('text-', 'text-opacity-70 text-'); // Un poco mas claro
                         containerStyle = `bg-white/90 backdrop-blur border-l-[3px] ${borderColorClass} ${textOnlyClass} hover:${bgColorClass} hover:shadow-md`;
                         iconoEstado = <FaPlus size={8} className="opacity-50"/>;
@@ -364,7 +358,6 @@ const GrillaSemanal = ({
                             <div className="flex items-center justify-between w-full leading-tight">
                                 <span className="font-mono font-bold">{slot.inicio}</span>
                                 <div className="flex items-center gap-1">
-                                    {/* Mostrar primera palabra del nombre del Dr. si hay mas de 1 medico seleccionado */}
                                     {selectedProfs.length > 1 && (
                                         <span className="text-[8px] opacity-70 uppercase tracking-tighter truncate max-w-[40px]">
                                             {slot.profNombre.split(' ')[0]}
@@ -415,8 +408,6 @@ const GrillaSemanal = ({
 
     return (
         <div className="h-full overflow-auto bg-[radial-gradient(circle_at_20%_20%,#e0f2fe,transparent_40%),radial-gradient(circle_at_90%_10%,#dbeafe,transparent_30%),#f8fafc] relative scrollbar-thin w-full" onMouseLeave={() => { isDragging.current = false; setDragSelection(null); }}>
-            
-            {/* MENU CONTEXTUAL */}
             {contextMenu.visible && contextMenu.data && (
                 <div 
                     className="fixed z-[9999] bg-white rounded-lg shadow-xl border border-gray-200 w-56 py-1 animate-fadeIn"
@@ -511,4 +502,5 @@ const GrillaSemanal = ({
 };
 
 export default GrillaSemanal;
+
 

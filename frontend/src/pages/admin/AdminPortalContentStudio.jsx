@@ -92,9 +92,6 @@ const clampInt = (v, d) => {
   return Number.isFinite(n) ? n : d;
 };
 
-// ----------------------
-// Tiny Preview Helpers
-// ----------------------
 const PreviewHero = ({ data, bannersById }) => {
   const slides = Array.isArray(data?.slides) ? data.slides : [];
   const first = slides[0] || null;
@@ -167,9 +164,6 @@ const PreviewServices = ({ data, assetsById }) => {
   );
 };
 
-// ----------------------
-// Visual Editors
-// ----------------------
 
 const Field = ({ label, children, hint }) => (
   <div>
@@ -654,9 +648,6 @@ const ServicesEditor = ({ value, onChange, mediaImages }) => {
   );
 };
 
-// ----------------------
-// Main Component
-// ----------------------
 
 const AdminPortalContentStudio = () => {
   const [tab, setTab] = useState("sections"); // sections | theme | media
@@ -687,13 +678,11 @@ const AdminPortalContentStudio = () => {
     [sections, selectedSectionId]
   );
 
-  // Section base fields
   const [secTitle, setSecTitle] = useState("");
   const [secType, setSecType] = useState("hero");
   const [secOrder, setSecOrder] = useState(10);
   const [secActive, setSecActive] = useState(true);
 
-  // Data as object + JSON mirror
   const [secDataObj, setSecDataObj] = useState({});
   const [secDataText, setSecDataText] = useState("{}");
   const [secDataError, setSecDataError] = useState("");
@@ -717,7 +706,6 @@ const AdminPortalContentStudio = () => {
       setLoading(true);
       setError("");
 
-      // ensure home page exists
       const pages = await apiRequest(ENDPOINTS.pages);
       let home = Array.isArray(pages) ? pages.find((p) => p.slug === "home") : null;
       if (!home) {
@@ -774,7 +762,6 @@ const AdminPortalContentStudio = () => {
           setActiveTenantSlug(preferred.tenant_slug);
         }
       } catch (_err) {
-        // no-op
       }
     };
     ensureTenantContext();
@@ -796,7 +783,6 @@ const AdminPortalContentStudio = () => {
     setSubTab("visual");
   }, [selectedSectionId]);
 
-  // Keep JSON mirror in sync when visual changes
   useEffect(() => {
     setSecDataText(jsonPretty(secDataObj));
     // eslint-disable-next-line
@@ -805,7 +791,6 @@ const AdminPortalContentStudio = () => {
   const saveSection = async () => {
     if (!selectedSection) return;
 
-    // If user is in JSON tab, parse JSON and override obj
     if (subTab === "json") {
       const parsed = safeJsonParse(secDataText);
       if (!parsed.ok) {
@@ -850,7 +835,6 @@ const AdminPortalContentStudio = () => {
       return;
     }
 
-    // parse JSON if user is in json tab
     let dataToSave = secDataObj;
     if (subTab === "json") {
       const parsed = safeJsonParse(secDataText);
@@ -1046,7 +1030,6 @@ const AdminPortalContentStudio = () => {
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="mx-auto max-w-7xl px-3 py-6 sm:px-4 sm:py-8">
-        {/* Header */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-4">
             <div className="rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 p-3 text-white shadow-lg">
@@ -1093,7 +1076,6 @@ const AdminPortalContentStudio = () => {
         </div>
 
         <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-[1fr_520px]">
-          {/* LEFT: Sections list + preview */}
           <div className="order-2 space-y-6 lg:order-1">
             <div className="rounded-[2rem] bg-white p-4 shadow-sm ring-1 ring-slate-200 sm:p-6">
               <div className="flex items-center justify-between">
@@ -1155,8 +1137,6 @@ const AdminPortalContentStudio = () => {
 
             {tab === "sections" && renderPreview()}
           </div>
-
-          {/* RIGHT: Editor */}
           <div className="order-1 rounded-[2rem] bg-white p-4 shadow-sm ring-1 ring-slate-200 sm:p-6 lg:order-2">
             {tab === "sections" && (
               <>
@@ -1166,7 +1146,6 @@ const AdminPortalContentStudio = () => {
                   <p className="mt-5 text-sm text-slate-600">Selecciona una sección de la lista para editarla.</p>
                 ) : (
                   <div className="mt-5 space-y-4">
-                    {/* Base fields */}
                     <Field label="Título">
                       <input
                         value={secTitle}
@@ -1210,8 +1189,6 @@ const AdminPortalContentStudio = () => {
                       <input type="checkbox" checked={secActive} onChange={(e) => setSecActive(e.target.checked)} />
                       <span className="font-semibold text-slate-700">Activa</span>
                     </label>
-
-                    {/* Subtabs */}
                     <div className="mt-2 inline-flex w-full rounded-xl bg-slate-100 p-1">
                       <button
                         onClick={() => setSubTab("visual")}
@@ -1244,8 +1221,6 @@ const AdminPortalContentStudio = () => {
                         {secDataError && <p className="mt-2 text-xs text-red-600">{secDataError}</p>}
                       </div>
                     )}
-
-                    {/* Actions */}
                     <div className="flex flex-wrap gap-3 pt-2">
                       <button
                         onClick={saveSection}
@@ -1490,4 +1465,5 @@ const AdminPortalContentStudio = () => {
 };
 
 export default AdminPortalContentStudio;
+
 

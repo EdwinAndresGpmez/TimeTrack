@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { authService } from '../../services/authService';
 import Swal from 'sweetalert2';
 import * as FaIcons from 'react-icons/fa';
@@ -9,7 +9,6 @@ import {
 } from 'react-icons/fa';
 import AnimatedActionButton from '../../components/system/AnimatedActionButton';
 
-// Lista de iconos para el selector
 const ICON_OPTIONS = [
     'FaHome', 'FaUser', 'FaUserMd', 'FaUserInjured', 'FaCalendarAlt', 'FaCalendarCheck',
     'FaClipboardList', 'FaNotesMedical', 'FaHospital', 'FaStethoscope', 'FaCogs',
@@ -110,7 +109,7 @@ const AdminMenu = ({ isSaaSSuperAdmin = false }) => {
                 setPermisos(allPermisos.filter((p) => !ADVANCED_PERMISSION_CODENAMES.includes(p.codename)));
             }
         } catch (error) {
-            console.error("Error cargando configuraciÃ³n:", error);
+            console.error("Error cargando configuración:", error);
         } finally {
             setLoading(false);
         }
@@ -142,11 +141,11 @@ const AdminMenu = ({ isSaaSSuperAdmin = false }) => {
 
         const isMenu = type === 'menu';
         const { value: formValues } = await Swal.fire({
-            title: isMenu ? 'Nuevo Ãtem de MenÃº' : 'Nuevo Permiso (App.jsx)',
+            title: isMenu ? 'Nuevo Ítem de Menú' : 'Nuevo Permiso (App.jsx)',
             html: isMenu ? 
                 `<input id="swal-label" class="swal2-input" placeholder="Etiqueta (Ej: Mi Agenda)">` +
                 `<input id="swal-url" class="swal2-input" placeholder="URL (Ej: /dashboard/mi-agenda)">` +
-                `<input id="swal-cat" class="swal2-input" placeholder="CategorÃ­a (Ej: GESTIÃ“N)">` :
+                `<input id="swal-cat" class="swal2-input" placeholder="Categoría (Ej: GESTIÓN)">` :
                 `<input id="swal-code" class="swal2-input" placeholder="Codename (Ej: acceso_agenda)">`,
             showCancelButton: true,
             confirmButtonText: 'Crear',
@@ -169,7 +168,7 @@ const AdminMenu = ({ isSaaSSuperAdmin = false }) => {
                 if (isMenu) await authService.createMenuItem(formValues);
                 else await authService.createPermisoVista(formValues);
                 await loadConfigData();
-                Swal.fire('Â¡Ã‰xito!', 'Creado correctamente', 'success');
+                Swal.fire('¡Éxito!', 'Creado correctamente', 'success');
             } catch (err) {
                 Swal.fire('Error', 'No se pudo crear el registro.', 'error');
             }
@@ -214,12 +213,12 @@ const AdminMenu = ({ isSaaSSuperAdmin = false }) => {
         e.preventDefault();
         e.stopPropagation();
         const result = await Swal.fire({
-            title: 'Â¿Eliminar?',
-            text: 'Esta acciÃ³n borrarÃ¡ el registro de la base de datos.',
+            title: '¿Eliminar?',
+            text: 'Esta acción borrará el registro de la base de datos.',
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#d33',
-            confirmButtonText: 'SÃ­, eliminar'
+            confirmButtonText: 'Sí, eliminar'
         });
 
         if (result.isConfirmed) {
@@ -227,7 +226,7 @@ const AdminMenu = ({ isSaaSSuperAdmin = false }) => {
                 if (type === 'menu') await authService.deleteMenuItem(id);
                 else await authService.deletePermisoVista(id);
                 await loadConfigData();
-                Swal.fire('Eliminado', 'El Ã­tem ha sido borrado.', 'success');
+                Swal.fire('Eliminado', 'El ítem ha sido borrado.', 'success');
             } catch (err) {
                 Swal.fire('Error', 'No se pudo eliminar el registro.', 'error');
             }
@@ -245,11 +244,10 @@ const AdminMenu = ({ isSaaSSuperAdmin = false }) => {
         }
     };
 
-    if (loading) return <div className="p-10 text-center animate-pulse uppercase font-black text-gray-400">Cargando mÃ³dulos de navegaciÃ³n...</div>;
+    if (loading) return <div className="p-10 text-center animate-pulse uppercase font-black text-gray-400">Cargando módulos de navegación...</div>;
 
     return (
         <div className="space-y-12 animate-fadeIn">
-            {/* SECCIÃ“N MENÃš LATERAL */}
                         <section className="bg-white rounded-[2rem] border border-gray-100 shadow-xl p-8">
                 <div className="flex justify-between items-center mb-8">
                     <div className="flex items-center gap-4">
@@ -270,7 +268,7 @@ const AdminMenu = ({ isSaaSSuperAdmin = false }) => {
                                 type="button"
                                 onClick={(e) => handleCreateItem(e, 'menu')}
                                 icon={<FaPlusCircle />}
-                                label="Nuevo Ítem"
+                                label="Nuevo �tem"
                                 sublabel="Crear"
                                 className="!py-2.5 !px-5"
                             />
@@ -285,7 +283,7 @@ const AdminMenu = ({ isSaaSSuperAdmin = false }) => {
                                 <th className="px-4 text-center">Icono</th>
                                 <th className="px-4">Etiqueta</th>
                                 <th className="px-4">Ruta (Path)</th>
-                                <th className="px-4">Categoría / Agrupador</th>
+                                <th className="px-4">Categor�a / Agrupador</th>
                                 <th className="px-4">Acceso Roles</th>
                                 <th className="px-4 text-center">Acciones</th>
                             </tr>
@@ -310,7 +308,7 @@ const AdminMenu = ({ isSaaSSuperAdmin = false }) => {
                                             value={menu.label} 
                                             onChange={(e) => setMenus(menus.map(m => m.id === menu.id ? {...m, label: e.target.value} : m))}
                                             className="bg-transparent border-none font-bold text-gray-700 focus:ring-0 w-full"
-                                            placeholder="Nombre del Ã­tem"
+                                            placeholder="Nombre del ítem"
                                         />
                                     </td>
                                     <td className="px-4 py-4">
@@ -322,13 +320,12 @@ const AdminMenu = ({ isSaaSSuperAdmin = false }) => {
                                             className={`bg-white border border-gray-100 rounded-xl px-3 py-1.5 text-xs font-mono text-indigo-500 w-full outline-none ${isSaaSSuperAdmin ? 'focus:ring-2 focus:ring-indigo-400' : 'cursor-not-allowed opacity-80'}`}
                                         />
                                     </td>
-                                    {/* CAMPO DE CATEGORÃA AGREGADO */}
                                     <td className="px-4 py-4">
                                         <div className="flex items-center gap-2">
                                             <FaLayerGroup className="text-emerald-400 text-xs shrink-0" />
                                             <input 
                                                 type="text" 
-                                                placeholder="SIN CATEGORÃA"
+                                                placeholder="SIN CATEGORÍA"
                                                 value={menu.category_name || ''} 
                                                 onChange={(e) => setMenus(menus.map(m => m.id === menu.id ? {...m, category_name: e.target.value.toUpperCase()} : m))} 
                                                 className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-xl border-none w-full placeholder:text-emerald-200 focus:ring-2 focus:ring-emerald-400 outline-none uppercase" 
@@ -362,8 +359,6 @@ const AdminMenu = ({ isSaaSSuperAdmin = false }) => {
                     </table>
                 </div>
             </section>
-
-            {/* SECCIÃ“N PERMISOS */}
             {isSaaSSuperAdmin && (
             <section className="bg-white rounded-[2rem] border border-gray-100 shadow-xl p-8">
                 <div className="flex justify-between items-center mb-8">
@@ -424,4 +419,5 @@ const AdminMenu = ({ isSaaSSuperAdmin = false }) => {
 };
 
 export default AdminMenu;
+
 

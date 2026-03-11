@@ -1,18 +1,5 @@
 import React from 'react';
 
-/**
- * AnimatedActionButton
- * Un botón reutilizable con animación y doble línea de texto.
- * Props:
- * - onClick: función a ejecutar al hacer click
- * - icon: componente de icono (ej: <FaPlusCircle />)
- * - label: texto principal (ej: "Nueva Sede")
- * - sublabel: texto pequeño arriba (ej: "Crear")
- * - className: clases extra opcionales
- * - type: tipo de botón ("button" por defecto)
- * - disabled: boolean opcional
- */
-
 const AnimatedActionButton = ({
   as: Component = 'button',
   onClick,
@@ -44,3 +31,4 @@ const AnimatedActionButton = ({
 };
 
 export default AnimatedActionButton;
+

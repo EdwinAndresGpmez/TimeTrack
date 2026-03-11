@@ -11,7 +11,6 @@ const Equipo = ({ data }) => {
     const arr = data?.members;
     if (Array.isArray(arr) && arr.length) return arr;
 
-    // fallback si aún no está configurado en CMS
     return [
       { name: "Nombre Apellido", role: "Especialidad", image_asset_id: null, image_asset: null },
       { name: "Nombre Apellido", role: "Especialidad", image_asset_id: null, image_asset: null },
@@ -83,3 +82,4 @@ const Equipo = ({ data }) => {
 };
 
 export default Equipo;
+

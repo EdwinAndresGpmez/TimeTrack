@@ -1,4 +1,4 @@
-ï»¿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import {
     FaCalendarAlt,
     FaSearch,
@@ -206,9 +206,9 @@ const ListaProfesionales = ({
                             <div className="font-bold flex items-center gap-1 mb-1 text-yellow-900 text-xs">
                                 <FaLightbulb className="text-yellow-600" /> Tips:
                             </div>
-                            <p>â€¢ <b>Clic derecho</b> para editar.</p>
-                            <p>â€¢ <b>Arrastra</b> para crear.</p>
-                            <p>â€¢ Usa <b>Copiar/Pegar</b> en dias.</p>
+                            <p>• <b>Clic derecho</b> para editar.</p>
+                            <p>• <b>Arrastra</b> para crear.</p>
+                            <p>• Usa <b>Copiar/Pegar</b> en dias.</p>
                         </div>
 
                         <button
@@ -265,3 +265,4 @@ const ListaProfesionales = ({
 };
 
 export default ListaProfesionales;
+

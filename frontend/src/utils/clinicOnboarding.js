@@ -16,3 +16,4 @@ export const getClinicOnboardingKeys = (user) => {
         assistantOpen: `clinic_onboarding_assistant_open_${scope}_${uid}`,
     };
 };
+

@@ -132,3 +132,4 @@ export default function OverridesCatalogTab({ overrides, tenants, features, onSa
     </section>
   );
 }
+

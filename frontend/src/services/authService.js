@@ -25,7 +25,6 @@ const getWithRetry = async (url, config = {}, retries = 2, delayMs = 300) => {
 };
 
 export const authService = {
-  // 1. Registro
   register: async (userData) => {
     const payload = {
       nombre: userData.nombre,
@@ -45,7 +44,6 @@ export const authService = {
       return response.data;
     } catch (error) {
       console.error('Error en registro:', error.response?.data || error.message);
-      // Si no hay response, suele ser CORS/red
       if (!error.response) {
         throw { detail: 'Error de conexión con el servidor (CORS/red).' };
       }
@@ -53,7 +51,6 @@ export const authService = {
     }
   },
 
-  // 2. Login
   login: async (credentials) => {
     try {
       const response = await api.post('/auth/login/', {
@@ -62,11 +59,9 @@ export const authService = {
       });
 
       if (response.data?.access) {
-        // ✅ recomendado
         localStorage.setItem('access', response.data.access);
         localStorage.setItem('refresh', response.data.refresh);
 
-        // ✅ compatibilidad (si otros módulos aún usan token)
         localStorage.setItem('token', response.data.access);
       }
 
@@ -83,12 +78,10 @@ export const authService = {
       if (!error.response) {
         throw { detail: 'Error de conexión con el servidor (CORS/red).' };
       }
-      // si el backend manda detail, lo respetamos
       throw error.response.data || { detail: 'Credenciales incorrectas' };
     }
   },
 
-  // 3. Logout
   logout: () => {
     localStorage.removeItem('token');
     localStorage.removeItem('access');
@@ -98,19 +91,16 @@ export const authService = {
     clearActiveTenantContext();
   },
 
-  // 4. Actualizar MI Propio Perfil
   updateUser: async (_id, data) => {
     const response = await api.patch('/auth/me/', data);
     return response.data;
   },
 
-  // 5. Obtener Menú Dinámico (Para el Sidebar)
   getMenu: async () => {
     const response = await getWithRetry('/auth/menu/');
     return response.data;
   },
 
-  // 6. Obtener Roles y Permisos (Mios)
   getMisPermisos: async () => {
     const response = await api.get('/auth/me/permisos/');
     return response.data;
@@ -142,7 +132,6 @@ export const authService = {
     return response.data;
   },
 
-  // --- GESTIÓN DE USUARIOS (ADMIN) ---
   getAllUsers: async (search = '') => {
     const response = await api.get(`/users/admin/users/?search=${search}`);
     return response.data;
@@ -167,7 +156,6 @@ export const authService = {
     return response.data;
   },
 
-  // --- GESTIÓN DE MENÚS Y PERMISOS (ADMIN MENU) ---
   getMenuItemsAdmin: async () => {
     const response = await api.get('/users/admin/menu-items/');
     return response.data;
@@ -265,3 +253,4 @@ export const authService = {
     return response.data;
   },
 };
+

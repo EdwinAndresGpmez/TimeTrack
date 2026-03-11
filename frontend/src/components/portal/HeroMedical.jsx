@@ -22,7 +22,6 @@ const HeroMedical = ({ data }) => {
     return Number.isFinite(v) && v > 500 ? v : 6000;
   }, [data]);
 
-  // viewport
   useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth < 1024);
     onResize();
@@ -30,7 +29,6 @@ const HeroMedical = ({ data }) => {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  // autoplay
   useEffect(() => {
     if (!slides.length) return;
     const t = setInterval(() => {
@@ -39,7 +37,6 @@ const HeroMedical = ({ data }) => {
     return () => clearInterval(t);
   }, [slides.length, autoplayMs]);
 
-  // clamp index when slides change
   useEffect(() => {
     if (!slides.length) {
       setIndex(0);
@@ -52,7 +49,6 @@ const HeroMedical = ({ data }) => {
   const activeSlide = slides[index] || null;
   const activeBanner = activeSlide?.banner || null;
 
-  // Textos (primero desde data, si no, fallback a banner, si no, default)
   const subtitle =
     data?.subtitle || "Centro médico de salud";
 
@@ -84,7 +80,6 @@ const HeroMedical = ({ data }) => {
     >
       <div className="mx-auto max-w-6xl px-4 py-10 lg:py-14">
         <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-2">
-          {/* Imagen */}
           <div className="portal-glow flex justify-center lg:justify-start">
             <div className="portal-float relative z-[1] w-full max-w-md">
               {img ? (
@@ -99,8 +94,6 @@ const HeroMedical = ({ data }) => {
                   Sin imagen de banner
                 </div>
               )}
-
-              {/* Bullets */}
               {slides.length > 1 && (
                 <div className="mt-4 flex items-center justify-center lg:justify-start gap-2">
                   {slides.map((_, i) => (
@@ -126,8 +119,6 @@ const HeroMedical = ({ data }) => {
               )}
             </div>
           </div>
-
-          {/* Texto */}
           <div className="portal-fade-up text-center lg:text-left">
             <p
               className="text-xs tracking-[0.35em] uppercase"
@@ -160,8 +151,6 @@ const HeroMedical = ({ data }) => {
                 {buttonText}
               </a>
             </div>
-
-            {/* Debug suave (opcional): si no hay slides */}
             {slides.length === 0 && (
               <p className="portal-soft mt-4 text-xs">
                 No hay slides configurados en CMS (hero.data.slides).
@@ -175,3 +164,4 @@ const HeroMedical = ({ data }) => {
 };
 
 export default HeroMedical;
+

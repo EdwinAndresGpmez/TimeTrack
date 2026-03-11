@@ -41,11 +41,9 @@ const MapaFamiliar = ({ targetUser, onClose }) => {
 
             setAvailableUsers(Array.isArray(usersData) ? usersData : (usersData?.results || []));
 
-            // red viene como array de dependientes_detalle
             const deps = Array.isArray(red) ? red : (red?.results || []);
             setDependientes(deps);
 
-            // --- Crear nodos iniciales ---
             const center = { x: 520, y: 280 };
             const parentNode = {
                 id: String(targetUser.id),
@@ -89,7 +87,6 @@ const MapaFamiliar = ({ targetUser, onClose }) => {
     const addNode = (u) => {
         if (!u?.id) return;
 
-        // evitar duplicados
         const exists = nodes.some(n => n.id === String(u.id));
         if (exists) {
             setSearchQuery('');
@@ -130,11 +127,9 @@ const MapaFamiliar = ({ targetUser, onClose }) => {
         const canvasRect = canvasRef.current?.getBoundingClientRect();
         if (!canvasRect) return;
 
-        // Mouse dentro del lienzo
         const mouseX = e.clientX - canvasRect.left;
         const mouseY = e.clientY - canvasRect.top;
 
-        // Nodo actual (para evitar saltos)
         const node = nodes.find(n => n.id === nodeId);
         const nodeX = node?.x ?? 0;
         const nodeY = node?.y ?? 0;
@@ -202,7 +197,6 @@ const MapaFamiliar = ({ targetUser, onClose }) => {
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseUp}
         >
-            {/* HERRAMIENTAS SUPERIORES */}
             <div className="absolute top-6 left-6 right-6 z-[100] flex justify-between items-start pointer-events-none">
                 <div className="w-96 pointer-events-auto relative">
                     <div className="bg-white rounded-2xl shadow-2xl border border-purple-100 flex items-center p-3 focus-within:ring-4 focus-within:ring-purple-500/20 transition-all">
@@ -242,8 +236,6 @@ const MapaFamiliar = ({ targetUser, onClose }) => {
                         </div>
                     )}
                 </div>
-
-                {/* ✅ FIX: pointer-events-auto para que reciba clicks dentro del contenedor pointer-events-none */}
                 <AnimatedActionButton
                     onClick={handleSave}
                     disabled={saving || loading}
@@ -257,8 +249,6 @@ const MapaFamiliar = ({ targetUser, onClose }) => {
                     className="!bg-purple-600 hover:!bg-purple-700 pointer-events-auto"
                 />
             </div>
-
-            {/* LIENZO */}
             <div className="flex-1 relative" ref={canvasRef}>
                 <div className="absolute inset-0 bg-gradient-to-br from-purple-50 to-white" />
 
@@ -287,8 +277,6 @@ const MapaFamiliar = ({ targetUser, onClose }) => {
                         );
                     })}
                 </svg>
-
-                {/* NODOS */}
                 {nodes.map(n => (
                     <div
                         key={n.id}
@@ -326,8 +314,6 @@ const MapaFamiliar = ({ targetUser, onClose }) => {
                     </div>
                 ))}
             </div>
-
-            {/* FOOTER */}
             <div className="p-4 bg-white border-t border-slate-100 flex items-center justify-between">
                 <div className="text-xs text-slate-500 font-semibold">
                     {loading ? 'Cargando red…' : `Conexiones actuales: ${dependientes.length}`}

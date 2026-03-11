@@ -45,7 +45,6 @@ const TrabajeConNosotros = () => {
 
     const isValidFile = useMemo(() => {
         if (!formData.archivo_hv) return true;
-        // Preferimos PDF, pero permitimos doc/docx si lo usan
         const okTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
         return okTypes.includes(formData.archivo_hv.type) || formData.archivo_hv.name?.toLowerCase().endswith('.pdf');
     }, [formData.archivo_hv]);
@@ -81,7 +80,6 @@ const TrabajeConNosotros = () => {
         });
 
         try {
-            // ✅ Mantiene tu contrato: createHV(FormData)
             await portalService.createHV(dataToSend);
 
             setStatus('success');
@@ -104,7 +102,6 @@ const TrabajeConNosotros = () => {
             <Navbar tenantSlug={tenantSlug} portalWebCompletoEnabled={!blockedByPlan} />
 
             <div className="relative pt-24 md:pt-28 pb-16 overflow-hidden">
-                {/* Ambient background claro */}
                 <div className="pointer-events-none absolute inset-0 -z-10">
                     <div className="absolute -top-56 -left-56 h-[720px] w-[720px] rounded-full bg-gradient-to-br from-sky-200/65 via-indigo-200/30 to-emerald-100/45 blur-3xl" />
                     <div className="absolute -bottom-72 -right-72 h-[820px] w-[820px] rounded-full bg-gradient-to-tr from-indigo-200/55 via-cyan-100/45 to-white/70 blur-3xl" />
@@ -128,8 +125,6 @@ const TrabajeConNosotros = () => {
                             </div>
                         </div>
                     )}
-
-                    {/* Header */}
                     <div className="text-center mb-8">
                         <div className="inline-flex items-center gap-2 rounded-full border border-slate-900/10 bg-white/70 backdrop-blur px-4 py-2 shadow-sm">
                             <span className="h-2 w-2 rounded-full bg-emerald-400" />
@@ -146,8 +141,6 @@ const TrabajeConNosotros = () => {
                             Queremos conocerte. Completa tus datos, el perfil al que aplicas y adjunta tu hoja de vida (PDF recomendado).
                         </p>
                     </div>
-
-                    {/* Status banners */}
                     {status === 'success' && (
                         <div className="mb-6 rounded-2xl border border-emerald-500/20 bg-emerald-50/80 backdrop-blur px-4 py-4 text-emerald-800 flex items-start gap-3">
                             <div className="mt-0.5">
@@ -175,13 +168,10 @@ const TrabajeConNosotros = () => {
                             </div>
                         </div>
                     )}
-
-                    {/* Form card */}
                     {!blockedByPlan && <form
                         onSubmit={handleSubmit}
                         className="relative overflow-hidden rounded-3xl border border-slate-900/10 bg-white/65 backdrop-blur-xl shadow-[0_30px_80px_rgba(15,23,42,0.08)]"
                     >
-                        {/* internal halos */}
                         <div className="pointer-events-none absolute inset-0">
                             <div className="absolute -top-24 -left-24 h-64 w-64 rounded-full bg-cyan-200/40 blur-3xl" />
                             <div className="absolute -bottom-28 -right-28 h-72 w-72 rounded-full bg-emerald-200/35 blur-3xl" />
@@ -324,3 +314,4 @@ const TrabajeConNosotros = () => {
 };
 
 export default TrabajeConNosotros;
+

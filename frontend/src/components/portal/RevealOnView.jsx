@@ -65,3 +65,4 @@ const RevealOnView = ({ children, variant = "bottom", delay = 0, className = "" 
 };
 
 export default RevealOnView;
+

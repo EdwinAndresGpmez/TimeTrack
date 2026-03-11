@@ -15,16 +15,11 @@ const ProtectedRoute = ({ children, requiredPermission, requiredRole, requiredFe
         </div>
     );
 
-    // 1. Validar Login
     if (!user) return <Navigate to="/login" replace />;
 
-    // 2. Superusuario siempre tiene acceso
     if (user.is_superuser) return children ? children : <Outlet />;
 
-    // 3. Validación por ROL (Nuevo: Más fácil para reglas generales)
-    // Ejemplo: requiredRole="Paciente"
     if (requiredRole) {
-        // Normalizamos a minúsculas para evitar errores de tipeo (backend suele enviar nombres exactos)
         const rolesUsuario = (permissions?.roles || []).map(r => r.toLowerCase());
         const tieneRol = rolesUsuario.includes(requiredRole.toLowerCase());
 
@@ -40,8 +35,6 @@ const ProtectedRoute = ({ children, requiredPermission, requiredRole, requiredFe
         }
     }
 
-    // 4. Validación por PERMISO (Granular: Para reglas específicas)
-    // Ejemplo: requiredPermission="modulo_agendamiento"
     if (requiredPermission) {
         const listaPermisos = permissions?.codenames || [];
         const tieneAcceso = listaPermisos.includes(requiredPermission);
@@ -58,7 +51,6 @@ const ProtectedRoute = ({ children, requiredPermission, requiredRole, requiredFe
         }
     }
 
-    // 5. Validación por FEATURE del plan (tenant policy)
     if (requiredFeature) {
         const enabled = hasFeature(requiredFeature);
         if (!enabled) {
@@ -73,8 +65,8 @@ const ProtectedRoute = ({ children, requiredPermission, requiredRole, requiredFe
         }
     }
 
-    // Si pasó todas las validaciones (o no se requirió ninguna específica), adelante.
     return children ? children : <Outlet />;
 };
 
 export default ProtectedRoute;
+

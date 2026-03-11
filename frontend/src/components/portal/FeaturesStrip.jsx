@@ -19,7 +19,6 @@ const resolveIcon = (key) => {
   const k = String(key || "").toLowerCase();
   if (k.includes("program")) return <IconPrograms />;
   if (k.includes("medical") || k.includes("medic")) return <IconMedical />;
-  // fallback
   return <IconMedical />;
 };
 
@@ -27,7 +26,6 @@ const FeaturesStrip = ({ data }) => {
   const items = useMemo(() => {
     const arr = data?.items;
     if (Array.isArray(arr) && arr.length) return arr.slice(0, 2);
-    // fallback default si no viene del CMS
     return [
       {
         title: "ATENCIÓN MÉDICA",
@@ -75,3 +73,4 @@ const FeaturesStrip = ({ data }) => {
 };
 
 export default FeaturesStrip;
+

@@ -15,17 +15,14 @@ const formatDate = (iso) => {
 const safeString = (v) => (v === null || v === undefined || v === '' ? '—' : String(v));
 
 const Auditoria = () => {
-  // Datos
   const [rowsRaw, setRowsRaw] = useState([]); // lo que llega del backend (array o results)
   const [count, setCount] = useState(null); // si viene paginado (DRF) => number
   const [loading, setLoading] = useState(false);
 
-  // Paginación
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [goToPage, setGoToPage] = useState('1');
 
-  // filtros
   const [search, setSearch] = useState('');
   const [usuarioId, setUsuarioId] = useState('');
   const [modulo, setModulo] = useState('');
@@ -36,17 +33,14 @@ const Auditoria = () => {
   const [fechaHasta, setFechaHasta] = useState('');
   const [ordering, setOrdering] = useState('-fecha');
 
-  // debounce simple para search
   const [searchDebounced, setSearchDebounced] = useState(search);
   useEffect(() => {
     const t = setTimeout(() => setSearchDebounced(search), 350);
     return () => clearTimeout(t);
   }, [search]);
 
-  // Si el backend devuelve count => paginación en servidor
   const isServerPaginated = typeof count === 'number';
 
-  // Total de registros (para UI)
   const totalRecords = useMemo(() => {
     if (isServerPaginated) return count;
     return rowsRaw.length;
@@ -57,19 +51,16 @@ const Auditoria = () => {
     return Math.max(1, Math.ceil(total / pageSize));
   }, [totalRecords, pageSize]);
 
-  // Paginación cliente: slice de rowsRaw
   const rows = useMemo(() => {
     if (isServerPaginated) return rowsRaw;
     const start = (page - 1) * pageSize;
     return rowsRaw.slice(start, start + pageSize);
   }, [isServerPaginated, rowsRaw, page, pageSize]);
 
-  // Mantener goToPage sincronizado
   useEffect(() => {
     setGoToPage(String(page));
   }, [page]);
 
-  // clamp page si cambia totalPages (sobre todo en paginación cliente)
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
     if (page < 1) setPage(1);
@@ -83,8 +74,6 @@ const Auditoria = () => {
         ordering
       };
 
-      // Si el backend soporta paginación (DRF), enviamos page/page_size
-      // Si no soporta, no rompe: normalmente ignora params extras o devuelve array.
       params.page = page;
       params.page_size = pageSize;
 
@@ -99,12 +88,10 @@ const Auditoria = () => {
 
       const data = await auditoriaService.getAll(params);
 
-      // DRF paginado: {count, next, previous, results}
       if (data && typeof data === 'object' && Array.isArray(data.results)) {
         setRowsRaw(data.results);
         setCount(typeof data.count === 'number' ? data.count : 0);
       } else if (Array.isArray(data)) {
-        // Sin paginación
         setRowsRaw(data);
         setCount(null);
       } else {
@@ -125,7 +112,6 @@ const Auditoria = () => {
     }
   };
 
-  // recargar cuando cambien filtros/página/order/pageSize
   useEffect(() => {
     fetchAuditoria();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -143,7 +129,6 @@ const Auditoria = () => {
     fechaHasta
   ]);
 
-  // reset page cuando cambian filtros (excepto page/order/pageSize)
   useEffect(() => {
     setPage(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -204,7 +189,6 @@ const Auditoria = () => {
 
   return (
     <div className="p-6 bg-gray-50/50 min-h-screen">
-      {/* Header */}
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
@@ -232,8 +216,6 @@ const Auditoria = () => {
           </div>
         </div>
       </div>
-
-      {/* Filtros */}
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-6">
         <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
           <div className="md:col-span-2">
@@ -355,8 +337,6 @@ const Auditoria = () => {
           </div>
         </div>
       </div>
-
-      {/* Tabla */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="overflow-auto min-h-[420px]">
           <table className="min-w-full text-left">
@@ -420,8 +400,6 @@ const Auditoria = () => {
             </tbody>
           </table>
         </div>
-
-        {/* ✅ Footer SIEMPRE (evita CLS) */}
         <div className="p-4 bg-gray-50 border-t flex flex-col md:flex-row md:items-center md:justify-between gap-3 min-h-[72px]">
           <div className="text-xs text-gray-500 font-bold">
             Página {page} de {totalPages} • Mostrando {rows.length} • Total {totalRecords}

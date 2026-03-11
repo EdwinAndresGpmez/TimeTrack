@@ -10,7 +10,6 @@ const ServiciosMedicos = ({ data }) => {
     const arr = data?.items;
     if (Array.isArray(arr) && arr.length) return arr;
 
-    // fallback si no viene desde CMS
     return [
       {
         title: "Hospitalistas",
@@ -69,7 +68,6 @@ const ServiciosMedicos = ({ data }) => {
                 style={{ borderRadius: "var(--portal-radius)" }}
               >
                 <div className="grid grid-cols-[140px_1fr] gap-5 p-6">
-                  {/* Imagen */}
                   <div className="h-24 w-32 overflow-hidden rounded-lg" style={{ backgroundColor: "var(--portal-surface)" }}>
                     {imgUrl ? (
                       <img
@@ -83,8 +81,6 @@ const ServiciosMedicos = ({ data }) => {
                       </div>
                     )}
                   </div>
-
-                  {/* Texto */}
                   <div className="min-w-0">
                     <h3 className="text-lg font-extrabold truncate" style={{ color: "var(--portal-text)" }}>
                       {it?.title || "Servicio"}
@@ -104,8 +100,6 @@ const ServiciosMedicos = ({ data }) => {
                         →
                       </span>
                     </div>
-
-                    {/* Debug útil (opcional) */}
                     {it?.image_asset_id && !it?.image_asset?.file_url && (
                       <p className="mt-2 text-[11px] text-amber-600">
                         Asset {it.image_asset_id} no encontrado o sin URL.
@@ -123,3 +117,4 @@ const ServiciosMedicos = ({ data }) => {
 };
 
 export default ServiciosMedicos;
+

@@ -236,3 +236,4 @@ const VideoGaleria = ({ data }) => {
 };
 
 export default VideoGaleria;
+

@@ -52,14 +52,10 @@ const Home = () => {
     });
   };
 
-  // --------------------------
-  // 1) Aplicar Theme a CSS vars
-  // --------------------------
   useEffect(() => {
     const root = document.documentElement;
     const t = theme || {};
 
-    // Variables CSS (usaremos estas en componentes con style / tailwind arbitrary values)
     root.style.setProperty("--portal-primary", t.primary_color || "#2f7ecb");
     root.style.setProperty("--portal-secondary", t.secondary_color || "#0f172a");
     root.style.setProperty("--portal-accent", t.accent_color || "#34d399");
@@ -69,9 +65,6 @@ const Home = () => {
     root.style.setProperty("--portal-radius", `${t.border_radius ?? 12}px`);
   }, [theme]);
 
-  // --------------------------
-  // 2) Cargar Theme + Page(Home)
-  // --------------------------
   useEffect(() => {
     let mounted = true;
 
@@ -128,15 +121,10 @@ const Home = () => {
   const portalWebCompletoEnabled =
     policy?.features?.portal_web_completo?.enabled ?? true;
 
-  // --------------------------
-  // 3) Render por tipo de sección
-  // --------------------------
   const renderSection = (section) => {
     const type = section?.type;
     const data = section?.data || {};
 
-    // Por ahora: pasamos data como prop.
-    // En el siguiente paso ajustamos cada componente para usarlo al 100%.
     switch (type) {
       case "hero":
         return <HeroMedical data={data} />;
@@ -169,7 +157,6 @@ const Home = () => {
           />
         );
 
-      // custom: por ahora no renderizamos html directo (seguridad). Luego lo hacemos con whitelist.
       case "custom":
         if (section?.is_active === false) return null;
         return (
@@ -190,9 +177,6 @@ const Home = () => {
     }
   };
 
-  // --------------------------
-  // 4) Fallback: layout estático
-  // --------------------------
   const renderStaticFallback = () => (
     <main>
       <HeroMedical />
@@ -265,3 +249,4 @@ const Home = () => {
 };
 
 export default Home;
+
